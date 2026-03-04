@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Configuración inicial{% endblock %}
+{% block auth_content %}
+<div class="min-vh-100 d-flex align-items-center justify-content-center" style="background: linear-gradient(135deg,#1a1a2e,#16213e);">
+  <div class="card shadow-lg" style="width:400px">
+    <div class="card-body p-4">
+      <div class="text-center mb-4">
+        <i class="bi bi-person-plus display-5 text-success"></i>
+        <h4 class="mt-2 fw-bold">Primera configuración</h4>
+        <p class="text-muted small">Creá tu cuenta de administrador para comenzar</p>
+      </div>
+      {% with messages = get_flashed_messages(with_categories=True) %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} py-2 small">{{ message }}</div>
+        {% endfor %}
+      {% endwith %}
+      <form method="POST">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Nombre de usuario</label>
+          <input type="text" name="username" class="form-control" value="admin" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Contraseña</label>
+          <input type="password" name="password" class="form-control" required minlength="4">
+        </div>
+        <div class="mb-4">
+          <label class="form-label fw-semibold">Confirmar contraseña</label>
+          <input type="password" name="confirm" class="form-control" required>
+        </div>
+        <button type="submit" class="btn btn-success w-100">
+          <i class="bi bi-check-circle"></i> Crear cuenta y comenzar
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

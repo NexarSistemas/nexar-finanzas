@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block title %}Categorías{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h5 class="fw-bold mb-0"><i class="bi bi-tags"></i> Categorías</h5>
+  <span class="text-muted small">
+    <i class="bi bi-info-circle"></i>
+    Clasificar gastos como <strong>necesario</strong> o <strong>prescindible</strong>
+    mejora el análisis en Reportes.
+  </span>
+</div>
+
+<!-- Leyenda -->
+<div class="d-flex gap-3 mb-3 small">
+  <span><span class="badge" style="background:#0d6efd;">Necesario</span>
+    Alquiler, servicios, salud, alimentación básica…</span>
+  <span><span class="badge" style="background:#fd7e14;color:white;">Prescindible</span>
+    Entretenimiento, suscripciones, salidas, ropa…</span>
+</div>
+
+<div class="row g-3">
+  <!-- ── GASTOS ─────────────────────────────────────────────────── -->
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center py-2">
+        <span class="fw-semibold text-danger">
+          <i class="bi bi-dash-circle"></i> Gastos
+        </span>
+        <span class="text-muted small">
+          {{ categories | selectattr('type','eq','expense') | list | length }} categorías
+        </span>
+      </div>
+      <div class="card-body p-0">
+        <ul class="list-group list-group-flush">
+          {% for cat in categories if cat.type == 'expense' %}
+          <li class="list-group-item py-2 px-3">
+            <div class="d-flex align-items-center gap-2">
+              <!-- Badge tipo -->
+              {% if cat.es_necesario %}
+                <span class="badge rounded-pill" style="background:#0d6efd;min-width:92px;">
+                  <i class="bi bi-check-circle-fill"></i> Necesario
+                </span>
+              {% else %}
+                <span class="badge rounded-pill" style="background:#fd7e14;color:white;min-width:92px;">
+                  <i class="bi bi-dash-circle-fill"></i> Prescindible
+                </span>
+              {% endif %}
+
+              <!-- Nombre -->
+              <span class="flex-grow-1">{{ cat.name }}</span>
+
+              <!-- Botones acción -->
+              <div class="d-flex gap-1">
+                <!-- Toggle necesario/prescindible -->
+                <form method="POST"
+                      action="{{ url_for('category_toggle_necesario', cat_id=cat.id) }}">
+                  <button class="btn btn-sm py-0 px-2"
+                          style="font-size:.72rem;
+                                 {% if cat.es_necesario %}
+                                   border:1px solid #fd7e14;color:#fd7e14;
+                                 {% else %}
+                                   border:1px solid #0d6efd;color:#0d6efd;
+                                 {% endif %}"
+                          title="{% if cat.es_necesario %}Marcar como prescindible{% else %}Marcar como necesario{% endif %}">
+                    {% if cat.es_necesario %}
+                      <i class="bi bi-toggle-on"></i> Marcar prescindible
+                    {% else %}
+                      <i class="bi bi-toggle-off"></i> Marcar necesario
+                    {% endif %}
+                  </button>
+                </form>
+                <!-- Eliminar -->
+                <form method="POST"
+                      action="{{ url_for('category_delete', cat_id=cat.id) }}"
+                      onsubmit="return confirm('¿Eliminar categoría {{ cat.name }}?')">
+                  <button class="btn btn-outline-danger btn-sm py-0 px-1"
+                          title="Eliminar">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+              </div>
+            </div>
+          </li>
+          {% else %}
+          <li class="list-group-item text-muted small py-3 text-center">
+            Sin categorías de gastos.
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="card-footer py-2">
+        <form method="POST" action="{{ url_for('category_new') }}">
+          <input type="hidden" name="type" value="expense">
+          <div class="d-flex gap-2 align-items-center flex-wrap">
+            <input type="text" name="name" class="form-control form-control-sm"
+                   style="max-width:200px;"
+                   placeholder="Nueva categoría..." required>
+            <select name="es_necesario" class="form-select form-select-sm"
+                    style="max-width:140px;">
+              <option value="1">✅ Necesario</option>
+              <option value="0">🟠 Prescindible</option>
+            </select>
+            <button type="submit" class="btn btn-danger btn-sm text-nowrap">
+              <i class="bi bi-plus"></i> Agregar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── INGRESOS + RESUMEN ─────────────────────────────────────── -->
+  <div class="col-lg-5">
+    <!-- Ingresos -->
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center py-2">
+        <span class="fw-semibold text-success">
+          <i class="bi bi-plus-circle"></i> Ingresos
+        </span>
+      </div>
+      <div class="card-body p-0">
+        <ul class="list-group list-group-flush">
+          {% for cat in categories if cat.type == 'income' %}
+          <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+            <span>{{ cat.name }}</span>
+            <form method="POST"
+                  action="{{ url_for('category_delete', cat_id=cat.id) }}"
+                  onsubmit="return confirm('¿Eliminar categoría {{ cat.name }}?')">
+              <button class="btn btn-outline-danger btn-sm py-0 px-1">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </li>
+          {% else %}
+          <li class="list-group-item text-muted small py-3 text-center">
+            Sin categorías de ingresos.
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="card-footer py-2">
+        <form method="POST" action="{{ url_for('category_new') }}"
+              class="d-flex gap-2">
+          <input type="hidden" name="type" value="income">
+          <input type="text" name="name" class="form-control form-control-sm"
+                 placeholder="Nueva categoría..." required>
+          <button type="submit" class="btn btn-success btn-sm text-nowrap">
+            <i class="bi bi-plus"></i> Agregar
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Resumen de clasificación -->
+    {% set expense_cats  = categories | selectattr('type','eq','expense') | list %}
+    {% set nec_count     = expense_cats | selectattr('es_necesario') | list | length %}
+    {% set pres_count    = expense_cats | rejectattr('es_necesario') | list | length %}
+    {% set total_expense = expense_cats | length %}
+    <div class="card border-info">
+      <div class="card-header py-2 fw-semibold text-info small">
+        <i class="bi bi-pie-chart"></i> Resumen de clasificación
+      </div>
+      <div class="card-body py-3">
+        <div class="d-flex justify-content-around text-center mb-3">
+          <div>
+            <div class="fw-bold fs-4 text-primary">{{ nec_count }}</div>
+            <div class="text-muted small">Necesarias</div>
+          </div>
+          <div>
+            <div class="fw-bold fs-4" style="color:#fd7e14;">{{ pres_count }}</div>
+            <div class="text-muted small">Prescindibles</div>
+          </div>
+          <div>
+            <div class="fw-bold fs-4 text-secondary">{{ total_expense }}</div>
+            <div class="text-muted small">Total</div>
+          </div>
+        </div>
+        {% if total_expense > 0 %}
+        <div class="progress" style="height:12px;border-radius:10px;">
+          <div class="progress-bar bg-primary" role="progressbar"
+               style="width:{{ (nec_count / total_expense * 100)|int }}%"
+               title="Necesarias">
+          </div>
+          <div class="progress-bar" role="progressbar"
+               style="width:{{ (pres_count / total_expense * 100)|int }}%;background:#fd7e14;"
+               title="Prescindibles">
+          </div>
+        </div>
+        <div class="d-flex justify-content-between mt-1" style="font-size:.72rem;color:#888;">
+          <span>Necesarias {{ (nec_count / total_expense * 100)|int }}%</span>
+          <span>Prescindibles {{ (pres_count / total_expense * 100)|int }}%</span>
+        </div>
+        {% endif %}
+        <div class="alert alert-info py-1 px-2 mt-3 mb-0 small">
+          <i class="bi bi-graph-up"></i>
+          Esta clasificación se usa en <a href="{{ url_for('reports') }}">Reportes</a>
+          para analizar tus gastos y generar recomendaciones.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

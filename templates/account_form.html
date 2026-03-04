@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}{{ action }} cuenta — Finanzas del Hogar{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center mb-3 gap-2">
+  <a href="{{ url_for('accounts') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <h5 class="fw-bold mb-0">{{ action }} cuenta</h5>
+</div>
+
+<div class="card" style="max-width:500px;">
+  <div class="card-body">
+    <form method="POST">
+      <div class="row g-3">
+
+        <div class="col-12">
+          <label class="form-label fw-semibold">Tipo de cuenta</label>
+          <select name="type" class="form-select" {% if account %}disabled{% endif %}>
+            <option value="bank"           {% if account and account.type=='bank' %}selected{% endif %}>🏦 Cuenta bancaria</option>
+            <option value="virtual_wallet" {% if account and account.type=='virtual_wallet' %}selected{% endif %}>📱 Billetera virtual</option>
+            <option value="cash"           {% if account and account.type=='cash' %}selected{% endif %}>💵 Efectivo</option>
+          </select>
+          {% if account %}<input type="hidden" name="type" value="{{ account.type }}">{% endif %}
+        </div>
+
+        <div class="col-12">
+          <label class="form-label fw-semibold">Nombre</label>
+          <input type="text" name="name" class="form-control"
+                 value="{{ account.name if account else '' }}"
+                 placeholder="Ej: Cuenta Nación, Mercado Pago..." required maxlength="100">
+        </div>
+
+        <div class="col-6">
+          <label class="form-label fw-semibold">Moneda</label>
+          <select name="currency" class="form-select">
+            <option value="ARS" {% if not account or account.currency=='ARS' %}selected{% endif %}>ARS</option>
+            <option value="USD" {% if account and account.currency=='USD' %}selected{% endif %}>USD</option>
+          </select>
+        </div>
+
+        {% if not account %}
+        <div class="col-6">
+          <label class="form-label fw-semibold">Saldo inicial</label>
+          <div class="input-group">
+            <span class="input-group-text">$</span>
+            <input type="number" name="initial_balance" step="0.01" min="0"
+                   class="form-control" value="0" placeholder="0.00">
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="col-12">
+          <label class="form-label fw-semibold">CBU / CVU <span class="text-muted">(opcional)</span></label>
+          <input type="text" name="cbu_cvu" class="form-control"
+                 value="{{ account.cbu_cvu if account else '' }}"
+                 placeholder="22 dígitos..." maxlength="22">
+        </div>
+
+        <div class="col-12">
+          <label class="form-label fw-semibold">Alias <span class="text-muted">(opcional)</span></label>
+          <input type="text" name="alias" class="form-control"
+                 value="{{ account.alias if account else '' }}"
+                 placeholder="mi.alias.banco" maxlength="50">
+        </div>
+
+        <div class="col-12 d-flex gap-2">
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg"></i> {{ action }}
+          </button>
+          <a href="{{ url_for('accounts') }}" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Transacciones — Finanzas del Hogar{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h5 class="fw-bold mb-0"><i class="bi bi-arrow-left-right"></i> Transacciones</h5>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('transaction_new') }}?type=income" class="btn btn-success btn-sm">
+      <i class="bi bi-plus"></i> Ingreso
+    </a>
+    <a href="{{ url_for('transaction_new') }}?type=expense" class="btn btn-danger btn-sm">
+      <i class="bi bi-plus"></i> Gasto
+    </a>
+  </div>
+</div>
+
+<!-- Filtros -->
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <form method="GET" class="row g-2 align-items-end">
+      <div class="col-6 col-md-2">
+        <label class="form-label mb-1 small">Tipo</label>
+        <select name="type" class="form-select form-select-sm">
+          <option value="">Todos</option>
+          <option value="income"   {% if filters.type=='income'  %}selected{% endif %}>Ingresos</option>
+          <option value="expense"  {% if filters.type=='expense' %}selected{% endif %}>Gastos</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-3">
+        <label class="form-label mb-1 small">Categoría</label>
+        <select name="category" class="form-select form-select-sm">
+          <option value="">Todas</option>
+          {% for cat in categories %}
+          <option value="{{ cat.id }}" {% if filters.category==cat.id|string %}selected{% endif %}>
+            {{ cat.name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label mb-1 small">Mes (YYYY-MM)</label>
+        <input type="month" name="month" class="form-control form-control-sm"
+               value="{{ filters.month }}">
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label mb-1 small">Moneda</label>
+        <select name="currency" class="form-select form-select-sm">
+          <option value="">Todas</option>
+          <option value="ARS" {% if filters.currency=='ARS' %}selected{% endif %}>ARS</option>
+          <option value="USD" {% if filters.currency=='USD' %}selected{% endif %}>USD</option>
+        </select>
+      </div>
+      <div class="col-12 col-md-3">
+        <button type="submit" class="btn btn-primary btn-sm">
+          <i class="bi bi-search"></i> Filtrar
+        </button>
+        <a href="{{ url_for('transactions') }}" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-x"></i> Limpiar
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Tabla -->
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Fecha</th>
+            <th>Tipo</th>
+            <th>Categoría</th>
+            <th>Monto</th>
+            <th>Método</th>
+            <th>Cuenta</th>
+            <th>Descripción</th>
+            <th class="text-center">Acc.</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for tx in transactions %}
+          <tr>
+            <td class="text-nowrap">{{ tx.date }}</td>
+            <td>
+              <span class="badge {% if tx.type=='income' %}badge-income{% else %}badge-expense{% endif %}">
+                {{ 'Ingreso' if tx.type=='income' else 'Gasto' }}
+              </span>
+            </td>
+            <td>{{ tx.category_name or '—' }}</td>
+            <td class="fw-semibold {% if tx.type=='income' %}text-success{% else %}text-danger{% endif %} text-nowrap">
+              {% if tx.type=='income' %}+{% else %}−{% endif %}
+              {{ tx.currency }} ${{ "{:,.2f}".format(tx.amount) }}
+            </td>
+            <td>
+              {% set methods = {'cash':'Efectivo','debit':'Débito','credit':'Crédito','transfer':'Transferencia','virtual':'Billetera'} %}
+              {{ methods.get(tx.method, tx.method or '—') }}
+            </td>
+            <td>{{ tx.account_name or '—' }}</td>
+            <td class="text-truncate" style="max-width:150px;">{{ tx.description or '' }}</td>
+            <td class="text-center text-nowrap">
+              <a href="{{ url_for('transaction_edit', tx_id=tx.id) }}"
+                 class="btn btn-outline-primary btn-sm py-0 px-1">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <form method="POST" action="{{ url_for('transaction_delete', tx_id=tx.id) }}"
+                    style="display:inline;"
+                    onsubmit="return confirm('¿Eliminar este movimiento?')">
+                <button class="btn btn-outline-danger btn-sm py-0 px-1">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" class="text-center text-muted py-4">Sin movimientos.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% if total_pages > 1 %}
+  <div class="card-footer py-2">
+    <nav>
+      <ul class="pagination pagination-sm mb-0 justify-content-center">
+        {% for p in range(1, total_pages + 1) %}
+        <li class="page-item {% if p==page %}active{% endif %}">
+          <a class="page-link" href="?page={{ p }}&type={{ filters.type }}&category={{ filters.category }}&month={{ filters.month }}&currency={{ filters.currency }}">
+            {{ p }}
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    </nav>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

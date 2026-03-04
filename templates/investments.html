@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+{% block title %}Inversiones — Finanzas del Hogar{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h5 class="fw-bold mb-0"><i class="bi bi-graph-up-arrow"></i> Inversiones</h5>
+  <div class="d-flex gap-2">
+    <form method="POST" action="{{ url_for('investments_actualizar_precios') }}" class="d-inline">
+      <button type="submit" class="btn btn-outline-info btn-sm">
+        <i class="bi bi-arrow-clockwise"></i> Actualizar precios
+      </button>
+    </form>
+    <a href="{{ url_for('investment_new') }}" class="btn btn-primary btn-sm">
+      <i class="bi bi-plus"></i> Registrar operación
+    </a>
+  </div>
+</div>
+
+<!-- ── Resumen global por moneda ────────────────────────────────────────────── -->
+{% for currency, totals in data.totals.items() %}
+<div class="row g-2 mb-3">
+  <div class="col-6 col-md-3">
+    <div class="card border-primary">
+      <div class="card-body py-2">
+        <div class="text-muted small">Total invertido ({{ currency }})</div>
+        <div class="fw-bold text-primary fs-6">${{ "{:,.2f}".format(totals.total_invertido or 0) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-success">
+      <div class="card-body py-2">
+        <div class="text-muted small">Total recuperado ({{ currency }})</div>
+        <div class="fw-bold text-success fs-6">${{ "{:,.2f}".format(totals.total_recuperado or 0) }}</div>
+      </div>
+    </div>
+  </div>
+  {% if totals.valor_mercado_total %}
+  <div class="col-6 col-md-3">
+    <div class="card border-warning">
+      <div class="card-body py-2">
+        <div class="text-muted small">Valor a mercado ({{ currency }})</div>
+        <div class="fw-bold text-warning fs-6">${{ "{:,.2f}".format(totals.valor_mercado_total) }}</div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  {% if totals.ganancia_total is not none %}
+  <div class="col-6 col-md-3">
+    {% set gt = totals.ganancia_total %}
+    <div class="card {% if gt >= 0 %}border-success{% else %}border-danger{% endif %}">
+      <div class="card-body py-2">
+        <div class="text-muted small">Ganancia / Pérdida ({{ currency }})</div>
+        <div class="fw-bold fs-6 {% if gt >= 0 %}text-success{% else %}text-danger{% endif %}">
+          {% if gt >= 0 %}▲{% else %}▼{% endif %}
+          ${{ "{:,.2f}".format(gt|abs) }}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endfor %}
+
+<!-- ── Posiciones abiertas con P&L ─────────────────────────────────────────── -->
+{% if data.positions %}
+<div class="card mb-3">
+  <div class="card-header py-2 d-flex justify-content-between align-items-center fw-semibold">
+    <span><i class="bi bi-wallet2"></i> Posiciones abiertas</span>
+    <span class="text-muted small fw-normal">
+      Los precios se obtienen de Yahoo Finance, BYMA y CAFCI (gratuitos)
+    </span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Activo</th>
+          <th>Tipo</th>
+          <th class="text-end">Cant.</th>
+          <th class="text-end">Costo prom.</th>
+          <th class="text-end">Invertido</th>
+          <th class="text-end">Precio actual</th>
+          <th class="text-end">Valor mercado</th>
+          <th class="text-end">Ganancia / Pérdida</th>
+          <th class="text-end">Rendim. %</th>
+          <th class="text-center">Actualizar</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pos in data.positions %}
+        <tr>
+          <td>
+            <span class="fw-semibold">{{ pos.asset_name }}</span>
+            {% if pos.ticker %}<br><span class="text-muted small">{{ pos.ticker }}</span>{% endif %}
+          </td>
+          <td><span class="badge bg-secondary">{{ pos.asset_type }}</span></td>
+          <td class="text-end">{{ "{:,.4f}".format(pos.net_qty) }}</td>
+          <td class="text-end">${{ "{:,.4f}".format(pos.costo_promedio) }}</td>
+          <td class="text-end">${{ "{:,.2f}".format(pos.costo_total) }}</td>
+          <td class="text-end">
+            {% if pos.precio_actual %}
+              <span class="fw-semibold">${{ "{:,.4f}".format(pos.precio_actual) }}</span>
+              {% if pos.variacion_dia is not none %}
+                <br>
+                <span class="small {% if pos.variacion_dia >= 0 %}text-success{% else %}text-danger{% endif %}">
+                  {% if pos.variacion_dia >= 0 %}▲{% else %}▼{% endif %}
+                  {{ "%.2f"|format(pos.variacion_dia|abs) }}% hoy
+                </span>
+              {% endif %}
+              {% if pos.precio_fuente %}
+                <br><span class="text-muted" style="font-size:.68rem;">{{ pos.precio_fuente }}</span>
+              {% endif %}
+            {% else %}
+              <span class="text-muted small">Sin cotización</span>
+              {% if pos.precio_fecha %}
+                <br><span class="text-muted" style="font-size:.65rem;">{{ pos.precio_fecha }}</span>
+              {% endif %}
+            {% endif %}
+          </td>
+          <td class="text-end fw-semibold">
+            {% if pos.valor_mercado is not none %}
+              ${{ "{:,.2f}".format(pos.valor_mercado) }}
+              <br><span class="text-muted small">{{ pos.currency }}</span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            {% if pos.ganancia_neta is not none %}
+              <span class="fw-bold {% if pos.ganancia_neta >= 0 %}text-success{% else %}text-danger{% endif %}">
+                {% if pos.ganancia_neta >= 0 %}▲{% else %}▼{% endif %}
+                ${{ "{:,.2f}".format(pos.ganancia_neta|abs) }}
+              </span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            {% if pos.rendimiento_pct is not none %}
+              <span class="badge {% if pos.rendimiento_pct >= 0 %}bg-success{% else %}bg-danger{% endif %}">
+                {% if pos.rendimiento_pct >= 0 %}+{% endif %}{{ "%.2f"|format(pos.rendimiento_pct) }}%
+              </span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            <form method="POST"
+                  action="{{ url_for('investments_actualizar_precio_uno', asset_name=pos.asset_name) }}">
+              <button type="submit" class="btn btn-outline-secondary btn-sm py-0 px-1" title="Actualizar precio">
+                <i class="bi bi-arrow-clockwise"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Leyenda de fuentes -->
+  <div class="card-footer py-2 small text-muted">
+    <i class="bi bi-info-circle"></i>
+    Fuentes de cotización:
+    <strong>Acciones/CEDEARs</strong> → Yahoo Finance &nbsp;|&nbsp;
+    <strong>Bonos</strong> → BYMA Open Data &nbsp;|&nbsp;
+    <strong>FCI</strong> → API CAFCI &nbsp;|&nbsp;
+    <strong>Cripto</strong> → CoinGecko &nbsp;|&nbsp;
+    Última actualización: {{ data.positions[0].precio_fecha if data.positions and data.positions[0].precio_fecha else 'Sin datos' }}
+  </div>
+</div>
+{% else %}
+<div class="alert alert-info">
+  <i class="bi bi-info-circle"></i>
+  No tenés posiciones abiertas.
+  <a href="{{ url_for('investment_new') }}">Registrá tu primera operación.</a>
+</div>
+{% endif %}
+
+<!-- ── Historial de operaciones ─────────────────────────────────────────────── -->
+<div class="card">
+  <div class="card-header py-2 fw-semibold">
+    <i class="bi bi-clock-history"></i> Historial de operaciones
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Fecha</th>
+          <th>Op.</th>
+          <th>Activo</th>
+          <th>Tipo</th>
+          <th class="text-end">Cant.</th>
+          <th class="text-end">Precio</th>
+          <th class="text-end">Total</th>
+          <th>Mon.</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for inv in data.history %}
+        <tr>
+          <td class="text-muted small">{{ inv.date }}</td>
+          <td>
+            <span class="badge {% if inv.transaction_type=='buy' %}bg-success{% else %}bg-danger{% endif %}">
+              {{ 'Compra' if inv.transaction_type=='buy' else 'Venta' }}
+            </span>
+          </td>
+          <td class="fw-semibold">
+            {{ inv.asset_name }}
+            {% if inv.ticker %}<br><span class="text-muted small">{{ inv.ticker }}</span>{% endif %}
+          </td>
+          <td><span class="text-muted small">{{ inv.asset_type }}</span></td>
+          <td class="text-end">{{ "{:,.4f}".format(inv.quantity) }}</td>
+          <td class="text-end">${{ "{:,.4f}".format(inv.price) }}</td>
+          <td class="text-end fw-semibold">${{ "{:,.2f}".format(inv.quantity * inv.price) }}</td>
+          <td>{{ inv.currency }}</td>
+          <td>
+            <form method="POST" action="{{ url_for('investment_delete', inv_id=inv.id) }}"
+                  onsubmit="return confirm('¿Eliminar esta operación?')">
+              <button class="btn btn-outline-danger btn-sm py-0 px-1">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9" class="text-muted text-center py-4">
+          Sin operaciones registradas.
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

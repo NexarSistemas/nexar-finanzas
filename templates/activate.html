@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+{% block title %}Activación — Finanzas del Hogar{% endblock %}
+{% block content %}
+
+<h5 class="fw-bold mb-3"><i class="bi bi-key"></i> Licencia del sistema</h5>
+
+{% if already_full %}
+
+<!-- ══ SISTEMA ACTIVADO ══════════════════════════════════════════════════════ -->
+<div class="row g-3 justify-content-center">
+  <div class="col-md-7">
+
+    {% if license_type == 'mensual' %}
+    <!-- Licencia mensual -->
+    <div class="card border-warning shadow-sm">
+      <div class="card-body text-center py-5">
+        <div class="mb-3">
+          <span style="font-size:4rem;">📅</span>
+        </div>
+        <h4 class="fw-bold text-warning">Licencia mensual activa</h4>
+        <p class="text-muted mb-4">Tu sistema está habilitado sin restricciones durante este período.</p>
+
+        <div class="row g-2 justify-content-center mb-4">
+          <div class="col-auto">
+            <div class="card bg-warning bg-opacity-10 border-warning px-4 py-3 text-center">
+              <div class="small text-muted mb-1">Tipo de licencia</div>
+              <div class="fw-bold text-warning fs-5">
+                <i class="bi bi-calendar-month"></i> Mensual
+              </div>
+            </div>
+          </div>
+          <div class="col-auto">
+            <div class="card bg-warning bg-opacity-10 border-warning px-4 py-3 text-center">
+              <div class="small text-muted mb-1">Fecha de activación</div>
+              <div class="fw-bold">
+                {{ activated_at[:10] | replace('-', '/') if activated_at else '—' }}
+              </div>
+            </div>
+          </div>
+          <div class="col-auto">
+            <div class="card border-danger px-4 py-3 text-center">
+              <div class="small text-muted mb-1">⚠️ Fecha de vencimiento</div>
+              <div class="fw-bold text-danger fs-5">
+                {% if license_expires %}
+                  {{ license_expires | replace('-', '/') }}
+                {% else %}
+                  —
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {% if license_expires %}
+        {% set hoy = today_date %}
+        <div class="alert alert-warning py-2 small mx-auto" style="max-width:420px;">
+          <i class="bi bi-info-circle"></i>
+          Al vencer la licencia, el sistema continuará funcionando en modo
+          <strong>DEMO</strong> con funcionalidad limitada.
+          Renová antes del <strong>{{ license_expires | replace('-', '/') }}</strong>
+          para mantener el acceso completo.
+        </div>
+        {% endif %}
+
+        <a href="{{ url_for('dashboard') }}" class="btn btn-warning mt-2">
+          <i class="bi bi-speedometer2"></i> Ir al panel principal
+        </a>
+      </div>
+    </div>
+
+    {% elif license_type in ('permanente', 'cliente', None, '') %}
+    <!-- Licencia permanente o cliente -->
+    <div class="card border-success shadow-sm">
+      <div class="card-body text-center py-5">
+        <div class="mb-3">
+          <span style="font-size:4rem;">🏆</span>
+        </div>
+        <h4 class="fw-bold text-success">Licencia completa activa</h4>
+        <p class="text-muted mb-4">Tu sistema está habilitado de forma permanente, sin restricciones ni vencimiento.</p>
+
+        <div class="row g-2 justify-content-center mb-4">
+          <div class="col-auto">
+            <div class="card bg-success bg-opacity-10 border-success px-4 py-3 text-center">
+              <div class="small text-muted mb-1">Tipo de licencia</div>
+              <div class="fw-bold text-success fs-5">
+                <i class="bi bi-infinity"></i>
+                {% if license_type == 'cliente' %}Licencia cliente{% else %}Permanente{% endif %}
+              </div>
+            </div>
+          </div>
+          <div class="col-auto">
+            <div class="card bg-success bg-opacity-10 border-success px-4 py-3 text-center">
+              <div class="small text-muted mb-1">Activado el</div>
+              <div class="fw-bold">
+                {{ activated_at[:10] | replace('-', '/') if activated_at else '—' }}
+              </div>
+            </div>
+          </div>
+          <div class="col-auto">
+            <div class="card bg-success bg-opacity-10 border-success px-4 py-3 text-center">
+              <div class="small text-muted mb-1">Vencimiento</div>
+              <div class="fw-bold text-success fs-5">
+                <i class="bi bi-infinity"></i> Sin vencimiento
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="badge bg-success py-2 px-4 fs-6 mb-3">
+          <i class="bi bi-patch-check-fill"></i> Acceso ilimitado garantizado
+        </div>
+        <br>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-success mt-2">
+          <i class="bi bi-speedometer2"></i> Ir al panel principal
+        </a>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+
+  <!-- Panel lateral: código y contacto -->
+  <div class="col-md-4">
+    <div class="card border-0 bg-light">
+      <div class="card-body small">
+        <h6 class="fw-semibold text-muted mb-2">
+          <i class="bi bi-card-checklist"></i> Detalle de licencia
+        </h6>
+        <table class="table table-sm table-borderless mb-3">
+          <tr>
+            <td class="text-muted">Estado</td>
+            <td><span class="badge bg-success">ACTIVA</span></td>
+          </tr>
+          <tr>
+            <td class="text-muted">Tipo</td>
+            <td class="fw-semibold">
+              {% if license_type == 'mensual' %}Mensual
+              {% elif license_type == 'cliente' %}Cliente
+              {% else %}Permanente{% endif %}
+            </td>
+          </tr>
+          {% if activation_code %}
+          <tr>
+            <td class="text-muted">Código</td>
+            <td class="font-monospace small text-muted">{{ activation_code }}</td>
+          </tr>
+          {% endif %}
+        </table>
+        <hr>
+        <p class="text-muted mb-1 fw-semibold">¿Necesitás renovar o contactar soporte?</p>
+        <p class="mb-0">
+          📱 <a href="https://wa.me/5492645858874">+54 9 264 585-8874</a><br>
+          ✉️ <a href="mailto:rolojnb@outlook.com.ar">rolojnb@outlook.com.ar</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% else %}
+
+<!-- ══ VERSIÓN DEMO — formulario de activación ═══════════════════════════════ -->
+<div class="row g-3">
+  <div class="col-md-6">
+
+    <!-- Card estado DEMO -->
+    <div class="card border-warning mb-3">
+      <div class="card-body text-center py-4">
+        <span style="font-size:3rem;">🔒</span>
+        <h5 class="fw-bold text-warning mt-2">Versión DEMO activa</h5>
+        <p class="text-muted small mb-3">Funcionalidad limitada. Activá para acceso completo sin restricciones.</p>
+        {% if demo_info.limits %}
+        <div class="table-responsive">
+          <table class="table table-sm mb-0">
+            <thead class="table-light"><tr><th>Recurso</th><th>Usado</th><th>Límite</th><th></th></tr></thead>
+            <tbody>
+              {% for resource, info in demo_info.limits.items() %}
+              {% set pct = (info.current / info.limit * 100) if info.limit else 0 %}
+              <tr>
+                <td>{{ resource | replace('_',' ') | title }}</td>
+                <td>{{ info.current }}</td>
+                <td>{{ info.limit }}</td>
+                <td style="width:80px">
+                  <div class="progress" style="height:6px;">
+                    <div class="progress-bar {% if pct >= 100 %}bg-danger{% elif pct >= 80 %}bg-warning{% else %}bg-success{% endif %}"
+                         style="width:{{ [pct,100]|min }}%"></div>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Formulario de activación -->
+    <div class="card">
+      <div class="card-header py-2 fw-semibold">
+        <i class="bi bi-unlock"></i> Ingresar código de activación
+      </div>
+      <div class="card-body">
+        <p class="text-muted small">
+          Ingresá el código que recibiste. La activación es completamente offline,
+          no requiere conexión a internet.
+        </p>
+        <form method="POST">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Código de activación</label>
+            <input type="text" name="code" class="form-control font-monospace text-uppercase text-center"
+                   placeholder="XXXX-XXXX-XXXX-XXXX"
+                   style="letter-spacing:.15em; font-size:1.15rem;"
+                   required maxlength="19"
+                   oninput="this.value=this.value.toUpperCase()">
+            <div class="form-text text-center">Formato: XXXX-XXXX-XXXX-XXXX</div>
+          </div>
+          <button type="submit" class="btn btn-success w-100 py-2">
+            <i class="bi bi-unlock-fill"></i> Activar sistema FULL
+          </button>
+        </form>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="col-md-5">
+
+    <!-- Beneficios de la versión completa -->
+    <div class="card border-success mb-3">
+      <div class="card-header py-2 fw-semibold text-success">
+        <i class="bi bi-star-fill"></i> Versión FULL — Sin restricciones
+      </div>
+      <div class="card-body small">
+        <ul class="mb-0 ps-3">
+          <li>Transacciones ilimitadas</li>
+          <li>Cuentas bancarias y billeteras ilimitadas</li>
+          <li>Inversiones ilimitadas con precios automáticos</li>
+          <li>Reportes y exportaciones sin límite</li>
+          <li>Copias de seguridad automáticas</li>
+          <li>Cotizaciones en tiempo real</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Tipos de licencia disponibles -->
+    <div class="card mb-3">
+      <div class="card-header py-2 fw-semibold">
+        <i class="bi bi-tags"></i> Tipos de licencia
+      </div>
+      <div class="card-body small p-0">
+        <table class="table table-sm mb-0">
+          <tbody>
+            <tr>
+              <td class="ps-3 py-2">
+                <i class="bi bi-calendar-month text-warning"></i> <strong>Mensual</strong><br>
+                <span class="text-muted">Válida un mes calendario</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="ps-3 py-2">
+                <i class="bi bi-infinity text-success"></i> <strong>Permanente</strong><br>
+                <span class="text-muted">Sin fecha de vencimiento</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="ps-3 py-2">
+                <i class="bi bi-person-check text-primary"></i> <strong>Cliente</strong><br>
+                <span class="text-muted">Licencia personalizada, sin vencimiento</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Contacto -->
+    <div class="card border-0 bg-light">
+      <div class="card-body small">
+        <p class="fw-semibold mb-1">Para adquirir tu licencia:</p>
+        <p class="mb-0">
+          📱 <a href="https://wa.me/5492645858874" target="_blank">+54 9 264 585-8874</a><br>
+          ✉️ <a href="mailto:rolojnb@outlook.com.ar">rolojnb@outlook.com.ar</a>
+        </p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{% endif %}
+{% endblock %}

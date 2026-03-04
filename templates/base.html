@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Finanzas del Hogar{% endblock %}</title>
+  <!-- Bootstrap 5 CDN liviano -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    body { background-color: #f8f9fa; font-size: 0.92rem; }
+    .navbar-brand { font-weight: 700; font-size: 1.1rem; }
+    .sidebar { min-height: calc(100vh - 56px); background: #212529; }
+    .sidebar .nav-link { color: #adb5bd; padding: .45rem 1rem; border-radius: 6px; margin: 2px 8px; }
+    .sidebar .nav-link:hover, .sidebar .nav-link.active { background: #0d6efd; color: #fff; }
+    .sidebar .nav-link i { width: 20px; }
+    .sidebar-section { color: #6c757d; font-size: .7rem; padding: .5rem 1rem .1rem; text-transform: uppercase; letter-spacing: .05em; }
+    .content-area { padding: 1.5rem; }
+    .demo-badge { background: #fd7e14; color: #fff; font-size:.7rem; padding: 2px 7px; border-radius: 20px; }
+    .full-badge  { background: #198754; color: #fff; font-size:.7rem; padding: 2px 7px; border-radius: 20px; }
+    .card-stat { border-left: 4px solid; }
+    .card-stat.income  { border-color: #198754; }
+    .card-stat.expense { border-color: #dc3545; }
+    .card-stat.balance { border-color: #0d6efd; }
+    .table th { font-weight: 600; font-size: .82rem; }
+    .badge-income  { background: #d1e7dd; color: #0a3622; }
+    .badge-expense { background: #f8d7da; color: #58151c; }
+    @media (max-width: 768px) {
+      .sidebar { min-height: auto; }
+      .content-area { padding: .8rem; }
+    }
+  </style>
+</head>
+<body>
+
+{% if session.user_id %}
+<!-- ── Navbar ──────────────────────────────────────────────── -->
+<nav class="navbar navbar-dark bg-dark py-1 px-3">
+  <span class="navbar-brand">
+    <i class="bi bi-cash-coin"></i> Finanzas del Hogar
+    {% if demo_info.is_demo %}
+      <span class="demo-badge ms-2">DEMO</span>
+    {% else %}
+      <span class="full-badge ms-2">FULL</span>
+    {% endif %}
+  </span>
+  <div class="d-flex gap-2 align-items-center">
+    <span class="text-muted small"><i class="bi bi-person-circle"></i> {{ session.username }}</span>
+    <a href="{{ url_for('logout') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-box-arrow-right"></i> Cerrar sesión
+    </a>
+    <a href="{{ url_for('shutdown') }}" class="btn btn-outline-danger btn-sm">
+      <i class="bi bi-power"></i> Cerrar app
+    </a>
+  </div>
+</nav>
+
+<div class="d-flex">
+  <!-- ── Sidebar ─────────────────────────────────────────── -->
+  <div class="sidebar d-none d-md-flex flex-column" style="width:210px; min-width:210px;">
+    <div class="pt-3 pb-2">
+      <div class="sidebar-section">Principal</div>
+      <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint=='dashboard' %}active{% endif %}">
+        <i class="bi bi-speedometer2"></i> Panel principal
+      </a>
+      <div class="sidebar-section mt-2">Movimientos</div>
+      <a href="{{ url_for('transactions') }}" class="nav-link {% if 'transaction' in request.endpoint %}active{% endif %}">
+        <i class="bi bi-arrow-left-right"></i> Transacciones
+      </a>
+      <a href="{{ url_for('transaction_new') }}?type=income" class="nav-link">
+        <i class="bi bi-plus-circle text-success"></i> Nuevo ingreso
+      </a>
+      <a href="{{ url_for('transaction_new') }}?type=expense" class="nav-link">
+        <i class="bi bi-dash-circle text-danger"></i> Nuevo gasto
+      </a>
+      <div class="sidebar-section mt-2">Finanzas</div>
+      <a href="{{ url_for('accounts') }}" class="nav-link {% if 'account' in request.endpoint %}active{% endif %}">
+        <i class="bi bi-bank"></i> Cuentas
+      </a>
+      <a href="{{ url_for('transfer') }}" class="nav-link {% if request.endpoint=='transfer' %}active{% endif %}">
+        <i class="bi bi-shuffle"></i> Transferencias
+      </a>
+      <a href="{{ url_for('budgets') }}" class="nav-link {% if request.endpoint=='budgets' %}active{% endif %}">
+        <i class="bi bi-pie-chart"></i> Presupuestos
+      </a>
+      <a href="{{ url_for('investments') }}" class="nav-link {% if 'investment' in request.endpoint %}active{% endif %}">
+        <i class="bi bi-graph-up-arrow"></i> Inversiones
+      </a>
+      <a href="{{ url_for('cotizaciones') }}" class="nav-link {% if request.endpoint=='cotizaciones' %}active{% endif %}">
+        <i class="bi bi-currency-exchange"></i> Cotizaciones
+      </a>
+      <a href="{{ url_for('reports') }}" class="nav-link {% if request.endpoint=='reports' %}active{% endif %}">
+        <i class="bi bi-bar-chart"></i> Reportes
+      </a>
+      <div class="sidebar-section mt-2">Sistema</div>
+      <a href="{{ url_for('categories') }}" class="nav-link {% if request.endpoint=='categories' %}active{% endif %}">
+        <i class="bi bi-tags"></i> Categorías
+      </a>
+      <a href="{{ url_for('settings') }}" class="nav-link {% if request.endpoint=='settings' %}active{% endif %}">
+        <i class="bi bi-gear"></i> Configuración
+      </a>
+      <a href="{{ url_for('activate') }}" class="nav-link {% if request.endpoint=='activate' %}active{% endif %}">
+        <i class="bi bi-key"></i> Activar sistema
+      </a>
+      <a href="{{ url_for('help_page') }}" class="nav-link {% if request.endpoint=='help_page' %}active{% endif %}">
+        <i class="bi bi-question-circle"></i> Ayuda
+      </a>
+      <a href="{{ url_for('about') }}" class="nav-link {% if request.endpoint=='about' %}active{% endif %}">
+        <i class="bi bi-info-circle"></i> Acerca de…
+      </a>
+    </div>
+  </div>
+
+  <!-- ── Contenido ───────────────────────────────────────── -->
+  <div class="content-area flex-grow-1">
+    {% with messages = get_flashed_messages(with_categories=True) %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show py-2" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endwith %}
+
+    {% if demo_info.is_demo %}
+    <div class="alert alert-warning py-1 px-3 small d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-info-circle"></i> Versión <strong>DEMO</strong> — funcionalidad limitada.</span>
+      <a href="{{ url_for('activate') }}" class="btn btn-warning btn-sm py-0">Activar</a>
+    </div>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+  </div>
+</div>
+
+{% else %}
+  {% block auth_content %}{% endblock %}
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+{% if session.user_id %}
+<!-- ══════════════════════════════════════════════════════════
+     CHAT FLOTANTE — Asistente financiero IA
+     ══════════════════════════════════════════════════════════ -->
+<style>
+  /* Botón flotante */
+  #ai-fab {
+    position: fixed; bottom: 24px; right: 24px; z-index: 1050;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: linear-gradient(135deg, #6f42c1, #0d6efd);
+    border: none; box-shadow: 0 4px 16px rgba(111,66,193,.45);
+    color: #fff; font-size: 1.4rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .2s, box-shadow .2s;
+  }
+  #ai-fab:hover { transform: scale(1.1); box-shadow: 0 6px 22px rgba(111,66,193,.6); }
+  #ai-fab .ai-fab-badge {
+    position: absolute; top: -3px; right: -3px;
+    width: 14px; height: 14px; background: #dc3545;
+    border-radius: 50%; display: none;
+  }
+
+  /* Panel del chat */
+  #ai-chat-panel {
+    position: fixed; bottom: 88px; right: 24px; z-index: 1049;
+    width: 360px; max-width: calc(100vw - 32px);
+    background: #fff; border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.18);
+    display: none; flex-direction: column;
+    overflow: hidden; font-size: .88rem;
+    transition: opacity .2s;
+  }
+
+  /* Header del chat */
+  #ai-chat-header {
+    background: linear-gradient(135deg, #6f42c1, #0d6efd);
+    color: #fff; padding: 12px 16px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  #ai-chat-header .ai-title { font-weight: 700; flex-grow: 1; }
+  #ai-chat-header .ai-subtitle { font-size: .73rem; opacity: .85; }
+  #ai-btn-close-chat {
+    background: none; border: none; color: #fff;
+    font-size: 1.1rem; cursor: pointer; padding: 0; opacity: .8;
+  }
+  #ai-btn-close-chat:hover { opacity: 1; }
+
+  /* Mensajes */
+  #ai-messages {
+    flex-grow: 1; overflow-y: auto; padding: 14px;
+    max-height: 340px; min-height: 120px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .ai-msg {
+    max-width: 88%; padding: 9px 13px; border-radius: 12px;
+    line-height: 1.45; word-break: break-word;
+  }
+  .ai-msg.user {
+    align-self: flex-end;
+    background: linear-gradient(135deg, #6f42c1, #0d6efd);
+    color: #fff; border-bottom-right-radius: 3px;
+  }
+  .ai-msg.bot {
+    align-self: flex-start;
+    background: #f3f0ff; color: #212529;
+    border-bottom-left-radius: 3px; border: 1px solid #e0d8f5;
+  }
+  .ai-msg.error { background: #fff3cd; color: #856404; border: 1px solid #ffc107; }
+  .ai-msg.typing { background: #f3f0ff; color: #6c757d; }
+
+  /* Sugerencias rápidas */
+  #ai-sugerencias {
+    padding: 0 14px 10px; display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .ai-sug-btn {
+    font-size: .74rem; padding: 4px 10px; border-radius: 20px;
+    border: 1px solid #d0c7f5; background: #f8f5ff; color: #6f42c1;
+    cursor: pointer; transition: background .15s;
+  }
+  .ai-sug-btn:hover { background: #e8e0ff; }
+
+  /* Input área */
+  #ai-chat-footer {
+    border-top: 1px solid #eee; padding: 10px 12px;
+    display: flex; gap: 8px; align-items: flex-end;
+  }
+  #ai-input {
+    flex-grow: 1; border: 1px solid #ddd; border-radius: 20px;
+    padding: 7px 14px; font-size: .85rem; resize: none;
+    max-height: 100px; outline: none;
+    transition: border-color .2s;
+  }
+  #ai-input:focus { border-color: #6f42c1; }
+  #ai-send-btn {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: linear-gradient(135deg, #6f42c1, #0d6efd);
+    border: none; color: #fff; font-size: .95rem;
+    cursor: pointer; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .15s;
+  }
+  #ai-send-btn:hover { transform: scale(1.08); }
+  #ai-send-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+  /* No configurada */
+  #ai-no-config {
+    padding: 20px 16px; text-align: center; color: #6c757d;
+    font-size: .82rem;
+  }
+
+  @media (max-width: 480px) {
+    #ai-chat-panel { width: calc(100vw - 32px); right: 16px; }
+    #ai-fab { bottom: 16px; right: 16px; }
+  }
+</style>
+
+<!-- Botón flotante -->
+<button id="ai-fab" title="Asistente financiero IA" onclick="toggleAiChat()">
+  <i class="bi bi-stars"></i>
+  <span class="ai-fab-badge" id="ai-fab-badge"></span>
+</button>
+
+<!-- Panel del chat -->
+<div id="ai-chat-panel">
+  <div id="ai-chat-header">
+    <i class="bi bi-stars" style="font-size:1.2rem;"></i>
+    <div>
+      <div class="ai-title">Asistente financiero</div>
+      <div class="ai-subtitle">Preguntame sobre tus finanzas</div>
+    </div>
+    <button id="ai-btn-close-chat" onclick="toggleAiChat()" title="Cerrar">
+      <i class="bi bi-x-lg"></i>
+    </button>
+  </div>
+
+  <!-- Vista: sin API key -->
+  <div id="ai-no-config" style="display:none;">
+    <i class="bi bi-stars" style="font-size:2rem; color:#d0c7f5;"></i>
+    <p class="mt-2 mb-2">El asistente de IA no está configurado.</p>
+    <a href="{{ url_for('settings') }}#ai" class="btn btn-sm"
+       style="background:#6f42c1;color:white;border-radius:20px;">
+      Configurar en Ajustes →
+    </a>
+  </div>
+
+  <!-- Vista: chat activo -->
+  <div id="ai-chat-body">
+    <div id="ai-messages"></div>
+
+    <!-- Sugerencias rápidas (solo al inicio) -->
+    <div id="ai-sugerencias">
+      <button class="ai-sug-btn" onclick="enviarSugerencia(this)">¿Cómo cerré el mes?</button>
+      <button class="ai-sug-btn" onclick="enviarSugerencia(this)">¿En qué gasté más?</button>
+      <button class="ai-sug-btn" onclick="enviarSugerencia(this)">¿Cómo van mis presupuestos?</button>
+      <button class="ai-sug-btn" onclick="enviarSugerencia(this)">¿Cuánto ahorré?</button>
+    </div>
+
+    <div id="ai-chat-footer">
+      <textarea id="ai-input" rows="1"
+                placeholder="Preguntame sobre tus finanzas..."
+                onkeydown="aiKeyDown(event)"></textarea>
+      <button id="ai-send-btn" onclick="enviarMensaje()" title="Enviar">
+        <i class="bi bi-send"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  let chatAbierto  = false;
+  let cargando     = false;
+  let historial    = [];          // [{role, content}]
+  let aiConfigurado = null;       // null = no chequeado todavía
+  let mensajesContador = 0;
+
+  window.toggleAiChat = function () {
+    chatAbierto = !chatAbierto;
+    const panel = document.getElementById('ai-chat-panel');
+    const badge = document.getElementById('ai-fab-badge');
+    panel.style.display = chatAbierto ? 'flex' : 'none';
+    badge.style.display = 'none';
+
+    if (chatAbierto && historial.length === 0) {
+      // Primer apertura: verificar si está configurado y mostrar bienvenida
+      verificarConfig();
+    }
+  };
+
+  function verificarConfig() {
+    // Enviar un ping silencioso — si responde api_key_not_set mostramos la pantalla de config
+    fetch('/ai/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({mensaje: '__ping__', historial: []})
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error === 'api_key_not_set') {
+        document.getElementById('ai-no-config').style.display = 'block';
+        document.getElementById('ai-chat-body').style.display = 'none';
+        aiConfigurado = false;
+      } else {
+        aiConfigurado = true;
+        document.getElementById('ai-no-config').style.display = 'none';
+        document.getElementById('ai-chat-body').style.display = 'flex';
+        document.getElementById('ai-chat-body').style.flexDirection = 'column';
+        mostrarMensaje('bot',
+          '¡Hola! 👋 Soy tu asistente financiero. Tengo acceso a todos tus datos — ' +
+          'transacciones, cuentas, presupuestos e inversiones de este mes. ' +
+          '¿En qué te puedo ayudar?'
+        );
+      }
+    })
+    .catch(() => {
+      aiConfigurado = true; // asumir configurado, el error real se mostrará al chatear
+    });
+  }
+
+  window.enviarSugerencia = function (btn) {
+    const texto = btn.textContent.trim();
+    document.getElementById('ai-sugerencias').style.display = 'none';
+    enviarTexto(texto);
+  };
+
+  window.aiKeyDown = function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      enviarMensaje();
+    }
+  };
+
+  window.enviarMensaje = function () {
+    const inp = document.getElementById('ai-input');
+    const texto = inp.value.trim();
+    if (!texto || cargando) return;
+    inp.value = '';
+    autoResizeTextarea(inp);
+    document.getElementById('ai-sugerencias').style.display = 'none';
+    enviarTexto(texto);
+  };
+
+  function enviarTexto(texto) {
+    if (texto === '__ping__') return;
+    mostrarMensaje('user', texto);
+    historial.push({role: 'user', content: texto});
+
+    cargando = true;
+    document.getElementById('ai-send-btn').disabled = true;
+
+    const typingId = 'typing_' + (++mensajesContador);
+    mostrarMensaje('typing', '<span class="spinner-border spinner-border-sm me-1"></span>Pensando...', typingId);
+    scrollMessages();
+
+    fetch('/ai/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({mensaje: texto, historial: historial.slice(-10)})
+    })
+    .then(r => r.json())
+    .then(data => {
+      eliminarMensaje(typingId);
+      if (data.error === 'api_key_not_set') {
+        mostrarMensaje('error', '⚙️ Configurá tu clave de API en <a href="{{ url_for("settings") }}" style="color:#856404;">Configuración → IA</a>');
+      } else if (data.error) {
+        mostrarMensaje('error', '⚠️ ' + data.error);
+      } else if (data.respuesta) {
+        mostrarMensaje('bot', formatearRespuesta(data.respuesta));
+        historial.push({role: 'assistant', content: data.respuesta});
+      }
+    })
+    .catch(() => {
+      eliminarMensaje(typingId);
+      mostrarMensaje('error', '⚠️ Error de conexión. Verificá tu internet.');
+    })
+    .finally(() => {
+      cargando = false;
+      document.getElementById('ai-send-btn').disabled = false;
+      document.getElementById('ai-input').focus();
+    });
+  }
+
+  function mostrarMensaje(tipo, html, id) {
+    const div = document.createElement('div');
+    div.className = 'ai-msg ' + tipo;
+    div.innerHTML = html;
+    if (id) div.id = id;
+    document.getElementById('ai-messages').appendChild(div);
+    scrollMessages();
+    return div;
+  }
+
+  function eliminarMensaje(id) {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+  }
+
+  function scrollMessages() {
+    const msgs = document.getElementById('ai-messages');
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  function formatearRespuesta(texto) {
+    // Convertir markdown básico a HTML
+    return texto
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/
+/g, '<br>');
+  }
+
+  // Auto-resize del textarea
+  document.addEventListener('DOMContentLoaded', function () {
+    const inp = document.getElementById('ai-input');
+    if (inp) {
+      inp.addEventListener('input', function () { autoResizeTextarea(this); });
+    }
+  });
+
+  function autoResizeTextarea(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+  }
+})();
+</script>
+{% endif %}
+<!-- FIN CHAT FLOTANTE ══════════════════════════════════════════════════════ -->
+
+</body>
+</html>

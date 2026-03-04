@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% block title %}Panel principal — Finanzas del Hogar{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h5 class="fw-bold mb-0"><i class="bi bi-speedometer2"></i> Panel principal</h5>
+  <span class="text-muted small">
+    {{ today.strftime('%A %d/%m/%Y') | capitalize }}
+    {% if data.usd %}
+      &nbsp;|&nbsp; <i class="bi bi-currency-dollar"></i>
+      Oficial ${{ "%.2f"|format(data.usd.oficial or 0) }}
+      · Blue ${{ "%.2f"|format(data.usd.blue or 0) }}
+      <a href="{{ url_for('usd_refresh') }}" class="text-muted ms-1" title="Actualizar cotización">
+        <i class="bi bi-arrow-clockwise"></i>
+      </a>
+    {% else %}
+      &nbsp;<a href="{{ url_for('usd_refresh') }}" class="btn btn-outline-secondary btn-sm py-0">
+        <i class="bi bi-currency-dollar"></i> Ver cotización USD
+      </a>
+    {% endif %}
+  </span>
+</div>
+
+<!-- ── Tarjetas resumen del mes ──────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card card-stat income h-100">
+      <div class="card-body py-3">
+        <div class="text-muted small">Ingresos del mes (ARS)</div>
+        <div class="fw-bold fs-5 text-success">
+          ${{ "{:,.0f}".format(data.month_totals.get('income_ARS', 0)) }}
+        </div>
+        {% if data.month_totals.get('income_USD') %}
+        <div class="text-muted small">USD {{ "{:,.2f}".format(data.month_totals.get('income_USD', 0)) }}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card card-stat expense h-100">
+      <div class="card-body py-3">
+        <div class="text-muted small">Gastos del mes (ARS)</div>
+        <div class="fw-bold fs-5 text-danger">
+          ${{ "{:,.0f}".format(data.month_totals.get('expense_ARS', 0)) }}
+        </div>
+        {% if data.month_totals.get('expense_USD') %}
+        <div class="text-muted small">USD {{ "{:,.2f}".format(data.month_totals.get('expense_USD', 0)) }}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card card-stat balance h-100">
+      <div class="card-body py-3">
+        <div class="text-muted small d-flex align-items-center gap-1">
+          Flujo del mes (ARS)
+          <span tabindex="0" data-bs-toggle="tooltip"
+                title="Ingresos menos Gastos registrados este mes. No incluye el saldo inicial de las cuentas."
+                style="cursor:help;">
+            <i class="bi bi-info-circle" style="font-size:.8rem;"></i>
+          </span>
+        </div>
+        {% set bal = data.month_totals.get('income_ARS',0) - data.month_totals.get('expense_ARS',0) %}
+        <div class="fw-bold fs-5 {% if bal >= 0 %}text-primary{% else %}text-danger{% endif %}">
+          ${{ "{:,.0f}".format(bal) }}
+        </div>
+        <div class="text-muted" style="font-size:.7rem;">
+          ingresos − gastos del período
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card h-100">
+      <div class="card-body py-3">
+        <div class="text-muted small">Patrimonio total (ARS)</div>
+        {% set total_ars = data.accounts | selectattr('currency','eq','ARS') | sum(attribute='current_balance') %}
+        <div class="fw-bold fs-5 text-dark">
+          ${{ "{:,.0f}".format(total_ars) }}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+
+  <!-- Cuentas -->
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center py-2">
+        <span class="fw-semibold"><i class="bi bi-bank"></i> Mis cuentas</span>
+        <a href="{{ url_for('accounts') }}" class="btn btn-outline-primary btn-sm py-0">Ver todas</a>
+      </div>
+      <div class="card-body p-0">
+        <div class="list-group list-group-flush">
+          {% for acc in data.accounts %}
+          <div class="list-group-item d-flex justify-content-between py-2 px-3">
+            <div>
+              <div class="fw-semibold small">{{ acc.name }}</div>
+              <div class="text-muted" style="font-size:.75rem;">
+                {% if acc.type == 'bank' %}<i class="bi bi-bank2"></i> Banco
+                {% elif acc.type == 'virtual_wallet' %}<i class="bi bi-wallet2"></i> Billetera
+                {% else %}<i class="bi bi-cash"></i> Efectivo{% endif %}
+                · {{ acc.currency }}
+              </div>
+            </div>
+            <div class="text-end">
+              <span class="fw-bold {% if acc.current_balance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                ${{ "{:,.2f}".format(acc.current_balance) }}
+              </span>
+            </div>
+          </div>
+          {% else %}
+          <div class="list-group-item text-muted small py-3 text-center">
+            Sin cuentas. <a href="{{ url_for('account_new') }}">Agregar</a>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alertas de presupuesto -->
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center py-2">
+        <span class="fw-semibold"><i class="bi bi-pie-chart"></i> Presupuestos</span>
+        <a href="{{ url_for('budgets') }}" class="btn btn-outline-primary btn-sm py-0">Ver</a>
+      </div>
+      <div class="card-body p-0">
+        {% if budget_status %}
+        <div class="list-group list-group-flush">
+          {% for b in budget_status %}
+          <div class="list-group-item py-2 px-3">
+            <div class="d-flex justify-content-between small mb-1">
+              <span class="fw-semibold">{{ b.category }}</span>
+              <span>{{ b.status_label }}</span>
+            </div>
+            <div class="progress" style="height:6px;">
+              <div class="progress-bar bg-{{ b.status if b.status != 'ok' else 'success' }}"
+                   style="width:{{ [b.percent, 100]|min }}%"></div>
+            </div>
+            <div class="d-flex justify-content-between text-muted" style="font-size:.72rem;margin-top:2px;">
+              <span>${{ "{:,.0f}".format(b.spent) }} / ${{ "{:,.0f}".format(b.budget) }}</span>
+              <span>{{ b.percent }}%</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="p-3 text-muted small text-center">
+          Sin presupuestos definidos.<br>
+          <a href="{{ url_for('budgets') }}">Configurar presupuestos</a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Últimas transacciones -->
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center py-2">
+        <span class="fw-semibold"><i class="bi bi-clock-history"></i> Últimos movimientos</span>
+        <a href="{{ url_for('transactions') }}" class="btn btn-outline-primary btn-sm py-0">Ver todos</a>
+      </div>
+      <div class="card-body p-0">
+        <div class="list-group list-group-flush">
+          {% for tx in data.recent_transactions %}
+          <div class="list-group-item d-flex justify-content-between align-items-start py-2 px-3">
+            <div>
+              <div class="small fw-semibold">{{ tx.category_name or 'Sin categoría' }}</div>
+              <div class="text-muted" style="font-size:.72rem;">
+                {{ tx.date }} · {{ tx.account_name or '—' }}
+              </div>
+              {% if tx.description %}
+              <div class="text-muted" style="font-size:.72rem;">{{ tx.description[:30] }}</div>
+              {% endif %}
+            </div>
+            <span class="badge {% if tx.type=='income' %}badge-income{% else %}badge-expense{% endif %} ms-2">
+              {% if tx.type=='income' %}+{% else %}−{% endif %}
+              ${{ "{:,.0f}".format(tx.amount) }}
+            </span>
+          </div>
+          {% else %}
+          <div class="list-group-item text-muted small py-3 text-center">
+            Sin movimientos aún.
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Acciones rápidas -->
+<div class="mt-3 d-flex gap-2 flex-wrap">
+  <a href="{{ url_for('transaction_new') }}?type=income" class="btn btn-success btn-sm">
+    <i class="bi bi-plus-circle"></i> Nuevo ingreso
+  </a>
+  <a href="{{ url_for('transaction_new') }}?type=expense" class="btn btn-danger btn-sm">
+    <i class="bi bi-dash-circle"></i> Nuevo gasto
+  </a>
+  <a href="{{ url_for('transfer') }}" class="btn btn-outline-primary btn-sm">
+    <i class="bi bi-shuffle"></i> Transferir entre cuentas
+  </a>
+  <a href="{{ url_for('reports') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-bar-chart"></i> Ver reportes
+  </a>
+</div>
+
+{% endblock %}

@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+{% block title %}Registrar inversión — Finanzas del Hogar{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center mb-3 gap-2">
+  <a href="{{ url_for('investments') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <h5 class="fw-bold mb-0"><i class="bi bi-graph-up-arrow"></i> Registrar operación de inversión</h5>
+</div>
+
+<div class="row g-3">
+<div class="col-lg-7">
+<div class="card">
+  <div class="card-body">
+    <form method="POST">
+      <div class="row g-3">
+
+        <div class="col-6">
+          <label class="form-label fw-semibold">Tipo de operación</label>
+          <select name="transaction_type" class="form-select" required>
+            <option value="buy">📈 Compra</option>
+            <option value="sell">📉 Venta</option>
+          </select>
+        </div>
+
+        <div class="col-6">
+          <label class="form-label fw-semibold">Tipo de activo</label>
+          <select name="asset_type" id="asset_type" class="form-select" required onchange="actualizarAyudaTicker()">
+            <option value="Acciones">Acciones</option>
+            <option value="CEDEAR">CEDEAR</option>
+            <option value="Bonos">Bonos / Obligaciones</option>
+            <option value="FCI">FCI (Fondo Común de Inversión)</option>
+            <option value="Cripto">Criptomonedas</option>
+            <option value="Plazo fijo">Plazo fijo</option>
+            <option value="Otro">Otro</option>
+          </select>
+        </div>
+
+        <div class="col-8">
+          <label class="form-label fw-semibold">Nombre del activo</label>
+          <input type="text" name="asset_name" id="asset_name" class="form-control"
+                 placeholder="Ej: YPF, Galicia, Merval..." required maxlength="80">
+          <div class="form-text" id="hint_nombre"></div>
+        </div>
+
+        <div class="col-4">
+          <label class="form-label fw-semibold">
+            Código / Ticker
+            <span class="text-muted fw-normal small">(para cotización)</span>
+          </label>
+          <input type="text" name="ticker" id="ticker" class="form-control text-uppercase"
+                 placeholder="Ej: GGAL.BA" maxlength="20">
+          <div class="form-text" id="hint_ticker"></div>
+        </div>
+
+        <div class="col-6">
+          <label class="form-label fw-semibold">Cantidad</label>
+          <input type="number" name="quantity" step="0.0001" min="0.0001"
+                 class="form-control" placeholder="0.0000" required>
+        </div>
+
+        <div class="col-6">
+          <label class="form-label fw-semibold">Precio unitario</label>
+          <div class="input-group">
+            <span class="input-group-text">$</span>
+            <input type="number" name="price" step="0.0001" min="0.0001"
+                   class="form-control" placeholder="0.0000" required>
+          </div>
+        </div>
+
+        <div class="col-6">
+          <label class="form-label fw-semibold">Moneda</label>
+          <select name="currency" class="form-select">
+            <option value="ARS">ARS — Peso argentino</option>
+            <option value="USD">USD — Dólar</option>
+          </select>
+        </div>
+
+        <div class="col-6">
+          <label class="form-label fw-semibold">Fecha</label>
+          <input type="date" name="date" class="form-control" value="{{ today }}" required>
+        </div>
+
+        <div class="col-12">
+          <label class="form-label fw-semibold">Notas <span class="text-muted">(opcional)</span></label>
+          <input type="text" name="notes" class="form-control"
+                 placeholder="Observaciones..." maxlength="200">
+        </div>
+
+        <div class="col-12 d-flex gap-2">
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg"></i> Registrar operación
+          </button>
+          <a href="{{ url_for('investments') }}" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+
+      </div>
+    </form>
+  </div>
+</div>
+</div>
+
+<!-- Panel de ayuda por tipo -->
+<div class="col-lg-5">
+  <div class="card border-info">
+    <div class="card-header py-2 text-info fw-semibold">
+      <i class="bi bi-info-circle"></i> ¿Cómo completar el ticker?
+    </div>
+    <div class="card-body small" id="panel_ayuda">
+      <p class="text-muted">Seleccioná un tipo de activo para ver los ejemplos.</p>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+const AYUDA = {
+  'Acciones': {
+    titulo: 'Acciones',
+    fuente: 'Yahoo Finance',
+    ejemplos: [
+      ['YPF (local)',    'YPF.BA',  'YPF S.A.'],
+      ['Galicia (local)','GGAL.BA', 'Grupo Financiero Galicia'],
+      ['Apple (USA)',    'AAPL',    'Apple Inc.'],
+      ['Tesla (USA)',    'TSLA',    'Tesla Inc.'],
+      ['Amazon (USA)',   'AMZN',    'Amazon.com Inc.'],
+    ],
+    nota: 'Para acciones argentinas agregá <strong>.BA</strong> al ticker. Para USA usá el ticker solo.'
+  },
+  'CEDEAR': {
+    titulo: 'CEDEARs',
+    fuente: 'Yahoo Finance',
+    ejemplos: [
+      ['Apple CEDEAR',  'AAPL.BA',  'Apple via BCBA'],
+      ['Amazon CEDEAR', 'AMZN.BA',  'Amazon via BCBA'],
+      ['Google CEDEAR', 'GOOGL.BA', 'Alphabet via BCBA'],
+      ['Meta CEDEAR',   'META.BA',  'Meta via BCBA'],
+      ['NVIDIA CEDEAR', 'NVDA.BA',  'NVIDIA via BCBA'],
+    ],
+    nota: 'Los CEDEARs siempre usan sufijo <strong>.BA</strong> en Yahoo Finance.'
+  },
+  'Bonos': {
+    titulo: 'Bonos y obligaciones',
+    fuente: 'BYMA Open Data',
+    ejemplos: [
+      ['Bono AL30',  'AL30',  'Argentina 2030'],
+      ['Bono GD30',  'GD30',  'Global 2030'],
+      ['Bono AL35',  'AL35',  'Argentina 2035'],
+      ['Bono T2X4',  'T2X4',  'Ajustable CER'],
+      ['Bono DICP',  'DICP',  'Discount Pesos'],
+    ],
+    nota: 'Usá el código de BYMA exactamente como aparece en el mercado (sin espacios).'
+  },
+  'FCI': {
+    titulo: 'Fondos Comunes de Inversión',
+    fuente: 'API CAFCI (oficial)',
+    ejemplos: [
+      ['Mercado fondo liquidez', '', 'Mercado Fondo Liquidez'],
+      ['Balanz Capital',        '', 'Balanz Capital Renta Fija'],
+      ['Consultatio',           '', 'Consultatio Renta Fija'],
+      ['Santander',             '', 'Santander Renta'],
+      ['Galicia',               '', 'Galicia Ahorro Pesos'],
+    ],
+    nota: 'Para FCI <strong>no es necesario el ticker</strong>: escribí el nombre completo o parcial del fondo en "Nombre del activo". El sistema lo busca automáticamente en el registro CAFCI.'
+  },
+  'Cripto': {
+    titulo: 'Criptomonedas',
+    fuente: 'CoinGecko',
+    ejemplos: [
+      ['Bitcoin',  'BTC',  'Bitcoin'],
+      ['Ethereum', 'ETH',  'Ethereum'],
+      ['USDT',     'USDT', 'Tether'],
+      ['BNB',      'BNB',  'BNB'],
+      ['XRP',      'XRP',  'Ripple'],
+      ['Solana',   'SOL',  'Solana'],
+    ],
+    nota: 'Usá el símbolo estándar (BTC, ETH, SOL, etc.) en el campo ticker o en el nombre.'
+  },
+  'Plazo fijo': {
+    titulo: 'Plazo fijo',
+    fuente: '—',
+    ejemplos: [],
+    nota: 'Los plazos fijos <strong>no tienen cotización de mercado</strong>. Se registra el capital y la tasa se puede anotar en las notas. No se realiza actualización automática.'
+  },
+  'Otro': {
+    titulo: 'Otro activo',
+    fuente: 'Yahoo Finance (intento)',
+    ejemplos: [],
+    nota: 'Se intentará buscar la cotización con el ticker ingresado en Yahoo Finance. Si no se encuentra, la posición quedará sin precio de mercado.'
+  }
+};
+
+function actualizarAyudaTicker() {
+  const tipo = document.getElementById('asset_type').value;
+  const panel = document.getElementById('panel_ayuda');
+  const hintTicker = document.getElementById('hint_ticker');
+  const hintNombre = document.getElementById('hint_nombre');
+  const info = AYUDA[tipo] || {};
+
+  // Panel de ayuda
+  let html = `<p class="mb-1"><strong>Fuente:</strong> ${info.fuente || '—'}</p>`;
+  if (info.ejemplos && info.ejemplos.length) {
+    html += `<table class="table table-sm table-borderless mb-1">
+      <thead><tr><th class="py-0">Activo</th><th class="py-0">Ticker</th></tr></thead><tbody>`;
+    info.ejemplos.forEach(([nombre, ticker, full]) => {
+      html += `<tr><td class="py-0 text-muted">${nombre}</td>
+               <td class="py-0 fw-semibold">${ticker || '<em class="text-muted">—</em>'}</td></tr>`;
+    });
+    html += '</tbody></table>';
+  }
+  if (info.nota) html += `<p class="mb-0 text-muted">${info.nota}</p>`;
+  panel.innerHTML = html;
+
+  // Hints inline
+  if (tipo === 'FCI') {
+    hintTicker.textContent = 'No requerido para FCI.';
+    hintNombre.textContent = 'Escribí el nombre del fondo (se buscará en CAFCI).';
+  } else if (tipo === 'Cripto') {
+    hintTicker.textContent = 'Ej: BTC, ETH, SOL, ADA';
+    hintNombre.textContent = '';
+  } else if (tipo === 'Bonos') {
+    hintTicker.textContent = 'Código BYMA: AL30, GD30, T2X4...';
+    hintNombre.textContent = '';
+  } else if (tipo === 'Plazo fijo') {
+    hintTicker.textContent = 'No aplica para plazo fijo.';
+    hintNombre.textContent = 'Ej: Plazo Fijo Santander 30d';
+  } else {
+    hintTicker.textContent = tipo === 'CEDEAR' ? 'Ej: AAPL.BA, AMZN.BA' : 'Ej: GGAL.BA (local) o AAPL (USA)';
+    hintNombre.textContent = '';
+  }
+}
+
+// Inicializar al cargar
+actualizarAyudaTicker();
+</script>
+
+{% endblock %}

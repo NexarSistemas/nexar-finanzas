@@ -1,0 +1,527 @@
+{% extends "base.html" %}
+{% block title %}Reportes — Finanzas del Hogar{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h5 class="fw-bold mb-0"><i class="bi bi-bar-chart"></i> Reportes</h5>
+</div>
+
+<!-- Selector de modo -->
+<div class="btn-group mb-3">
+  <a href="{{ url_for('reports', mode='monthly', year=year, month=month) }}"
+     class="btn btn-outline-primary btn-sm {% if mode=='monthly' %}active{% endif %}">
+    <i class="bi bi-calendar-month"></i> Mensual
+  </a>
+  <a href="{{ url_for('reports', mode='annual', year=year) }}"
+     class="btn btn-outline-primary btn-sm {% if mode=='annual' %}active{% endif %}">
+    <i class="bi bi-calendar-year"></i> Anual
+  </a>
+  <a href="{{ url_for('reports', mode='weekly') }}"
+     class="btn btn-outline-primary btn-sm {% if mode=='weekly' %}active{% endif %}">
+    <i class="bi bi-calendar-week"></i> Semanal
+  </a>
+</div>
+
+<!-- Selector período -->
+{% if mode != 'weekly' %}
+<form method="GET" class="d-flex gap-2 align-items-center mb-3 flex-wrap">
+  <input type="hidden" name="mode" value="{{ mode }}">
+  {% if mode == 'monthly' %}
+  <select name="month" class="form-select form-select-sm" style="width:120px;">
+    {% for m, mn in [(1,'Enero'),(2,'Febrero'),(3,'Marzo'),(4,'Abril'),(5,'Mayo'),(6,'Junio'),
+                     (7,'Julio'),(8,'Agosto'),(9,'Septiembre'),(10,'Octubre'),(11,'Noviembre'),(12,'Diciembre')] %}
+    <option value="{{ m }}" {% if m==month %}selected{% endif %}>{{ mn }}</option>
+    {% endfor %}
+  </select>
+  {% endif %}
+  <input type="number" name="year" class="form-control form-control-sm" style="width:90px;"
+         value="{{ year }}" min="2020" max="2030">
+  <button type="submit" class="btn btn-outline-primary btn-sm">
+    <i class="bi bi-search"></i> Ver
+  </button>
+  <a href="{{ url_for('export_csv', year=year, month=month if mode=='monthly' else '') }}"
+     class="btn btn-outline-success btn-sm">
+    <i class="bi bi-download"></i> Exportar CSV
+  </a>
+</form>
+{% endif %}
+
+<!-- ═══════════════════════════════════════════════════════════════
+     REPORTE MENSUAL
+═══════════════════════════════════════════════════════════════ -->
+{% if mode == 'monthly' and data.monthly %}
+  {% set d = data.monthly %}
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card card-stat income">
+        <div class="card-body">
+          <div class="text-muted small">Total ingresos ARS</div>
+          <div class="fw-bold fs-4 text-success">${{ "{:,.2f}".format(d.income.get('ARS',0)) }}</div>
+          {% if d.income.get('USD') %}
+          <div class="text-muted small">USD ${{ "{:,.2f}".format(d.income.get('USD',0)) }}</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card card-stat expense">
+        <div class="card-body">
+          <div class="text-muted small">Total gastos ARS</div>
+          <div class="fw-bold fs-4 text-danger">${{ "{:,.2f}".format(d.expense.get('ARS',0)) }}</div>
+          {% if d.expense.get('USD') %}
+          <div class="text-muted small">USD ${{ "{:,.2f}".format(d.expense.get('USD',0)) }}</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card card-stat balance">
+        <div class="card-body">
+          <div class="text-muted small d-flex align-items-center gap-1">
+          Flujo del mes (ARS)
+          <span tabindex="0" data-bs-toggle="tooltip"
+                title="Ingresos menos Gastos del mes. No incluye saldo inicial de cuentas."
+                style="cursor:help;">
+            <i class="bi bi-info-circle" style="font-size:.78rem;"></i>
+          </span>
+        </div>
+          {% set bal = d.balance.get('ARS', 0) %}
+          <div class="fw-bold fs-4 {% if bal >= 0 %}text-primary{% else %}text-danger{% endif %}">
+            ${{ "{:,.2f}".format(bal) }}
+          </div>
+          <div class="text-muted" style="font-size:.7rem;">ingresos − gastos</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <!-- Gráfico de torta (Chart.js — sin dependencias) -->
+    <div class="col-md-6">
+      <div class="card h-100">
+        <div class="card-header py-2 fw-semibold">Gastos por categoría</div>
+        <div class="card-body p-2 d-flex align-items-center justify-content-center">
+          <div style="position:relative;height:280px;width:100%;">
+            <canvas id="chartPie"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top categorías de gasto -->
+    <div class="col-md-6">
+      <div class="card h-100">
+        <div class="card-header py-2 fw-semibold">Top gastos por categoría (ARS)</div>
+        <div class="card-body p-0">
+          <div class="list-group list-group-flush">
+            {% for item in d.top_expenses %}
+            <div class="list-group-item d-flex justify-content-between py-2">
+              <span class="small">{{ item.name or 'Sin categoría' }}</span>
+              <span class="fw-semibold text-danger">${{ "{:,.0f}".format(item.total) }}</span>
+            </div>
+            {% else %}
+            <div class="list-group-item text-muted text-center py-3">Sin gastos en el período.</div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       ANÁLISIS NECESARIO vs PRESCINDIBLE
+  ══════════════════════════════════════════════════════════════ -->
+  {% if analisis %}
+  <div class="card mb-3 border-0 shadow-sm">
+    <div class="card-header py-2 fw-semibold d-flex align-items-center gap-2"
+         style="background:linear-gradient(135deg,#f3f0ff,#e8f4fe);">
+      <i class="bi bi-pie-chart-fill" style="color:#6f42c1;"></i>
+      Análisis de gastos: Necesarios vs Prescindibles
+    </div>
+    <div class="card-body">
+
+      {% if analisis.total_gral == 0 %}
+        <p class="text-muted text-center py-3">Sin gastos registrados para este período.</p>
+      {% else %}
+
+      <!-- Tarjetas resumen -->
+      <div class="row g-3 mb-3">
+        <div class="col-md-4">
+          <div class="card border-primary h-100">
+            <div class="card-body text-center py-3">
+              <div class="fw-bold fs-3 text-primary">
+                ${{ "{:,.0f}".format(analisis.total_necesario) }}
+              </div>
+              <div class="text-muted small">Gastos necesarios</div>
+              <div class="fw-semibold text-primary">{{ analisis.pct_necesario }}%</div>
+              {% if analisis.variacion_nec is not none %}
+                <div class="small mt-1
+                  {% if analisis.variacion_nec > 0 %}text-danger{% else %}text-success{% endif %}">
+                  {% if analisis.variacion_nec > 0 %}▲{% else %}▼{% endif %}
+                  {{ analisis.variacion_nec|abs }}% vs mes anterior
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card h-100" style="border-color:#fd7e14!important;border:1px solid;">
+            <div class="card-body text-center py-3">
+              <div class="fw-bold fs-3" style="color:#fd7e14;">
+                ${{ "{:,.0f}".format(analisis.total_prescindible) }}
+              </div>
+              <div class="text-muted small">Gastos prescindibles</div>
+              <div class="fw-semibold" style="color:#fd7e14;">
+                {{ analisis.pct_prescindible }}%
+              </div>
+              {% if analisis.variacion_pres is not none %}
+                <div class="small mt-1
+                  {% if analisis.variacion_pres > 0 %}text-danger{% else %}text-success{% endif %}">
+                  {% if analisis.variacion_pres > 0 %}▲{% else %}▼{% endif %}
+                  {{ analisis.variacion_pres|abs }}% vs mes anterior
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card bg-light h-100">
+            <div class="card-body text-center py-3">
+              <div class="fw-bold fs-3 text-secondary">
+                ${{ "{:,.0f}".format(analisis.total_gral) }}
+              </div>
+              <div class="text-muted small">Total gastos</div>
+              <!-- Barra proporcional -->
+              <div class="progress mt-2" style="height:10px;border-radius:6px;">
+                <div class="progress-bar bg-primary"
+                     style="width:{{ analisis.pct_necesario }}%"
+                     title="Necesarios {{ analisis.pct_necesario }}%"></div>
+                <div class="progress-bar"
+                     style="width:{{ analisis.pct_prescindible }}%;background:#fd7e14;"
+                     title="Prescindibles {{ analisis.pct_prescindible }}%"></div>
+              </div>
+              <div class="d-flex justify-content-between mt-1" style="font-size:.68rem;color:#888;">
+                <span>Nec. {{ analisis.pct_necesario }}%</span>
+                <span>Pres. {{ analisis.pct_prescindible }}%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <!-- Detalle necesarios -->
+        {% if analisis.necesarios %}
+        <div class="col-md-6">
+          <div class="card h-100">
+            <div class="card-header py-2 small fw-semibold text-primary">
+              <i class="bi bi-check-circle-fill"></i> Detalle — Gastos necesarios
+            </div>
+            <div class="card-body p-0">
+              {% for item in analisis.necesarios %}
+              <div class="d-flex justify-content-between align-items-center px-3 py-2
+                           border-bottom">
+                <span class="small">{{ item.categoria }}</span>
+                <div class="text-end">
+                  <span class="fw-semibold text-primary">
+                    ${{ "{:,.0f}".format(item.total) }}
+                  </span>
+                  <div style="font-size:.68rem;color:#888;">
+                    {{ "{:.1f}".format(item.total / analisis.total_gral * 100) }}% del total
+                  </div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Detalle prescindibles -->
+        {% if analisis.prescindibles %}
+        <div class="col-md-6">
+          <div class="card h-100">
+            <div class="card-header py-2 small fw-semibold"
+                 style="color:#fd7e14;">
+              <i class="bi bi-dash-circle-fill"></i> Detalle — Gastos prescindibles
+            </div>
+            <div class="card-body p-0">
+              {% for item in analisis.prescindibles %}
+              {% set pct = item.total / analisis.total_gral * 100 %}
+              <div class="d-flex align-items-center px-3 py-2 border-bottom gap-2">
+                <div class="flex-grow-1">
+                  <div class="small fw-semibold">{{ item.categoria }}</div>
+                  <div class="progress mt-1" style="height:5px;border-radius:4px;">
+                    <div class="progress-bar"
+                         style="width:{{ pct|int }}%;background:#fd7e14;"></div>
+                  </div>
+                </div>
+                <div class="text-end" style="min-width:80px;">
+                  <span class="fw-semibold" style="color:#fd7e14;">
+                    ${{ "{:,.0f}".format(item.total) }}
+                  </span>
+                  <div style="font-size:.68rem;color:#888;">
+                    {{ "{:.1f}".format(pct) }}%
+                  </div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Recomendaciones básicas -->
+      {% if analisis.recomendaciones %}
+      <div class="card mb-3">
+        <div class="card-header py-2 small fw-semibold">
+          <i class="bi bi-lightbulb-fill text-warning"></i> Recomendaciones
+        </div>
+        <div class="card-body py-2">
+          {% for rec in analisis.recomendaciones %}
+            <div class="d-flex gap-2 align-items-start mb-2">
+              {% if rec.tipo == 'alerta' %}
+                <span class="text-danger mt-1">🔴</span>
+              {% elif rec.tipo == 'advertencia' %}
+                <span class="mt-1">🟠</span>
+              {% elif rec.tipo == 'ok' %}
+                <span class="text-success mt-1">🟢</span>
+              {% else %}
+                <span class="mt-1">💡</span>
+              {% endif %}
+              <span class="small">{{ rec.texto }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Análisis IA (si está configurada) -->
+      <div class="card border-0" style="background:#f3f0ff;">
+        <div class="card-body py-3">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-stars" style="color:#6f42c1;font-size:1.1rem;"></i>
+            <span class="fw-semibold" style="color:#6f42c1;">
+              Recomendaciones con Inteligencia Artificial
+            </span>
+          </div>
+          <p class="text-muted small mb-2">
+            El asistente analiza tus patrones de gasto y te da sugerencias personalizadas
+            para el próximo mes.
+          </p>
+          <button class="btn btn-sm" id="btn_analisis_ia"
+                  style="background:#6f42c1;color:white;border-radius:20px;"
+                  onclick="pedirAnalisisIA()">
+            <i class="bi bi-stars"></i> Analizar con IA
+          </button>
+          <div id="analisis_ia_cargando" class="small text-muted mt-2" style="display:none;">
+            <span class="spinner-border spinner-border-sm"></span>
+            Analizando tus gastos…
+          </div>
+          <div id="analisis_ia_resultado" class="mt-3" style="display:none;">
+            <div class="card border-0 bg-white">
+              <div class="card-body py-2 small" id="analisis_ia_texto"></div>
+            </div>
+          </div>
+          <div id="analisis_ia_error" class="small text-muted mt-2" style="display:none;"></div>
+        </div>
+      </div>
+
+      {% endif %}{# end total_gral > 0 #}
+    </div>
+  </div>
+  {% endif %}{# end analisis #}
+
+{% elif mode == 'annual' %}
+<!-- ═══════════════════════════════════════════════════════════════
+     REPORTE ANUAL
+═══════════════════════════════════════════════════════════════ -->
+  <div class="card mb-3">
+    <div class="card-header py-2 fw-semibold">Ingresos vs Gastos {{ year }} (ARS)</div>
+    <div class="card-body p-3">
+      <div style="position:relative;height:300px;">
+        <canvas id="chartBar"></canvas>
+      </div>
+    </div>
+  </div>
+
+  {% if data.annual %}
+  <div class="card">
+    <div class="card-header py-2 fw-semibold">Detalle por mes</div>
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead class="table-light">
+          <tr><th>Mes</th><th>Tipo</th><th>Moneda</th><th>Total</th></tr>
+        </thead>
+        <tbody>
+          {% for row in data.annual %}
+          <tr>
+            <td>{{ row.month }}/{{ year }}</td>
+            <td>{{ 'Ingreso' if row.type=='income' else 'Gasto' }}</td>
+            <td>{{ row.currency }}</td>
+            <td class="{% if row.type=='income' %}text-success{% else %}text-danger{% endif %} fw-semibold">
+              ${{ "{:,.2f}".format(row.total) }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+{% elif mode == 'weekly' %}
+<!-- ═══════════════════════════════════════════════════════════════
+     REPORTE SEMANAL
+═══════════════════════════════════════════════════════════════ -->
+  <div class="card">
+    <div class="card-header py-2 fw-semibold">Últimos 7 días</div>
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead class="table-light">
+          <tr><th>Día</th><th>Tipo</th><th>Moneda</th><th>Total</th></tr>
+        </thead>
+        <tbody>
+          {% for row in data.weekly %}
+          <tr>
+            <td>{{ row.day }}</td>
+            <td>{{ 'Ingreso' if row.type=='income' else 'Gasto' }}</td>
+            <td>{{ row.currency }}</td>
+            <td class="{% if row.type=='income' %}text-success{% else %}text-danger{% endif %} fw-semibold">
+              ${{ "{:,.2f}".format(row.total) }}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-muted text-center py-3">Sin movimientos en los últimos 7 días.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endif %}
+
+<script>
+function pedirAnalisisIA() {
+  document.getElementById('btn_analisis_ia').disabled = true;
+  document.getElementById('analisis_ia_cargando').style.display = 'block';
+  document.getElementById('analisis_ia_resultado').style.display = 'none';
+  document.getElementById('analisis_ia_error').style.display = 'none';
+
+  fetch('/ai/analisis-gastos', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ year: {{ year }}, month: {{ month }} })
+  })
+  .then(r => r.json())
+  .then(data => {
+    document.getElementById('analisis_ia_cargando').style.display = 'none';
+    document.getElementById('btn_analisis_ia').disabled = false;
+
+    if (data.error === 'api_key_not_set') {
+      document.getElementById('analisis_ia_error').innerHTML =
+        '⚙️ Configurá tu API key en <a href="/settings">Configuración → IA</a> para usar esta función.';
+      document.getElementById('analisis_ia_error').style.display = 'block';
+      return;
+    }
+    if (data.error) {
+      document.getElementById('analisis_ia_error').textContent = '⚠️ ' + data.error;
+      document.getElementById('analisis_ia_error').style.display = 'block';
+      return;
+    }
+    // Formatear markdown básico
+    let html = data.recomendacion
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n/g, '<br>');
+    document.getElementById('analisis_ia_texto').innerHTML = html;
+    document.getElementById('analisis_ia_resultado').style.display = 'block';
+  })
+  .catch(() => {
+    document.getElementById('analisis_ia_cargando').style.display = 'none';
+    document.getElementById('btn_analisis_ia').disabled = false;
+    document.getElementById('analisis_ia_error').textContent = '⚠️ Error de conexión.';
+    document.getElementById('analisis_ia_error').style.display = 'block';
+  });
+}
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+  // ── Gráfico de torta mensual ────────────────────────────────────────────────
+  const pieCanvas = document.getElementById('chartPie');
+  if (pieCanvas) {
+    fetch('/reports/chart/monthly.json?year={{ year }}&month={{ month }}')
+      .then(r => r.json())
+      .then(data => {
+        if (!data.labels || data.labels.length === 0) {
+          pieCanvas.parentElement.innerHTML =
+            '<p class="text-muted text-center pt-4">Sin gastos en el período.</p>';
+          return;
+        }
+        new Chart(pieCanvas, {
+          type: 'doughnut',
+          data: {
+            labels: data.labels,
+            datasets: [{ data: data.values, backgroundColor: data.colors,
+                         borderWidth: 2, borderColor: '#fff' }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'right', labels: { font: { size: 11 }, boxWidth: 14 } },
+              tooltip: {
+                callbacks: {
+                  label: ctx => {
+                    const total = ctx.dataset.data.reduce((a,b) => a+b, 0);
+                    const pct   = (ctx.parsed / total * 100).toFixed(1);
+                    return ` ${ctx.label}: $${ctx.parsed.toLocaleString('es-AR')} (${pct}%)`;
+                  }
+                }
+              }
+            }
+          }
+        });
+      })
+      .catch(() => {
+        pieCanvas.parentElement.innerHTML =
+          '<p class="text-muted text-center pt-4">No se pudo cargar el gráfico.</p>';
+      });
+  }
+
+  // ── Gráfico de barras anual ─────────────────────────────────────────────────
+  const barCanvas = document.getElementById('chartBar');
+  if (barCanvas) {
+    fetch('/reports/chart/annual.json?year={{ year }}')
+      .then(r => r.json())
+      .then(data => {
+        new Chart(barCanvas, {
+          type: 'bar',
+          data: {
+            labels: data.labels,
+            datasets: [
+              { label: 'Ingresos', data: data.ingresos,
+                backgroundColor: '#19875488', borderColor: '#198754', borderWidth: 1 },
+              { label: 'Gastos',   data: data.gastos,
+                backgroundColor: '#dc354588', borderColor: '#dc3545', borderWidth: 1 }
+            ]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'top' } },
+            scales: {
+              y: {
+                ticks: {
+                  callback: v => '$' + v.toLocaleString('es-AR')
+                }
+              }
+            }
+          }
+        });
+      });
+  }
+})();
+</script>
+
+{% endblock %}

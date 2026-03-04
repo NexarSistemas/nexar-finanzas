@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+{% block title %}Configuración
+<script>
+function toggleApiKey() {
+  const inp = document.getElementById('ai_api_key');
+  const ico = document.getElementById('eye_icon');
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    ico.className = 'bi bi-eye-slash';
+  } else {
+    inp.type = 'password';
+    ico.className = 'bi bi-eye';
+  }
+}
+</script>
+{% endblock %}
+{% block content %}
+
+<h5 class="fw-bold mb-3"><i class="bi bi-gear"></i> Configuración</h5>
+
+<div class="row g-3">
+
+  <!-- Cambio de contraseña -->
+  <div class="col-md-5">
+    <div class="card">
+      <div class="card-header py-2 fw-semibold">
+        <i class="bi bi-shield-lock"></i> Cambiar contraseña
+      </div>
+      <div class="card-body">
+        <form method="POST">
+          <input type="hidden" name="action" value="change_password">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Contraseña actual</label>
+            <input type="password" name="current_password" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Nueva contraseña</label>
+            <input type="password" name="new_password" class="form-control" required minlength="4">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Confirmar nueva contraseña</label>
+            <input type="password" name="confirm_password" class="form-control" required>
+          </div>
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-shield-check"></i> Cambiar contraseña
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Estado del sistema -->
+  <div class="col-md-5">
+    <div class="card">
+      <div class="card-header py-2 fw-semibold">
+        <i class="bi bi-info-circle"></i> Estado del sistema
+      </div>
+      <div class="card-body">
+        <table class="table table-sm">
+          <tbody>
+            <tr><td class="text-muted">Usuario</td><td class="fw-semibold">{{ user.username }}</td></tr>
+            <tr>
+              <td class="text-muted">Versión del sistema</td>
+              <td>
+                {% if demo_status.is_demo %}
+                  <span class="badge bg-warning text-dark">DEMO</span>
+                  <a href="{{ url_for('activate') }}" class="btn btn-outline-success btn-sm py-0 ms-2">Activar</a>
+                {% else %}
+                  <span class="badge bg-success">FULL — Sin restricciones</span>
+                {% endif %}
+              </td>
+            </tr>
+            <tr><td class="text-muted">Versión app</td><td>v{{ app_version }}</td></tr>
+          </tbody>
+        </table>
+        {% if demo_status.is_demo %}
+        <hr>
+        <div class="small text-muted">
+          <strong>Uso versión DEMO:</strong>
+          <ul class="mb-0 mt-1">
+            {% for resource, info in demo_status.limits.items() %}
+            <li>{{ resource | replace('_',' ') | title }}: {{ info.current }}/{{ info.limit }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+        <hr>
+        <div class="d-grid gap-2">
+          <a href="{{ url_for('cotizaciones') }}" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-currency-exchange"></i> Ver cotizaciones
+          </a>
+          <a href="{{ url_for('help_page') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-question-circle"></i> Ver ayuda / manual
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Inteligencia Artificial -->
+  <div class="col-12">
+    <div class="card border-purple" style="border-color:#6f42c1!important;">
+      <div class="card-header py-2 fw-semibold" style="color:#6f42c1;">
+        <i class="bi bi-stars"></i> Inteligencia Artificial
+      </div>
+      <div class="card-body">
+        <div class="row g-3 align-items-start">
+          <div class="col-md-6">
+            <form method="POST">
+              <input type="hidden" name="action" value="save_ai_config">
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Clave de API de Anthropic</label>
+                <div class="input-group">
+                  <input type="password" name="ai_api_key" id="ai_api_key"
+                         class="form-control font-monospace"
+                         value="{{ ai_api_key or '' }}"
+                         placeholder="sk-ant-api03-..."
+                         autocomplete="off">
+                  <button class="btn btn-outline-secondary" type="button"
+                          onclick="toggleApiKey()">
+                    <i class="bi bi-eye" id="eye_icon"></i>
+                  </button>
+                </div>
+                <div class="form-text">
+                  Necesaria para la clasificación automática y el asistente financiero.
+                  <a href="https://console.anthropic.com/" target="_blank">Obtené tu clave aquí →</a>
+                </div>
+              </div>
+              <div class="mb-3">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" name="ai_enabled"
+                         id="ai_enabled" value="1"
+                         {% if ai_enabled %}checked{% endif %}>
+                  <label class="form-check-label" for="ai_enabled">
+                    Activar funciones de IA
+                  </label>
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary" style="background:#6f42c1;border-color:#6f42c1;">
+                <i class="bi bi-check-lg"></i> Guardar configuración IA
+              </button>
+            </form>
+          </div>
+          <div class="col-md-5 offset-md-1">
+            <div class="alert alert-light border small mb-0">
+              <h6 class="fw-semibold">
+                <i class="bi bi-stars" style="color:#6f42c1;"></i> Funciones disponibles
+              </h6>
+              <ul class="mb-2 ps-3">
+                <li><strong>Clasificación automática</strong>: al ingresar una transacción,
+                    la IA sugiere la categoría según la descripción.</li>
+                <li><strong>Asistente financiero</strong>: chat flotante que responde
+                    preguntas sobre tus finanzas en lenguaje natural.</li>
+              </ul>
+              <hr class="my-2">
+              <p class="mb-1 text-muted small">
+                <i class="bi bi-shield-check text-success"></i>
+                Tu clave se guarda localmente en tu base de datos.
+                Nunca se envía a ningún servidor propio.
+              </p>
+              <p class="mb-0 text-muted small">
+                <i class="bi bi-wifi-off text-warning"></i>
+                Las funciones de IA requieren conexión a internet.
+                El resto de la app sigue funcionando sin conexión.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Copias de seguridad -->
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header py-2 fw-semibold">
+        <i class="bi bi-cloud-arrow-down"></i> Copias de seguridad
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+
+          <div class="col-md-5">
+            <h6 class="fw-semibold">Copia automática al iniciar</h6>
+            <form method="POST">
+              <input type="hidden" name="action" value="save_backup_config">
+              <div class="mb-3">
+                <label class="form-label">Frecuencia</label>
+                <select name="backup_frecuencia" class="form-select">
+                  <option value="nunca"   {% if backup_cfg.get('backup_frecuencia')=='nunca'   %}selected{% endif %}>Nunca (sólo manual)</option>
+                  <option value="diario"  {% if backup_cfg.get('backup_frecuencia')=='diario'  %}selected{% endif %}>Diaria</option>
+                  <option value="semanal" {% if backup_cfg.get('backup_frecuencia')=='semanal' %}selected{% endif %}>Semanal (cada 7 días)</option>
+                  <option value="mensual" {% if backup_cfg.get('backup_frecuencia')=='mensual' %}selected{% endif %}>Mensual (cada 30 días)</option>
+                </select>
+                <div class="form-text">La copia se realiza al abrir la aplicación si corresponde.</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Cantidad máxima a conservar</label>
+                <select name="backup_cantidad_max" class="form-select">
+                  {% for n in [3, 5, 10, 15, 20] %}
+                  <option value="{{ n }}" {% if backup_cfg.get('backup_cantidad_max')==n|string %}selected{% endif %}>{{ n }} copias</option>
+                  {% endfor %}
+                </select>
+                <div class="form-text">Las más antiguas se eliminan automáticamente.</div>
+              </div>
+              <div class="mb-3 small text-muted">
+                {% if backup_cfg.get('backup_ultima_vez') %}
+                  <i class="bi bi-check-circle text-success"></i>
+                  Última copia: {{ backup_cfg.backup_ultima_vez[:19] | replace('T', ' ') }}
+                {% else %}
+                  <i class="bi bi-exclamation-circle text-warning"></i>
+                  Aún no se realizó ninguna copia automática.
+                {% endif %}
+              </div>
+              <button type="submit" class="btn btn-primary btn-sm">
+                <i class="bi bi-check-lg"></i> Guardar configuración
+              </button>
+            </form>
+            <hr>
+            <h6 class="fw-semibold">Copia inmediata</h6>
+            <form method="POST" action="{{ url_for('backup_manual') }}">
+              <button type="submit" class="btn btn-success btn-sm">
+                <i class="bi bi-download"></i> Hacer copia de seguridad ahora
+              </button>
+            </form>
+            <p class="mt-2 small text-muted">
+              Se guardan en la carpeta <code>backups/</code> de la aplicación.
+            </p>
+          </div>
+
+          <div class="col-md-7">
+            <h6 class="fw-semibold">Copias disponibles</h6>
+            {% if backups %}
+            <div class="table-responsive">
+              <table class="table table-sm table-hover">
+                <thead class="table-light">
+                  <tr>
+                    <th>Fecha y hora</th>
+                    <th class="text-end">Tamaño</th>
+                    <th class="text-center">Descargar</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for b in backups %}
+                  <tr>
+                    <td><i class="bi bi-file-earmark-binary text-primary"></i> {{ b.fecha }}</td>
+                    <td class="text-end text-muted small">{{ b.tamanio_kb }} KB</td>
+                    <td class="text-center">
+                      <a href="{{ url_for('backup_descargar', nombre=b.nombre) }}"
+                         class="btn btn-outline-primary btn-sm py-0 px-2" title="Descargar">
+                        <i class="bi bi-download"></i>
+                      </a>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <div class="text-muted small p-3 bg-light rounded text-center">
+              <i class="bi bi-folder2-open display-6 d-block mb-2"></i>
+              No hay copias guardadas todavía.
+            </div>
+            {% endif %}
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Actualización del sistema -->
+  <div class="col-12">
+    <div class="card border-info">
+      <div class="card-header py-2 fw-semibold text-info">
+        <i class="bi bi-cloud-upload"></i> Actualización del sistema
+      </div>
+      <div class="card-body">
+        <div class="row g-3 align-items-start">
+          <div class="col-md-6">
+            <h6 class="fw-semibold">Instalar actualización</h6>
+            <p class="small text-muted mb-2">
+              Subí el archivo <code>update_vX.Y.Z.zip</code> que recibiste.
+              La actualización <strong>no modifica tu base de datos ni tus copias de seguridad</strong>.
+              Se hace una copia de seguridad automática antes de aplicar cualquier cambio.
+            </p>
+            <form method="POST" action="{{ url_for('sistema_actualizar') }}"
+                  enctype="multipart/form-data">
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Archivo de actualización (.zip)</label>
+                <input type="file" name="archivo_update" class="form-control"
+                       accept=".zip" required>
+                <div class="form-text">Solo archivos ZIP de actualización oficiales.</div>
+              </div>
+              <button type="submit" class="btn btn-info text-white"
+                      onclick="return confirm('¿Confirmás la instalación de la actualización? Se hará una copia de seguridad automática antes de proceder.')">
+                <i class="bi bi-cloud-upload"></i> Instalar actualización
+              </button>
+            </form>
+          </div>
+          <div class="col-md-5 offset-md-1">
+            <div class="alert alert-light border small mb-0">
+              <h6 class="fw-semibold"><i class="bi bi-shield-check text-success"></i> Qué hace la actualización</h6>
+              <ul class="mb-0 ps-3">
+                <li>Reemplaza los archivos del sistema (código y plantillas)</li>
+                <li>Conserva tu base de datos intacta</li>
+                <li>Conserva tus copias de seguridad</li>
+                <li>Conserva tu licencia de activación</li>
+                <li>Crea una copia de seguridad automática previa</li>
+              </ul>
+              <hr class="my-2">
+              <p class="mb-0 text-muted">
+                Versión actual: <strong>v{{ app_version }}</strong><br>
+                Tras instalar, <strong>reiniciá la aplicación</strong> para que los cambios surtan efecto.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+</div>
+{% endblock %}

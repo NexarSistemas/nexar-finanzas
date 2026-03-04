@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+{% block title %}{{ action }} movimiento — Finanzas del Hogar{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center mb-3 gap-2">
+  <a href="{{ url_for('transactions') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <h5 class="fw-bold mb-0">{{ action }} movimiento</h5>
+</div>
+
+<div class="card" style="max-width:600px;">
+  <div class="card-body">
+    <form method="POST" id="txForm">
+      <div class="row g-3">
+
+        <!-- Tipo -->
+        <div class="col-12">
+          <label class="form-label fw-semibold">Tipo de movimiento</label>
+          <div class="btn-group w-100">
+            <input type="radio" class="btn-check" name="type" id="type_expense"
+                   value="expense" {% if (transaction and transaction.type=='expense') or tx_type_default=='expense' %}checked{% endif %}>
+            <label class="btn btn-outline-danger" for="type_expense">
+              <i class="bi bi-dash-circle"></i> Gasto
+            </label>
+            <input type="radio" class="btn-check" name="type" id="type_income"
+                   value="income" {% if (transaction and transaction.type=='income') or tx_type_default=='income' %}checked{% endif %}>
+            <label class="btn btn-outline-success" for="type_income">
+              <i class="bi bi-plus-circle"></i> Ingreso
+            </label>
+          </div>
+        </div>
+
+        <!-- Monto y moneda -->
+        <div class="col-8">
+          <label class="form-label fw-semibold">Monto</label>
+          <div class="input-group">
+            <span class="input-group-text">$</span>
+            <input type="number" name="amount" id="tx_amount" step="0.01" min="0.01"
+                   class="form-control"
+                   value="{{ transaction.amount if transaction else '' }}"
+                   placeholder="0.00" required>
+          </div>
+        </div>
+        <div class="col-4">
+          <label class="form-label fw-semibold">Moneda</label>
+          <select name="currency" class="form-select">
+            <option value="ARS" {% if not transaction or transaction.currency=='ARS' %}selected{% endif %}>ARS</option>
+            <option value="USD" {% if transaction and transaction.currency=='USD' %}selected{% endif %}>USD</option>
+          </select>
+        </div>
+
+        <!-- Fecha -->
+        <div class="col-6">
+          <label class="form-label fw-semibold">Fecha</label>
+          <input type="date" name="date" class="form-control"
+                 value="{{ transaction.date if transaction else today }}" required>
+        </div>
+
+        <!-- Método de pago -->
+        <div class="col-6">
+          <label class="form-label fw-semibold">Método</label>
+          <select name="method" class="form-select">
+            <option value="cash"     {% if transaction and transaction.method=='cash' %}selected{% endif %}>💵 Efectivo</option>
+            <option value="debit"    {% if transaction and transaction.method=='debit' %}selected{% endif %}>💳 Débito</option>
+            <option value="credit"   {% if transaction and transaction.method=='credit' %}selected{% endif %}>💳 Crédito</option>
+            <option value="transfer" {% if transaction and transaction.method=='transfer' %}selected{% endif %}>🔄 Transferencia</option>
+            <option value="virtual"  {% if transaction and transaction.method=='virtual' %}selected{% endif %}>📱 Billetera virtual</option>
+          </select>
+        </div>
+
+        <!-- Descripción con clasificación IA -->
+        <div class="col-12">
+          <label class="form-label fw-semibold">
+            Descripción <span class="text-muted">(opcional)</span>
+          </label>
+          <div class="input-group">
+            <input type="text" name="description" id="tx_description" class="form-control"
+                   value="{{ transaction.description if transaction else '' }}"
+                   placeholder="Ej: Carrefour, Netflix, Sueldo..." maxlength="200"
+                   autocomplete="off">
+            <button type="button" class="btn btn-outline-secondary" id="btn_clasificar"
+                    title="Clasificar con IA" style="display:none;">
+              <i class="bi bi-stars" style="color:#6f42c1;"></i>
+            </button>
+          </div>
+          <!-- Sugerencia IA -->
+          <div id="ai_sugerencia" class="mt-1" style="display:none;">
+            <div class="d-flex align-items-center gap-2 p-2 rounded"
+                 style="background:#f3f0ff; border:1px solid #d0c7f5;">
+              <i class="bi bi-stars" style="color:#6f42c1;"></i>
+              <span class="small">
+                <strong>IA sugiere:</strong>
+                <span id="ai_cat_nombre" class="fw-semibold" style="color:#6f42c1;"></span>
+                <span id="ai_confianza_badge"></span>
+              </span>
+              <button type="button" class="btn btn-sm py-0 ms-auto"
+                      style="background:#6f42c1;color:white;font-size:.75rem;"
+                      id="btn_aplicar_cat">Aplicar</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary py-0"
+                      style="font-size:.75rem;" id="btn_ignorar_cat">✕</button>
+            </div>
+          </div>
+          <div id="ai_cargando" class="text-muted small mt-1" style="display:none;">
+            <span class="spinner-border spinner-border-sm"></span> Clasificando...
+          </div>
+          <div id="ai_error" class="text-muted small mt-1" style="display:none;"></div>
+        </div>
+
+        <!-- Categoría -->
+        <div class="col-6">
+          <label class="form-label fw-semibold">Categoría</label>
+          <select name="category_id" id="tx_category" class="form-select">
+            <option value="">— Sin categoría —</option>
+            <optgroup label="Gastos">
+              {% for cat in categories if cat.type == 'expense' %}
+              <option value="{{ cat.id }}"
+                {% if transaction and transaction.category_id == cat.id %}selected{% endif %}>
+                {{ cat.name }}
+              </option>
+              {% endfor %}
+            </optgroup>
+            <optgroup label="Ingresos">
+              {% for cat in categories if cat.type == 'income' %}
+              <option value="{{ cat.id }}"
+                {% if transaction and transaction.category_id == cat.id %}selected{% endif %}>
+                {{ cat.name }}
+              </option>
+              {% endfor %}
+            </optgroup>
+          </select>
+        </div>
+
+        <!-- Cuenta -->
+        <div class="col-6">
+          <label class="form-label fw-semibold">Cuenta</label>
+          <select name="account_id" class="form-select">
+            <option value="">— Sin cuenta —</option>
+            {% for acc in accounts %}
+            <option value="{{ acc.id }}"
+              {% if transaction and transaction.account_id == acc.id %}selected{% endif %}>
+              {{ acc.name }} ({{ acc.currency }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Botones -->
+        <div class="col-12 d-flex gap-2">
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg"></i> {{ action }}
+          </button>
+          <a href="{{ url_for('transactions') }}" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  const descInput  = document.getElementById('tx_description');
+  const btnClasif  = document.getElementById('btn_clasificar');
+  const divSuger   = document.getElementById('ai_sugerencia');
+  const divCarga   = document.getElementById('ai_cargando');
+  const divError   = document.getElementById('ai_error');
+  const catNombre  = document.getElementById('ai_cat_nombre');
+  const catBadge   = document.getElementById('ai_confianza_badge');
+  const btnAplicar = document.getElementById('btn_aplicar_cat');
+  const btnIgnorar = document.getElementById('btn_ignorar_cat');
+  const selectCat  = document.getElementById('tx_category');
+  const amountInp  = document.getElementById('tx_amount');
+
+  let aiCategoryId = null;
+  let clasificarTimer = null;
+
+  // Mostrar botón de IA cuando haya texto
+  descInput.addEventListener('input', function () {
+    const val = this.value.trim();
+    btnClasif.style.display = val.length >= 3 ? 'block' : 'none';
+    divSuger.style.display  = 'none';
+    divError.style.display  = 'none';
+    aiCategoryId = null;
+
+    // Auto-clasificar después de 1.2s sin escribir
+    clearTimeout(clasificarTimer);
+    if (val.length >= 3) {
+      clasificarTimer = setTimeout(clasificarConIA, 1200);
+    }
+  });
+
+  btnClasif.addEventListener('click', clasificarConIA);
+
+  function getTipo() {
+    const exp = document.getElementById('type_expense');
+    return exp && exp.checked ? 'expense' : 'income';
+  }
+
+  function clasificarConIA() {
+    const desc  = descInput.value.trim();
+    const monto = parseFloat(amountInp.value) || 0;
+    const tipo  = getTipo();
+    if (!desc) return;
+
+    divSuger.style.display = 'none';
+    divError.style.display = 'none';
+    divCarga.style.display = 'block';
+    aiCategoryId = null;
+
+    fetch('/ai/clasificar', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ descripcion: desc, monto: monto, tipo: tipo })
+    })
+    .then(r => r.json())
+    .then(data => {
+      divCarga.style.display = 'none';
+
+      if (data.error === 'api_key_not_set') {
+        // Silencioso: IA no configurada, no molestar al usuario
+        return;
+      }
+      if (data.error) {
+        divError.textContent = '⚠ IA: ' + data.error;
+        divError.style.display = 'block';
+        return;
+      }
+      if (!data.category_id) return;
+
+      aiCategoryId = data.category_id;
+      catNombre.textContent = data.category_name;
+
+      const colores = { alta: '#198754', media: '#fd7e14', baja: '#6c757d' };
+      const conf    = data.confianza || 'media';
+      catBadge.innerHTML = `<span style="font-size:.7rem;color:${colores[conf] || '#6c757d'};">(${conf})</span>`;
+
+      divSuger.style.display = 'block';
+    })
+    .catch(() => { divCarga.style.display = 'none'; });
+  }
+
+  btnAplicar.addEventListener('click', function () {
+    if (!aiCategoryId) return;
+    const opt = selectCat.querySelector(`option[value="${aiCategoryId}"]`);
+    if (opt) {
+      selectCat.value = aiCategoryId;
+      // Flash visual en el select
+      selectCat.style.borderColor = '#6f42c1';
+      selectCat.style.boxShadow   = '0 0 0 0.2rem rgba(111,66,193,.25)';
+      setTimeout(() => {
+        selectCat.style.borderColor = '';
+        selectCat.style.boxShadow   = '';
+      }, 1500);
+    }
+    divSuger.style.display = 'none';
+  });
+
+  btnIgnorar.addEventListener('click', function () {
+    divSuger.style.display = 'none';
+    aiCategoryId = null;
+  });
+
+  // Reclasificar si cambia el tipo (gasto/ingreso)
+  document.querySelectorAll('input[name="type"]').forEach(r => {
+    r.addEventListener('change', function () {
+      divSuger.style.display = 'none';
+      aiCategoryId = null;
+      if (descInput.value.trim().length >= 3) {
+        clearTimeout(clasificarTimer);
+        clasificarTimer = setTimeout(clasificarConIA, 500);
+      }
+    });
+  });
+})();
+</script>
+
+{% endblock %}

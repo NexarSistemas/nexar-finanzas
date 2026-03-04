@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Cuentas — Finanzas del Hogar{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h5 class="fw-bold mb-0"><i class="bi bi-bank"></i> Mis cuentas</h5>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('transfer') }}" class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-shuffle"></i> Transferir
+    </a>
+    <a href="{{ url_for('account_new') }}" class="btn btn-primary btn-sm">
+      <i class="bi bi-plus"></i> Nueva cuenta
+    </a>
+  </div>
+</div>
+
+{% set types = [('bank','🏦 Cuentas bancarias'), ('virtual_wallet','📱 Billeteras virtuales'), ('cash','💵 Efectivo')] %}
+{% for type_key, type_label in types %}
+  {% set group = accounts | selectattr('type', 'eq', type_key) | list %}
+  {% if group %}
+  <h6 class="text-muted mt-3 mb-2">{{ type_label }}</h6>
+  <div class="row g-3 mb-2">
+    {% for acc in group %}
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="fw-bold">{{ acc.name }}</div>
+              <div class="text-muted small">
+                {% if acc.cbu_cvu %}CBU/CVU: {{ acc.cbu_cvu[:10] }}…{% endif %}
+                {% if acc.alias %}· {{ acc.alias }}{% endif %}
+              </div>
+              <div class="text-muted small">Moneda: {{ acc.currency }}</div>
+            </div>
+            <div class="text-end">
+              <div class="fw-bold fs-5
+                {% if acc.current_balance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                ${{ "{:,.2f}".format(acc.current_balance) }}
+              </div>
+              <div class="text-muted" style="font-size:.72rem;">Saldo actual</div>
+            </div>
+          </div>
+        </div>
+        <div class="card-footer py-2 d-flex justify-content-between">
+          <a href="{{ url_for('account_edit', acc_id=acc.id) }}"
+             class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-pencil"></i> Editar
+          </a>
+          <form method="POST" action="{{ url_for('account_delete', acc_id=acc.id) }}"
+                onsubmit="return confirm('¿Desactivar la cuenta {{ acc.name }}?')">
+            <button class="btn btn-outline-danger btn-sm">
+              <i class="bi bi-trash"></i>
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+{% endfor %}
+
+{% if not accounts %}
+<div class="text-center py-5 text-muted">
+  <i class="bi bi-bank display-4"></i>
+  <p class="mt-2">No tenés cuentas registradas.</p>
+  <a href="{{ url_for('account_new') }}" class="btn btn-primary">
+    <i class="bi bi-plus"></i> Agregar primera cuenta
+  </a>
+</div>
+{% endif %}
+
+{% endblock %}

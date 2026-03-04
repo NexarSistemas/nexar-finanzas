@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block title %}Cotizaciones — Finanzas del Hogar{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h5 class="fw-bold mb-0">
+    <i class="bi bi-currency-exchange"></i> Cotizaciones
+  </h5>
+  <div class="d-flex align-items-center gap-2">
+    {% if datos %}
+    <span class="text-muted small">
+      <i class="bi bi-clock"></i>
+      {% if datos.desde_cache %}
+        Última actualización: {{ datos.actualizado_en }}
+        <span class="badge bg-secondary ms-1">caché</span>
+      {% else %}
+        Actualizado: {{ datos.actualizado_en }}
+        <span class="badge bg-success ms-1">en vivo</span>
+      {% endif %}
+    </span>
+    {% endif %}
+    <form method="POST" action="{{ url_for('cotizaciones_actualizar') }}" class="d-inline">
+      <button type="submit" class="btn btn-primary btn-sm">
+        <i class="bi bi-arrow-clockwise"></i> Actualizar ahora
+      </button>
+    </form>
+  </div>
+</div>
+
+{% if not datos %}
+<div class="alert alert-info">
+  <i class="bi bi-info-circle"></i>
+  Aún no hay cotizaciones guardadas.
+  Presioná <strong>Actualizar ahora</strong> para consultar los valores en tiempo real.
+  Se requiere conexión a internet.
+</div>
+{% else %}
+
+<!-- ── Dólar ──────────────────────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header py-2 d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">
+          <i class="bi bi-currency-dollar text-success"></i> Dólar estadounidense (USD → ARS)
+        </span>
+        {% if datos.error_dolar %}
+        <span class="badge bg-danger">Sin conexión</span>
+        {% endif %}
+      </div>
+      <div class="card-body p-0">
+        {% if datos.dolar %}
+        <div class="table-responsive">
+          <table class="table table-hover table-sm mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Tipo</th>
+                <th class="text-end">Compra</th>
+                <th class="text-end">Venta</th>
+                <th class="text-end">Spread</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for d in datos.dolar %}
+              <tr {% if d.casa == 'blue' %}class="table-warning"{% elif d.casa == 'oficial' %}class="table-success"{% endif %}>
+                <td class="fw-semibold">
+                  {% if d.casa == 'blue' %}🔵 {% elif d.casa == 'oficial' %}🟢 {% elif d.casa == 'bolsa' %}📊 {% elif d.casa == 'cripto' %}₿ {% else %}💱 {% endif %}
+                  {{ d.nombre }}
+                </td>
+                <td class="text-end">
+                  {% if d.compra %}${{ "%.2f"|format(d.compra) }}{% else %}<span class="text-muted">—</span>{% endif %}
+                </td>
+                <td class="text-end fw-bold">
+                  {% if d.venta %}${{ "%.2f"|format(d.venta) }}{% else %}<span class="text-muted">—</span>{% endif %}
+                </td>
+                <td class="text-end text-muted small">
+                  {% if d.compra and d.venta %}
+                    ${{ "%.2f"|format(d.venta - d.compra) }}
+                  {% else %}—{% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="p-3 text-muted text-center small">
+          <i class="bi bi-wifi-off"></i> No se pudieron obtener los tipos de dólar.
+          {% if datos.error_dolar %}<br><code>{{ datos.error_dolar }}</code>{% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+
+  <!-- ── Monedas internacionales ──────────────────────────────────────────── -->
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header py-2 d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">
+          <i class="bi bi-globe-americas text-primary"></i> Monedas internacionales (por USD)
+        </span>
+        {% if datos.error_monedas %}
+        <span class="badge bg-warning text-dark">Sin conexión</span>
+        {% endif %}
+      </div>
+      <div class="card-body p-0">
+        {% if datos.monedas %}
+        <table class="table table-hover table-sm mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Moneda</th>
+              <th class="text-center">Código</th>
+              <th class="text-end">Unidades por 1 USD</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for m in datos.monedas %}
+            <tr>
+              <td>{{ m.nombre }}</td>
+              <td class="text-center"><span class="badge bg-secondary">{{ m.codigo }}</span></td>
+              <td class="text-end fw-semibold">{{ "%.4f"|format(m.por_dolar) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="p-3 text-muted text-center small">
+          <i class="bi bi-wifi-off"></i> No se pudieron obtener las monedas.
+          {% if datos.error_monedas %}<br><code>{{ datos.error_monedas }}</code>{% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Criptomonedas ─────────────────────────────────────────────────────── -->
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header py-2 d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">
+          ₿ Criptomonedas (precio en USD)
+        </span>
+        {% if datos.error_cripto %}
+        <span class="badge bg-warning text-dark">Sin conexión</span>
+        {% endif %}
+      </div>
+      <div class="card-body p-0">
+        {% if datos.cripto %}
+        <table class="table table-hover table-sm mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Activo</th>
+              <th class="text-end">Precio (USD)</th>
+              <th class="text-end">Cambio 24hs</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in datos.cripto %}
+            <tr>
+              <td>
+                <span class="fw-bold">{{ c.simbolo }}</span>
+                <span class="text-muted small ms-1">{{ c.nombre }}</span>
+              </td>
+              <td class="text-end fw-semibold">
+                {% if c.precio_usd %}
+                  ${{ "{:,.4f}".format(c.precio_usd) if c.precio_usd < 1 else "{:,.2f}".format(c.precio_usd) }}
+                {% else %}—{% endif %}
+              </td>
+              <td class="text-end small">
+                {% if c.cambio_24h is not none %}
+                  {% if c.cambio_24h >= 0 %}
+                    <span class="text-success">▲ {{ "%.2f"|format(c.cambio_24h) }}%</span>
+                  {% else %}
+                    <span class="text-danger">▼ {{ "%.2f"|format(c.cambio_24h|abs) }}%</span>
+                  {% endif %}
+                {% else %}—{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="p-3 text-muted text-center small">
+          <i class="bi bi-wifi-off"></i> No se pudieron obtener los precios.
+          {% if datos.error_cripto %}<br><code>{{ datos.error_cripto }}</code>{% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Nota informativa -->
+<div class="alert alert-light border small text-muted py-2">
+  <i class="bi bi-info-circle"></i>
+  Las cotizaciones se obtienen de fuentes públicas gratuitas
+  (<strong>dolarapi.com</strong>, <strong>frankfurter.app</strong>, <strong>CoinGecko</strong>).
+  Los valores son de referencia y pueden variar. Se requiere conexión a internet para actualizar.
+  Sin conexión, se muestra la última cotización guardada.
+</div>
+
+{% endif %}
+
+{% endblock %}
