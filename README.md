@@ -1,7 +1,7 @@
 💰 Finanzas del Hogar v1.6.0
 
 
-Aplicación web local de gestión financiera personal. Funciona offline, sin base de datos externa, y está optimizada para equipos de gama media/baja.
+Aplicación web local de gestión financiera personal. Funciona completamente offline, utilizando base de datos SQLite local, y está optimizada para equipos de gama media/baja.
 
 **Creado por Rolando Navarta · Desarrollado junto a Claude.ai · 2026**
 
@@ -17,10 +17,7 @@ finanzas_app/
 ├── services.py           → Lógica de negocio y reportes
 ├── activation.py         → Validación de códigos de licencia
 ├── demo_limits.py        → Control de límites DEMO
-<<<<<<< HEAD
-=======
 ├── ai_service.py         → Módulo de inteligencia artificial
->>>>>>> desarrollo
 ├── requirements.txt      → Dependencias Python
 ├── iniciar.bat           → Lanzador Windows
 ├── iniciar.sh            → Lanzador Linux/Mac
@@ -198,21 +195,17 @@ Los datos se cachean localmente para funcionar sin conexión.
 - ✅ Copias de seguridad automáticas programables
 - ✅ Sistema de actualización sin pérdida de datos
 - ✅ Licencia visual con tipo y fecha de vencimiento
-<<<<<<< HEAD
-=======
 - ✅ **Clasificación de categorías: Necesario / Prescindible** con análisis y recomendaciones en Reportes
 - ✅ **Cierre completo**: cierra terminal (Linux SIGHUP / Windows taskkill) y pestaña del navegador
 - ✅ **Clasificación automática de gastos con IA** (sugiere categoría al escribir la descripción)
 - ✅ **Asistente financiero en lenguaje natural** (chat flotante con acceso a todos tus datos)
->>>>>>> desarrollo
 - ✅ Sistema DEMO / FULL con activación offline
 - ✅ Manual completo integrado
 - ✅ Cierre controlado del servidor
 
 ---
 
-<<<<<<< HEAD
-=======
+
 ## 🤖 Inteligencia Artificial
 
 La IA se configura en **Configuración → Inteligencia Artificial** ingresando una clave de API de Anthropic.
@@ -232,17 +225,24 @@ El asistente tiene acceso de solo lectura a los datos reales del usuario (transa
 > La clave de API se guarda localmente en la base de datos del usuario y nunca se envía a servidores propios.
 > Obtené tu clave en: https://console.anthropic.com/
 
----
->>>>>>> desarrollo
+## 🛠 Tecnologías utilizadas
+
+- Python 3.10+
+- Flask
+- SQLite
+- HTML5 + Jinja2
+- JavaScript
+- Yahoo Finance API (no oficial)
+- BYMA Open Data
+- CoinGecko API
+- Anthropic API (IA)
+
 ## 📋 Historial de versiones
 
 | Versión | Cambios principales |
 |---|---|
-<<<<<<< HEAD
-=======
 | **v1.6.0** | Categorías Necesario/Prescindible; análisis con recomendaciones y IA en Reportes; cierre de terminal y pestaña al apagar |
 | **v1.5.0** | Clasificación automática de gastos con IA (sugiere categoría al escribir); asistente financiero en chat flotante con acceso a datos reales del usuario |
->>>>>>> desarrollo
 | **v1.4.1** | Corrección: sección de actualización duplicada en Configuración; corrección: error "falta UPDATE_META.json" al instalar actualizaciones |
 | **v1.4.0** | Sistema de actualización sin pérdida de datos desde Configuración; instaladores Windows (.exe x64/x86) y Linux (.deb); versión portable mejorada |
 | **v1.3.0** | Corrección de categorías duplicadas en DB; pantalla de licencia rediseñada con tipo y fecha de vencimiento visual |
