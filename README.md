@@ -1,4 +1,4 @@
-💰 Finanzas del Hogar v1.7.0
+💰 Finanzas del Hogar v1.9.0
 
 
 Aplicación web local de gestión financiera personal. Funciona completamente offline, utilizando base de datos SQLite local, y está optimizada para equipos de gama media/baja.
@@ -70,15 +70,7 @@ python app.py
 ```
 
 ### Acceder
-La app abre automáticamente en una ventana propia (o en el navegador como fallback).
-Si necesitás acceder manualmente, el puerto se muestra en la consola al iniciar:
-
-```
-  Puerto        : 5000
-```
-
-> Si el puerto 5000 está ocupado, la app asigna automáticamente un puerto libre
-> y lo informa en pantalla. Por ejemplo: `Puerto : 54321  (5000 ocupado, asignado automáticamente)`
+Abrí tu navegador en: **http://127.0.0.1:5000**
 
 En la primera ejecución se te pedirá crear tu usuario administrador.
 
@@ -249,7 +241,6 @@ El asistente tiene acceso de solo lectura a los datos reales del usuario (transa
 
 | Versión | Cambios principales |
 |---|---|
-| **v1.7.0** | Puerto dinámico: si el 5000 está ocupado, se asigna automáticamente un puerto libre sin necesidad de reiniciar ni matar procesos |
 | **v1.6.0** | Categorías Necesario/Prescindible; análisis con recomendaciones y IA en Reportes; cierre de terminal y pestaña al apagar |
 | **v1.5.0** | Clasificación automática de gastos con IA (sugiere categoría al escribir); asistente financiero en chat flotante con acceso a datos reales del usuario |
 | **v1.4.1** | Corrección: sección de actualización duplicada en Configuración; corrección: error "falta UPDATE_META.json" al instalar actualizaciones |

@@ -268,6 +268,9 @@
     <div>
       <div class="ai-title">Asistente financiero</div>
       <div class="ai-subtitle">Preguntame sobre tus finanzas</div>
+      <div class="ai-subtitle" style="opacity:.7; font-size:.68rem;">
+        <i class="bi bi-info-circle"></i> API gratuita · uso con costo (Anthropic)
+      </div>
     </div>
     <button id="ai-btn-close-chat" onclick="toggleAiChat()" title="Cerrar">
       <i class="bi bi-x-lg"></i>
@@ -278,6 +281,12 @@
   <div id="ai-no-config" style="display:none;">
     <i class="bi bi-stars" style="font-size:2rem; color:#d0c7f5;"></i>
     <p class="mt-2 mb-2">El asistente de IA no está configurado.</p>
+    <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:8px 12px;margin:8px 0 12px;text-align:left;font-size:.78rem;color:#5d4037;">
+      <i class="bi bi-exclamation-triangle-fill" style="color:#f59e0b;"></i>
+      <strong>Costo de uso:</strong> la clave de API es <strong>gratuita</strong>,
+      pero cada consulta tiene un <strong>costo a tu cargo</strong> según el uso
+      (Anthropic API). Revisá precios antes de activar.
+    </div>
     <a href="{{ url_for('settings') }}#ai" class="btn btn-sm"
        style="background:#6f42c1;color:white;border-radius:20px;">
       Configurar en Ajustes →

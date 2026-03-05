@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 app.py
-Punto de entrada principal — Finanzas del Hogar v1.7.0
+Punto de entrada principal — Finanzas del Hogar v1.9.0
 Modo de visualización: pywebview (ventana nativa) con fallback
 al navegador SOLO si pywebview falla o no está disponible.
 
@@ -122,7 +122,7 @@ app.config['DB_PATH']  = DB_PATH
 app.config['BASE_DIR'] = BASE_DIR
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
 
-APP_VERSION = '1.7.0'
+APP_VERSION = '1.9.0'
 
 # ─── Base de datos ────────────────────────────────────────────────────────────
 from models import init_db

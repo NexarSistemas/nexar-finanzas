@@ -6,15 +6,138 @@
 
 <div class="accordion" id="helpAccordion">
 
-  <!-- v1.7.0 (actual) -->
+  <!-- v1.9.0 (actual) -->
   <div class="accordion-item border-primary">
     <h2 class="accordion-header">
       <button class="accordion-button bg-primary text-white" type="button"
-              data-bs-toggle="collapse" data-bs-target="#help_v170">
-        ⚡ Novedades en la versión 1.7.0 — Puerto dinámico
+              data-bs-toggle="collapse" data-bs-target="#help_v190">
+        🛠 Novedades en la versión 1.9.0 — Correcciones y avisos de IA
       </button>
     </h2>
-    <div id="help_v170" class="accordion-collapse collapse show"
+    <div id="help_v190" class="accordion-collapse collapse show"
+         data-bs-parent="#helpAccordion">
+      <div class="accordion-body">
+
+        <h6 class="fw-bold text-danger">Corrección: cierre de aplicación sin sesión activa</h6>
+        <p>
+          Se corrigió un error que dejaba la ventana en blanco cuando el usuario
+          cerraba sesión y luego intentaba cerrar la aplicación. El servidor ahora
+          se cierra correctamente en cualquier situación, sin afectar la sesión
+          del sistema operativo.
+        </p>
+        <ul>
+          <li>El botón <strong>Cancelar</strong> en la pantalla de cierre ahora
+              redirige al Dashboard si hay sesión activa, o al Login si ya se cerró sesión.</li>
+          <li>La acción de cierre ya no requiere sesión activa para ejecutarse.</li>
+        </ul>
+
+        <h6 class="fw-bold text-primary mt-3">Aviso de costo del asistente de IA</h6>
+        <p>
+          Se agregaron avisos claros sobre el modelo de costos de la API de Anthropic
+          en tres lugares de la interfaz:
+        </p>
+        <ul>
+          <li>
+            <strong>Configuración → Inteligencia Artificial</strong>: alerta visible
+            antes del campo de clave API.
+          </li>
+          <li>
+            <strong>Chat flotante (cabecera)</strong>: texto permanente indicando
+            "API gratuita · uso con costo".
+          </li>
+          <li>
+            <strong>Pantalla "sin configurar" del chat</strong>: aviso antes del
+            botón de configurar.
+          </li>
+        </ul>
+        <div class="alert alert-warning py-2 small mt-2">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          <strong>Recordatorio:</strong> obtener una clave de API en Anthropic es
+          <strong>gratuito</strong>, pero cada consulta al asistente o clasificación
+          automática tiene un <strong>costo a tu cargo</strong> según el uso.
+          Consultá los precios en
+          <a href="https://anthropic.com/pricing" target="_blank">anthropic.com/pricing</a>.
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- v1.8.0 -->
+  <div class="accordion-item border-primary">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed bg-secondary text-white" type="button"
+              data-bs-toggle="collapse" data-bs-target="#help_v180">
+        🔑 Versión 1.8.0 — Recuperación de contraseña
+      </button>
+    </h2>
+    <div id="help_v180" class="accordion-collapse collapse"
+         data-bs-parent="#helpAccordion">
+      <div class="accordion-body">
+
+        <h6 class="fw-bold text-primary">¿Olvidaste tu contraseña?</h6>
+        <p>
+          Si olvidás la contraseña, hacé clic en el link
+          <strong>"¿Olvidaste tu contraseña?"</strong> debajo del botón Ingresar.
+          El sistema verifica tu identidad sin necesidad de email ni internet.
+        </p>
+
+        <h6 class="fw-bold text-primary mt-3">Flujo de recuperación (2 pasos)</h6>
+        <ol>
+          <li>
+            <strong>Paso 1 — Verificar identidad:</strong> se muestra tu pregunta
+            secreta configurada. Ingresás la respuesta (no distingue
+            mayúsculas/minúsculas). Si es correcta, avanzás al paso 2.
+          </li>
+          <li>
+            <strong>Paso 2 — Nueva contraseña:</strong> ingresás y confirmás tu
+            nueva contraseña. El botón se habilita solo cuando ambas coinciden.
+          </li>
+        </ol>
+
+        <h6 class="fw-bold text-primary mt-3">Configurar la pregunta de seguridad</h6>
+        <p>
+          La pregunta se configura en <strong>dos momentos</strong>:
+        </p>
+        <ul>
+          <li>
+            <strong>Al crear la cuenta por primera vez</strong> (setup inicial):
+            el formulario incluye los campos de pregunta y respuesta como parte
+            del proceso de creación.
+          </li>
+          <li>
+            <strong>En cualquier momento desde Configuración</strong>:
+            sección <em>"Pregunta de seguridad"</em>. Requiere tu contraseña
+            actual para confirmar el cambio.
+          </li>
+        </ul>
+
+        <div class="alert alert-warning py-2 small mt-3">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          <strong>Sin pregunta configurada no es posible recuperar el acceso.</strong>
+          Si perdés la contraseña y no tenés pregunta de seguridad, la única
+          opción es restaurar un backup de la base de datos.
+        </div>
+
+        <div class="alert alert-info py-2 small">
+          <i class="bi bi-shield-check"></i>
+          La respuesta se guarda hasheada (SHA-256), igual que la contraseña.
+          Nadie puede leer tu respuesta original, ni siquiera el administrador.
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- v1.7.0 -->
+  <div class="accordion-item border-primary">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed bg-secondary text-white" type="button"
+              data-bs-toggle="collapse" data-bs-target="#help_v170">
+        ⚡ Versión 1.7.0 — Puerto dinámico
+      </button>
+    </h2>
+    <div id="help_v170" class="accordion-collapse collapse"
          data-bs-parent="#helpAccordion">
       <div class="accordion-body">
 

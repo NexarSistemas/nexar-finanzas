@@ -103,19 +103,25 @@ def register_routes(app):
             return redirect(url_for('login'))
 
         if request.method == 'POST':
-            username = request.form.get('username', 'admin').strip() or 'admin'
-            password = request.form.get('password', '')
-            confirm  = request.form.get('confirm', '')
+            username  = request.form.get('username', 'admin').strip() or 'admin'
+            password  = request.form.get('password', '')
+            confirm   = request.form.get('confirm', '')
+            rec_q     = request.form.get('recovery_question', '').strip()
+            rec_a     = request.form.get('recovery_answer', '').strip().lower()
 
             if len(password) < 4:
                 flash('La contraseña debe tener al menos 4 caracteres.', 'danger')
             elif password != confirm:
                 flash('Las contraseñas no coinciden.', 'danger')
+            elif not rec_q:
+                flash('Escribí una pregunta de seguridad.', 'danger')
+            elif len(rec_a) < 2:
+                flash('La respuesta de seguridad debe tener al menos 2 caracteres.', 'danger')
             else:
                 db = get_db(get_db_path())
                 db.execute(
-                    "INSERT INTO user (id, username, password_hash) VALUES (1, ?, ?)",
-                    (username, hash_password(password))
+                    "INSERT INTO user (id, username, password_hash, recovery_question, recovery_answer_hash) VALUES (1, ?, ?, ?, ?)",
+                    (username, hash_password(password), rec_q, hash_password(rec_a))
                 )
                 db.commit()
                 db.close()
@@ -123,6 +129,74 @@ def register_routes(app):
                 return redirect(url_for('login'))
 
         return render_template('setup.html')
+
+    @app.route('/forgot-password', methods=['GET', 'POST'])
+    def forgot_password():
+        """Paso 1 — verificar respuesta secreta. Paso 2 — ingresar nueva contraseña."""
+        if not _user_exists():
+            return redirect(url_for('setup'))
+        if 'user_id' in session:
+            return redirect(url_for('dashboard'))
+
+        db       = get_db(get_db_path())
+        user     = db.execute("SELECT * FROM user WHERE id=1").fetchone()
+        db.close()
+
+        # Si no tiene pregunta configurada no podemos recuperar
+        if not user or not user['recovery_question']:
+            flash('No hay pregunta de seguridad configurada. Contactá al administrador.', 'warning')
+            return redirect(url_for('login'))
+
+        step = request.args.get('step', '1')
+
+        if request.method == 'POST':
+            action = request.form.get('action')
+
+            # ── Paso 1: verificar respuesta ──────────────────────────────────
+            if action == 'verify_answer':
+                answer = request.form.get('recovery_answer', '').strip().lower()
+                if user['recovery_answer_hash'] == hash_password(answer):
+                    # Guardar token temporal en sesión Flask (sin BD)
+                    session['recovery_verified'] = True
+                    session['recovery_user_id']  = user['id']
+                    return redirect(url_for('forgot_password', step='2'))
+                else:
+                    flash('Respuesta incorrecta. Intentá nuevamente.', 'danger')
+                    return render_template('forgot_password.html',
+                                           step='1',
+                                           question=user['recovery_question'])
+
+            # ── Paso 2: cambiar contraseña ───────────────────────────────────
+            if action == 'reset_password':
+                if not session.get('recovery_verified') or session.get('recovery_user_id') != user['id']:
+                    flash('Sesión de recuperación inválida. Empezá de nuevo.', 'danger')
+                    return redirect(url_for('forgot_password'))
+
+                new_pw  = request.form.get('new_password', '')
+                confirm = request.form.get('confirm_password', '')
+
+                if len(new_pw) < 4:
+                    flash('La contraseña debe tener al menos 4 caracteres.', 'danger')
+                    return render_template('forgot_password.html', step='2')
+                if new_pw != confirm:
+                    flash('Las contraseñas no coinciden.', 'danger')
+                    return render_template('forgot_password.html', step='2')
+
+                db = get_db(get_db_path())
+                db.execute("UPDATE user SET password_hash=? WHERE id=1", (hash_password(new_pw),))
+                db.commit()
+                db.close()
+
+                # Limpiar token de recuperación
+                session.pop('recovery_verified', None)
+                session.pop('recovery_user_id', None)
+
+                flash('✅ Contraseña restablecida correctamente. Ya podés iniciar sesión.', 'success')
+                return redirect(url_for('login'))
+
+        return render_template('forgot_password.html',
+                               step=step,
+                               question=user['recovery_question'])
 
     @app.route('/logout')
     def logout():
@@ -136,8 +210,12 @@ def register_routes(app):
         return render_template('shutdown.html')
 
     @app.route('/shutdown/confirm', methods=['POST'])
-    @login_required
     def shutdown_confirm():
+        """Cierre controlado del servidor.
+        No requiere @login_required: el usuario puede cerrar la app desde
+        el login (después de cerrar sesión) sin quedar con ventana en blanco.
+        No hay riesgo de seguridad: la única acción es detener la app local.
+        """
         import threading, platform
 
         session.clear()
@@ -150,10 +228,10 @@ def register_routes(app):
             import time
             time.sleep(1.5)  # Dar tiempo a que el navegador/webview reciba la respuesta
 
-            # ── Cerrar ventana pywebview si esta activa ───────────────────────
+            # ── Cerrar ventana pywebview si está activa ───────────────────────
             # IMPORTANTE: destruir la ventana ANTES del os._exit para que
             # pywebview no quede colgado con una ventana en blanco.
-            # NO matar el proceso padre (puede ser el gestor de sesion en Linux).
+            # NO matar el proceso padre (puede ser el gestor de sesión en Linux).
             try:
                 webview_window = current_app.config.get('WEBVIEW_WINDOW')
                 if webview_window is not None:
@@ -869,6 +947,25 @@ def register_routes(app):
                     db.commit()
                     flash('Contraseña actualizada correctamente.', 'success')
 
+            elif action == 'save_recovery':
+                rec_q        = request.form.get('recovery_question', '').strip()
+                rec_a        = request.form.get('recovery_answer', '').strip().lower()
+                current_pw   = request.form.get('current_password_recovery', '')
+                user = db.execute("SELECT * FROM user WHERE id=1").fetchone()
+                if user['password_hash'] != hash_password(current_pw):
+                    flash('Contraseña actual incorrecta. No se guardó la pregunta de seguridad.', 'danger')
+                elif not rec_q:
+                    flash('Escribí una pregunta de seguridad.', 'danger')
+                elif len(rec_a) < 2:
+                    flash('La respuesta debe tener al menos 2 caracteres.', 'danger')
+                else:
+                    db.execute(
+                        "UPDATE user SET recovery_question=?, recovery_answer_hash=? WHERE id=1",
+                        (rec_q, hash_password(rec_a))
+                    )
+                    db.commit()
+                    flash('✅ Pregunta de seguridad guardada correctamente.', 'success')
+
             elif action == 'save_ai_config':
                 api_key    = request.form.get('ai_api_key', '').strip()
                 ai_enabled = '1' if request.form.get('ai_enabled') else '0'
@@ -894,7 +991,8 @@ def register_routes(app):
                 db.commit()
                 flash('Configuración de copias de seguridad guardada.', 'success')
 
-        user = db.execute("SELECT username FROM user WHERE id=1").fetchone()
+        user     = db.execute("SELECT username, recovery_question FROM user WHERE id=1").fetchone()
+        user_recovery_question = user['recovery_question'] if user else None
 
         # Leer config de backup
         backup_cfg = {}
@@ -913,6 +1011,7 @@ def register_routes(app):
         backups = services.listar_backups(current_app.config['BASE_DIR'])
         return render_template('settings.html',
                                user=dict(user) if user else {},
+                               user_recovery_question=user_recovery_question,
                                demo_status=demo_status,
                                backup_cfg=backup_cfg,
                                backups=backups,

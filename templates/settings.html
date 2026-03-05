@@ -47,6 +47,57 @@ function toggleApiKey() {
         </form>
       </div>
     </div>
+
+    <!-- Pregunta de seguridad -->
+    <div class="card mt-3">
+      <div class="card-header py-2 fw-semibold">
+        <i class="bi bi-key text-warning"></i> Pregunta de seguridad
+      </div>
+      <div class="card-body">
+        {% if user_recovery_question %}
+          <div class="alert alert-success py-2 small mb-3">
+            <i class="bi bi-check-circle-fill"></i>
+            <strong>Configurada:</strong> {{ user_recovery_question }}
+          </div>
+        {% else %}
+          <div class="alert alert-warning py-2 small mb-3">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <strong>Sin configurar.</strong> Sin esta pregunta no podrás recuperar tu contraseña si la olvidás.
+          </div>
+        {% endif %}
+        <form method="POST">
+          <input type="hidden" name="action" value="save_recovery">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Nueva pregunta</label>
+            <input type="text"
+                   name="recovery_question"
+                   class="form-control"
+                   placeholder="Ej: ¿Nombre de tu primera mascota?"
+                   value="{{ user_recovery_question or '' }}"
+                   maxlength="200"
+                   required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Nueva respuesta</label>
+            <input type="text"
+                   name="recovery_answer"
+                   class="form-control"
+                   placeholder="Tu respuesta secreta..."
+                   autocomplete="off"
+                   maxlength="200"
+                   required>
+            <div class="form-text">No distingue mayúsculas/minúsculas.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Contraseña actual (para confirmar)</label>
+            <input type="password" name="current_password_recovery" class="form-control" required>
+          </div>
+          <button type="submit" class="btn btn-warning w-100">
+            <i class="bi bi-key-fill"></i> Guardar pregunta de seguridad
+          </button>
+        </form>
+      </div>
+    </div>
   </div>
 
   <!-- Estado del sistema -->
@@ -108,6 +159,17 @@ function toggleApiKey() {
           <div class="col-md-6">
             <form method="POST">
               <input type="hidden" name="action" value="save_ai_config">
+
+              <div class="alert alert-warning py-2 px-3 small mb-3">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <strong>Información importante sobre costos:</strong><br>
+                Obtener una clave de API en Anthropic es <strong>gratuito</strong>.
+                Sin embargo, cada consulta al asistente o clasificación automática
+                <strong>consume créditos de tu cuenta Anthropic</strong>, con un costo
+                a tu cargo según el uso. Revisá los precios en
+                <a href="https://anthropic.com/pricing" target="_blank" class="alert-link">anthropic.com/pricing</a>.
+              </div>
+
               <div class="mb-3">
                 <label class="form-label fw-semibold">Clave de API de Anthropic</label>
                 <div class="input-group">

@@ -33,12 +33,21 @@ def init_db(db_path: str):
     # Usuario único del sistema
     cur.execute("""
         CREATE TABLE IF NOT EXISTS user (
-            id            INTEGER PRIMARY KEY CHECK (id = 1),
-            username      TEXT NOT NULL DEFAULT 'admin',
-            password_hash TEXT NOT NULL,
-            created_at    TEXT DEFAULT CURRENT_TIMESTAMP
+            id                    INTEGER PRIMARY KEY CHECK (id = 1),
+            username              TEXT NOT NULL DEFAULT 'admin',
+            password_hash         TEXT NOT NULL,
+            recovery_question     TEXT,
+            recovery_answer_hash  TEXT,
+            created_at            TEXT DEFAULT CURRENT_TIMESTAMP
         )
     """)
+
+    # ── Migración segura: agregar campos de recuperación si no existen ──────
+    cols_user = [row[1] for row in cur.execute("PRAGMA table_info(user)").fetchall()]
+    if 'recovery_question' not in cols_user:
+        cur.execute("ALTER TABLE user ADD COLUMN recovery_question TEXT")
+    if 'recovery_answer_hash' not in cols_user:
+        cur.execute("ALTER TABLE user ADD COLUMN recovery_answer_hash TEXT")
 
     # Cuentas: bancarias, billeteras virtuales, efectivo
     cur.execute("""

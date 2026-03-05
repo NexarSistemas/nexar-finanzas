@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Cerrar aplicación{% endblock %}
-{% block content %}
 
+{% block content %}
 <div class="d-flex align-items-center justify-content-center" style="min-height:60vh;">
   <div class="card shadow text-center" style="max-width:400px; width:100%;">
     <div class="card-body p-5">
@@ -17,10 +17,39 @@
             <i class="bi bi-power"></i> Sí, cerrar
           </button>
         </form>
-        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">Cancelar</a>
+        {# Cancelar: vuelve al dashboard si hay sesión, o al login si no hay #}
+        {% if session.get('user_id') %}
+          <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">Cancelar</a>
+        {% else %}
+          <a href="{{ url_for('login') }}" class="btn btn-outline-secondary">Cancelar</a>
+        {% endif %}
       </div>
     </div>
   </div>
 </div>
+{% endblock %}
 
+{% block auth_content %}
+{# Permite acceder también sin sesión activa (desde la pantalla de login) #}
+<div class="min-vh-100 d-flex align-items-center justify-content-center"
+     style="background: linear-gradient(135deg,#1a1a2e,#16213e);">
+  <div class="card shadow text-center" style="max-width:400px; width:100%;">
+    <div class="card-body p-5">
+      <i class="bi bi-power display-3 text-danger"></i>
+      <h5 class="mt-3 fw-bold">¿Cerrar la aplicación?</h5>
+      <p class="text-muted">
+        El servidor se detendrá. Podrás reiniciarlo ejecutando
+        <code>python app.py</code> nuevamente.
+      </p>
+      <div class="d-flex gap-2 justify-content-center mt-4">
+        <form method="POST" action="{{ url_for('shutdown_confirm') }}">
+          <button type="submit" class="btn btn-danger">
+            <i class="bi bi-power"></i> Sí, cerrar
+          </button>
+        </form>
+        <a href="{{ url_for('login') }}" class="btn btn-outline-secondary">Cancelar</a>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
