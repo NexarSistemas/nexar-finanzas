@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ══════════════════════════════════════════════════════════════════════════════
-# iniciar_portable.sh — Finanzas del Hogar v1.6.0
+# iniciar_portable.sh — Finanzas del Hogar v1.7.0
 # Lanzador portable para Linux / macOS
 # Autor: Rolando Navarta · 2026
 #
@@ -12,8 +12,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_VERSION="1.6.0"
-PORT=5000
+APP_VERSION="1.7.0"
+PORT="${PORT:-5000}"
 
 echo ""
 echo "================================================================"

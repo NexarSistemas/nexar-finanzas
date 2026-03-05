@@ -1,9 +1,14 @@
 # -*- coding: utf-8 -*-
 """
 app.py
-Punto de entrada principal — Finanzas del Hogar v1.6.0
+Punto de entrada principal — Finanzas del Hogar v1.7.0
 Modo de visualización: pywebview (ventana nativa) con fallback
 al navegador SOLO si pywebview falla o no está disponible.
+
+Novedades v1.7.0:
+- Puerto dinámico: se intenta 5000 y, si está ocupado, se asigna
+  automáticamente un puerto libre. Ya no se necesita matar procesos
+  anteriores para poder iniciar la app.
 """
 
 import os
@@ -17,19 +22,13 @@ from flask import Flask, render_template, session, redirect, url_for
 
 # ─── Log de errores a archivo ─────────────────────────────────────────────────
 def _setup_logging():
-    # Prioridad de ubicacion del log:
-    # 1. Directorio del .exe (PyInstaller)
-    # 2. ~/.local/share/finanzas-hogar/ (instalacion .deb, usuario sin permisos en /opt)
-    # 3. Directorio del script (modo desarrollo)
     if getattr(sys, 'frozen', False):
         log_dir = os.path.dirname(sys.executable)
     else:
-        # Verificar si el directorio del script es escribible
         script_dir = os.path.dirname(os.path.abspath(__file__))
         if os.access(script_dir, os.W_OK):
             log_dir = script_dir
         else:
-            # Fallback al directorio de datos del usuario
             log_dir = os.path.join(
                 os.environ.get('HOME', os.path.expanduser('~')),
                 '.local', 'share', 'finanzas-hogar'
@@ -45,7 +44,6 @@ def _setup_logging():
             encoding='utf-8',
         )
     except (PermissionError, OSError):
-        # Ultimo recurso: log solo en consola
         logging.basicConfig(
             level=logging.DEBUG,
             format='%(asctime)s [%(levelname)s] %(message)s',
@@ -72,7 +70,6 @@ def _get_internal_dir() -> str:
 _APP_DIR      = _get_app_dir()
 _INTERNAL_DIR = _get_internal_dir()
 
-# Permite redirigir datos a otro directorio via variable de entorno
 BASE_DIR = os.environ.get('FINANZAS_DATA_DIR', _APP_DIR)
 
 if BASE_DIR != _APP_DIR:
@@ -81,52 +78,34 @@ if BASE_DIR != _APP_DIR:
 
 DB_PATH = os.path.join(BASE_DIR, 'database.db')
 
-# ─── Liberar puerto si quedó ocupado ──────────────────────────────────────────
-def _liberar_puerto(puerto: int = 5000):
-    import subprocess, platform, signal
+# ─── Selección dinámica de puerto ─────────────────────────────────────────────
+
+def _encontrar_puerto(preferido: int = 5000) -> int:
+    """
+    Devuelve el puerto preferido si está libre; de lo contrario deja
+    que el SO asigne uno disponible automáticamente.
+
+    Estrategia:
+      1. Probar el puerto preferido.
+      2. Si está ocupado, abrir un socket en puerto 0 (el SO elige uno libre).
+    """
+    sock = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
+    sock.setsockopt(_socket.SOL_SOCKET, _socket.SO_REUSEADDR, 1)
+    try:
+        sock.bind(('127.0.0.1', preferido))
+        sock.close()
+        return preferido
+    except OSError:
+        sock.close()
 
     sock = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
-    sock.settimeout(0.5)
-    en_uso = sock.connect_ex(('127.0.0.1', puerto)) == 0
+    sock.setsockopt(_socket.SOL_SOCKET, _socket.SO_REUSEADDR, 1)
+    sock.bind(('127.0.0.1', 0))
+    puerto_libre = sock.getsockname()[1]
     sock.close()
-    if not en_uso:
-        return
+    logging.info(f"Puerto 5000 ocupado. Usando puerto alternativo: {puerto_libre}")
+    return puerto_libre
 
-    print(f"  ⚠ Puerto {puerto} ocupado. Liberando proceso anterior…")
-    sistema = platform.system()
-    try:
-        if sistema == 'Windows':
-            resultado = subprocess.run(
-                ['netstat', '-ano'], capture_output=True, text=True, timeout=5
-            )
-            for linea in resultado.stdout.splitlines():
-                if f':{puerto}' in linea and 'LISTEN' in linea:
-                    pid = linea.split()[-1]
-                    subprocess.run(['taskkill', '/F', '/PID', pid],
-                                   capture_output=True, timeout=3)
-                    print(f"  ✓ Proceso {pid} terminado.")
-                    break
-        else:
-            pids = []
-            for cmd in [['fuser', f'{puerto}/tcp'], ['lsof', '-ti', f'tcp:{puerto}']]:
-                try:
-                    r = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
-                    pids = r.stdout.strip().split()
-                    if pids:
-                        break
-                except FileNotFoundError:
-                    continue
-            for pid in pids:
-                try:
-                    os.kill(int(pid), signal.SIGKILL)
-                    print(f"  ✓ Proceso {pid} terminado.")
-                except (ProcessLookupError, ValueError):
-                    pass
-        time.sleep(0.8)
-    except Exception as e:
-        logging.warning(f"No se pudo liberar el puerto: {e}")
-
-_liberar_puerto(5000)
 
 # ─── Inicializar Flask ────────────────────────────────────────────────────────
 app = Flask(
@@ -143,7 +122,7 @@ app.config['DB_PATH']  = DB_PATH
 app.config['BASE_DIR'] = BASE_DIR
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
 
-APP_VERSION = '1.6.0'
+APP_VERSION = '1.7.0'
 
 # ─── Base de datos ────────────────────────────────────────────────────────────
 from models import init_db
@@ -182,14 +161,18 @@ def inject_globals():
 # ─── Punto de entrada ─────────────────────────────────────────────────────────
 if __name__ == '__main__':
 
-    PORT = 5000
+    PORT = _encontrar_puerto(preferido=5000)
     URL  = f'http://127.0.0.1:{PORT}'
 
     print("=" * 55)
     print(f"  💰 Finanzas del Hogar v{APP_VERSION}")
     print("  Creado por Rolando Navarta")
     print("=" * 55)
-    print(f"  Base de datos: {DB_PATH}")
+    print(f"  Base de datos : {DB_PATH}")
+    if PORT != 5000:
+        print(f"  Puerto        : {PORT}  (5000 ocupado, asignado automáticamente)")
+    else:
+        print(f"  Puerto        : {PORT}")
     print("=" * 55)
 
     # ── Flask en hilo secundario ──────────────────────────────────────────────
@@ -237,10 +220,7 @@ if __name__ == '__main__':
             resizable   = True,
             text_select = False,
         )
-        # Guardar referencia global para poder cerrar la ventana desde routes
         app.config['WEBVIEW_WINDOW'] = window
-
-        # Bloquea hasta que el usuario cierra la ventana
         webview.start(debug=False, http_server=False)
         _webview_ok = True
 

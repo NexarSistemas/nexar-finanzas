@@ -1,4 +1,4 @@
-💰 Finanzas del Hogar v1.6.0
+💰 Finanzas del Hogar v1.7.0
 
 
 Aplicación web local de gestión financiera personal. Funciona completamente offline, utilizando base de datos SQLite local, y está optimizada para equipos de gama media/baja.
