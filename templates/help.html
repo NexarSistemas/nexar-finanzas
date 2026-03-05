@@ -6,15 +6,61 @@
 
 <div class="accordion" id="helpAccordion">
 
-  <!-- v1.6.0 (actual) -->
+  <!-- v1.7.0 (actual) -->
   <div class="accordion-item border-primary">
     <h2 class="accordion-header">
       <button class="accordion-button bg-primary text-white" type="button"
-              data-bs-toggle="collapse" data-bs-target="#help_v160">
-        📊 Novedades en la versión 1.6.0 — Gastos necesarios vs prescindibles + Cierre mejorado
+              data-bs-toggle="collapse" data-bs-target="#help_v170">
+        ⚡ Novedades en la versión 1.7.0 — Puerto dinámico
       </button>
     </h2>
-    <div id="help_v160" class="accordion-collapse collapse show"
+    <div id="help_v170" class="accordion-collapse collapse show"
+         data-bs-parent="#helpAccordion">
+      <div class="accordion-body">
+
+        <h6 class="fw-bold text-primary">Puerto dinámico</h6>
+        <p>
+          A partir de esta versión la app ya <strong>no requiere que el puerto 5000 esté libre</strong>
+          para iniciar. El comportamiento es el siguiente:
+        </p>
+        <ol>
+          <li>Se intenta usar el puerto <strong>5000</strong> (predeterminado).</li>
+          <li>Si ese puerto está ocupado por otro proceso, el sistema operativo asigna
+              automáticamente <strong>un puerto libre</strong>.</li>
+          <li>El puerto real utilizado se muestra en la consola al iniciar la app:
+            <pre class="bg-light p-2 rounded mt-2 mb-0"><code>  Puerto        : 5000
+  ── o ──
+  Puerto        : 54321  (5000 ocupado, asignado automáticamente)</code></pre>
+          </li>
+        </ol>
+
+        <h6 class="fw-bold text-primary mt-3">¿Qué cambió respecto a v1.6.0?</h6>
+        <p>
+          Antes, si el puerto 5000 estaba ocupado, la app intentaba matar el proceso que lo usaba.
+          Ahora simplemente <strong>elige otro puerto</strong>, sin interferir con otros programas.
+        </p>
+
+        <div class="alert alert-info py-2 small mt-2">
+          <i class="bi bi-info-circle"></i>
+          La app <strong>no se abre en una URL fija</strong>: el puerto puede variar entre
+          sesiones si el 5000 está ocupado. Siempre mirá la consola para ver la URL exacta,
+          o usá el lanzador <code>iniciar.bat</code> / <code>iniciar.sh</code> que lo gestiona
+          automáticamente.
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- v1.6.0 -->
+  <div class="accordion-item border-primary">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed bg-secondary text-white" type="button"
+              data-bs-toggle="collapse" data-bs-target="#help_v160">
+        📊 Versión 1.6.0 — Gastos necesarios vs prescindibles + Cierre mejorado
+      </button>
+    </h2>
+    <div id="help_v160" class="accordion-collapse collapse"
          data-bs-parent="#helpAccordion">
       <div class="accordion-body">
 
@@ -342,7 +388,9 @@
           <li>Abrí una terminal en esa carpeta.</li>
           <li>Instalá las dependencias: <code>pip install -r requirements.txt</code></li>
           <li>Ejecutá la app: <code>python app.py</code></li>
-          <li>Abrí tu navegador en: <a href="http://127.0.0.1:5000">http://127.0.0.1:5000</a></li>
+          <li>La app abre automáticamente en una ventana propia (pywebview) o en el navegador.
+              Si necesitás ingresar manualmente, el puerto real se muestra en la consola:
+              <code>Puerto : 5000</code> (o el que se haya asignado automáticamente).</li>
           <li>En la primera ejecución, creá tu usuario administrador.</li>
         </ol>
         <h6>En Windows (doble clic)</h6>
