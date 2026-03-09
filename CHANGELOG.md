@@ -6,6 +6,13 @@ Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
 
+## [1.9.1] — 2026-03-09
+
+### Mejorado
+- Licencia MIT visible en Acerca de: sección colapsable al final de la página, sin interferir con la interfaz.
+
+---
+
 ## [1.9.0] — 2026-03-05
 
 ### Corregido

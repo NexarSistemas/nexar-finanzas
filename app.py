@@ -122,7 +122,7 @@ app.config['DB_PATH']  = DB_PATH
 app.config['BASE_DIR'] = BASE_DIR
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
 
-APP_VERSION = '1.9.0'
+APP_VERSION = '1.9.1'
 
 # ─── Base de datos ────────────────────────────────────────────────────────────
 from models import init_db
