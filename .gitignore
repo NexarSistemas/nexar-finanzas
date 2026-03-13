@@ -63,3 +63,9 @@ Thumbs.db
 
 *.tmp
 *.temp
+
+# ==============================
+# Llaves Privadas
+# ==============================
+
+keys/private_key.pem
