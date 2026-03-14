@@ -95,7 +95,11 @@ def _get_internal_dir():
 _APP_DIR = _get_app_dir()
 _INTERNAL_DIR = _get_internal_dir()
 
-BASE_DIR = os.environ.get('FINANZAS_DATA_DIR', _APP_DIR)
+BASE_DIR = (
+    os.environ.get('FINANZAS_DATA_DIR')
+    or (_APP_DIR if os.access(_APP_DIR, os.W_OK) else
+        os.path.join(os.path.expanduser('~'), '.local', 'share', 'finanzas-hogar'))
+)
 
 if BASE_DIR != _APP_DIR:
     os.makedirs(BASE_DIR, exist_ok=True)
