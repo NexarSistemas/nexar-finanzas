@@ -18,6 +18,7 @@ from flask import (
 from models import get_db, recalculate_account_balance
 from demo_limits import check_limit, is_full_version, get_demo_status
 from activation import validate_activation_code
+from licensing.hardware_id import get_hardware_id
 import services
 
 
@@ -915,7 +916,8 @@ def register_routes(app):
                                activated_at=cfg.get('activated_at'),
                                license_type=cfg.get('license_type', 'permanente'),
                                license_expires=cfg.get('license_expires', ''),
-                               activation_code=cfg.get('activation_code', ''))
+                               activation_code=cfg.get('activation_code', ''),
+                               hardware_id=get_hardware_id())
 
     # ══════════════════════════════════════════════════════════════════════════
     # CONFIGURACIÓN Y PERFIL

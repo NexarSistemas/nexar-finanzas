@@ -274,6 +274,30 @@
       </div>
     </div>
 
+    <!-- ID de máquina -->
+    <div class="card border-secondary mb-3">
+      <div class="card-header py-2 fw-semibold">
+        <i class="bi bi-pc-display"></i> ID de tu equipo
+      </div>
+      <div class="card-body small">
+        <p class="text-muted mb-2">
+          Enviá este código junto con tu solicitud de licencia.
+          Identifica de forma única tu computadora.
+        </p>
+        <div class="input-group">
+          <input type="text" id="hwid-field"
+                 class="form-control form-control-sm font-monospace"
+                 value="{{ hardware_id }}"
+                 readonly>
+          <button class="btn btn-outline-secondary btn-sm" type="button"
+                  onclick="copyHWID()"
+                  title="Copiar ID">
+            <i class="bi bi-clipboard" id="hwid-icon"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Contacto -->
     <div class="card border-0 bg-light">
       <div class="card-body small">
@@ -289,4 +313,15 @@
 </div>
 
 {% endif %}
+
+<script>
+function copyHWID() {
+  const field = document.getElementById('hwid-field');
+  const icon  = document.getElementById('hwid-icon');
+  navigator.clipboard.writeText(field.value).then(() => {
+    icon.className = 'bi bi-clipboard-check text-success';
+    setTimeout(() => { icon.className = 'bi bi-clipboard'; }, 2000);
+  });
+}
+</script>
 {% endblock %}

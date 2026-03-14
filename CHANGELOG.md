@@ -6,6 +6,13 @@ Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
 
+## [1.9.2] — 2026-03-14
+
+### Corregido
+- Pantalla de activación: el ID de máquina (hardware ID) ahora se muestra correctamente en modo DEMO, con botón para copiar al portapapeles. Este dato es necesario para solicitar una licencia.
+
+---
+
 ## [1.9.1] — 2026-03-09
 
 ### Mejorado
