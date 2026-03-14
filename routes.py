@@ -882,26 +882,25 @@ def register_routes(app):
         already_full = is_full_version(db_path)
 
         if request.method == 'POST' and not already_full:
-            code = request.form.get('code', '').strip()
-            from activation import detect_license_type
-            licencia = detect_license_type(code)
-            if licencia:
-                db = get_db(db_path)
-                db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('version','FULL')")
-                db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('activated_at', ?)",
-                           (datetime.now().isoformat(),))
-                db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('activation_code', ?)",
-                           (code.strip().upper(),))
-                db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('license_type', ?)",
-                           (licencia['tipo'],))
-                db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('license_expires', ?)",
-                           (licencia['vencimiento'] or '',))
-                db.commit()
-                db.close()
-                flash('¡Sistema activado exitosamente! Ahora tenés acceso sin límites.', 'success')
-                return redirect(url_for('dashboard'))
+            code = request.form.get('code', '').strip().upper()
+
+            # ── Ruta RSA/Drive: códigos con formato FH-XXXXXXXX-XXX ────────────
+            if code.startswith('FH-'):
+                rsa_ok = _activar_rsa(code, db_path)
+                if rsa_ok:
+                    flash('¡Sistema activado exitosamente! Ahora tenés acceso sin límites.', 'success')
+                    return redirect(url_for('dashboard'))
+
+            # ── Ruta HMAC offline: códigos con formato XXXX-XXXX-XXXX-XXXX ────
             else:
-                flash('Código de activación inválido. Verificá e intentá nuevamente.', 'danger')
+                from activation import detect_license_type
+                licencia = detect_license_type(code)
+                if licencia:
+                    _guardar_activacion(db_path, code, licencia['tipo'], licencia['vencimiento'] or '')
+                    flash('¡Sistema activado exitosamente! Ahora tenés acceso sin límites.', 'success')
+                    return redirect(url_for('dashboard'))
+                else:
+                    flash('Código de activación inválido. Verificá e intentá nuevamente.', 'danger')
 
         db = get_db(db_path)
         config_rows = db.execute(
@@ -918,6 +917,81 @@ def register_routes(app):
                                license_expires=cfg.get('license_expires', ''),
                                activation_code=cfg.get('activation_code', ''),
                                hardware_id=get_hardware_id())
+
+
+    def _guardar_activacion(db_path, code, tipo, vencimiento):
+        """Persiste en la BD los datos de una activación exitosa."""
+        db = get_db(db_path)
+        db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('version','FULL')")
+        db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('activated_at', ?)",
+                   (datetime.now().isoformat(),))
+        db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('activation_code', ?)",
+                   (code,))
+        db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('license_type', ?)",
+                   (tipo,))
+        db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('license_expires', ?)",
+                   (vencimiento,))
+        db.commit()
+        db.close()
+
+
+    def _activar_rsa(code, db_path):
+        """
+        Flujo de activación RSA/Drive para códigos FH-*.
+        1. Descarga index.json de Drive y obtiene el file_id de la licencia.
+        2. Descarga la licencia pública.
+        3. Verifica firma RSA.
+        4. Verifica que el hardware_id coincida con esta máquina.
+        5. Guarda la activación en BD.
+        Retorna True si la activación fue exitosa, False en caso contrario.
+        Emite flash con el error específico cuando falla.
+        """
+        try:
+            from licensing.license_api import get_license_file_id, download_license
+            from licensing.crypto_verify import verify_signature
+
+            # 1. Buscar el file_id en el índice
+            file_id = get_license_file_id(code)
+            if not file_id:
+                flash('Licencia no encontrada. Verificá el código e intentá nuevamente.', 'danger')
+                return False
+
+            # 2. Descargar licencia pública
+            license_data = download_license(file_id)
+
+            # 3. Verificar firma RSA
+            try:
+                verify_signature(license_data)
+            except Exception:
+                flash('Licencia inválida: la firma digital no es auténtica.', 'danger')
+                return False
+
+            # 4. Verificar que la licencia es para este equipo
+            current_hw = get_hardware_id()
+            if license_data.get('hardware_id') != current_hw:
+                flash(
+                    'Esta licencia fue generada para otro equipo. '
+                    'Contactá al desarrollador con tu ID de máquina.',
+                    'danger'
+                )
+                return False
+
+            # 5. Guardar activación
+            _guardar_activacion(db_path, code, 'cliente', '')
+            return True
+
+        except ConnectionError as e:
+            flash(str(e), 'warning')
+        except TimeoutError as e:
+            flash(str(e), 'warning')
+        except RuntimeError as e:
+            flash(str(e), 'danger')
+        except Exception as e:
+            flash(f'Error inesperado al verificar la licencia: {e}', 'danger')
+
+        return False
+
+
 
     # ══════════════════════════════════════════════════════════════════════════
     # CONFIGURACIÓN Y PERFIL
