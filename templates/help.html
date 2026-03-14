@@ -6,15 +6,46 @@
 
 <div class="accordion" id="helpAccordion">
 
-  <!-- v1.9.1 (actual) -->
+  <!-- v1.9.2 (actual) -->
   <div class="accordion-item border-primary">
     <h2 class="accordion-header">
       <button class="accordion-button bg-primary text-white" type="button"
-              data-bs-toggle="collapse" data-bs-target="#help_v191">
-        📄 Novedades en la versión 1.9.1 — Licencia MIT en Acerca de
+              data-bs-toggle="collapse" data-bs-target="#help_v192">
+        🔑 Versión 1.9.2 — ID de máquina visible en pantalla de activación
       </button>
     </h2>
-    <div id="help_v191" class="accordion-collapse collapse show"
+    <div id="help_v192" class="accordion-collapse collapse show"
+         data-bs-parent="#helpAccordion">
+      <div class="accordion-body">
+        <h6 class="fw-bold text-primary">Hardware ID visible al solicitar licencia</h6>
+        <p>
+          En la pantalla de <strong>Activación</strong> (modo DEMO), ahora se muestra
+          el <strong>ID de tu equipo</strong>: un código único generado a partir
+          del hardware de tu computadora.
+        </p>
+        <p>
+          Este dato es necesario para que el desarrollador pueda generar tu
+          licencia. Podés copiarlo con el botón
+          <i class="bi bi-clipboard"></i> y enviarlo junto con tu solicitud.
+        </p>
+        <div class="alert alert-info py-2 small mt-2">
+          <i class="bi bi-info-circle-fill"></i>
+          El ID cambia si cambiás de computadora. Si reinstalás en un equipo
+          nuevo, enviá el nuevo ID para solicitar la reactivación.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- v1.9.1 -->
+  <div class="accordion-item">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed bg-secondary text-white" type="button"
+              data-bs-toggle="collapse" data-bs-target="#help_v191">
+        📄 Versión 1.9.1 — Licencia MIT en Acerca de
+      </button>
+    </h2>
+    <div id="help_v191" class="accordion-collapse collapse"
          data-bs-parent="#helpAccordion">
       <div class="accordion-body">
         <h6 class="fw-bold text-primary">Licencia visible en Acerca de</h6>
@@ -259,9 +290,9 @@
   </div>
 
 
-  <div class="accordion-item border-primary">
+  <div class="accordion-item">
     <h2 class="accordion-header">
-      <button class="accordion-button bg-primary text-white" type="button"
+      <button class="accordion-button collapsed bg-secondary text-white" type="button"
               data-bs-toggle="collapse" data-bs-target="#help_v150">
         🤖 Versión 1.5.0 — Inteligencia Artificial
       </button>

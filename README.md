@@ -241,6 +241,11 @@ El asistente tiene acceso de solo lectura a los datos reales del usuario (transa
 
 | Versión | Cambios principales |
 |---|---|
+| **v1.9.2** | Pantalla de activación muestra el ID de máquina con botón copiar para solicitar licencia |
+| **v1.9.1** | Licencia MIT visible en Acerca de como sección colapsable |
+| **v1.9.0** | Corrección de cierre sin sesión activa; avisos de costo del asistente de IA |
+| **v1.8.0** | Recuperación de contraseña; pantalla de activación con tipos de licencia (mensual, permanente, cliente) |
+| **v1.7.0** | Puerto dinámico configurable; mejoras de estabilidad |
 | **v1.6.0** | Categorías Necesario/Prescindible; análisis con recomendaciones y IA en Reportes; cierre de terminal y pestaña al apagar |
 | **v1.5.0** | Clasificación automática de gastos con IA (sugiere categoría al escribir); asistente financiero en chat flotante con acceso a datos reales del usuario |
 | **v1.4.1** | Corrección: sección de actualización duplicada en Configuración; corrección: error "falta UPDATE_META.json" al instalar actualizaciones |
