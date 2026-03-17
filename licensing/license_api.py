@@ -13,7 +13,7 @@ import requests
 #   4. Asegurate de que index.json en Drive tenga acceso
 #      "Cualquiera con el enlace puede ver".
 # ─────────────────────────────────────────────────────────────────────────────
-DRIVE_INDEX_FILE_ID = "1xmVhdMhHfI_a3631pT1aoYGA9qeDzmex"
+DRIVE_INDEX_FILE_ID = "193pJF5ly7Xpkk2J8-fIMRvf7XdagAugN"
 
 _TIMEOUT = 10   # segundos de espera máxima por request
 
