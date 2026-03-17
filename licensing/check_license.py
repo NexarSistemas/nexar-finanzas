@@ -9,10 +9,9 @@ Lógica:
 """
 
 import os
+import sys
 import sqlite3
 
-from .license_manager import validate_local_license
-from .license_storage import license_exists
 from .demo_state      import set_demo, set_full
 
 
@@ -29,11 +28,15 @@ def _get_db_path():
     # _app_dir apunta a <raiz>/
     _app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-    base_dir = (
-        os.environ.get('FINANZAS_DATA_DIR')
-        or (_app_dir if os.access(_app_dir, os.W_OK) else
-            os.path.join(os.path.expanduser('~'), '.local', 'share', 'finanzas-hogar'))
-    )
+    if os.environ.get('FINANZAS_DATA_DIR'):
+        base_dir = os.environ['FINANZAS_DATA_DIR']
+    elif getattr(sys, 'frozen', False) and os.name == 'nt':
+        base_dir = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'FinanzasHogar')
+    elif getattr(sys, 'frozen', False):
+        base_dir = os.path.join(os.path.expanduser('~'), '.local', 'share', 'finanzas-hogar')
+    else:
+        base_dir = _app_dir if os.access(_app_dir, os.W_OK) else \
+                   os.path.join(os.path.expanduser('~'), '.local', 'share', 'finanzas-hogar')
     return os.path.join(base_dir, 'database.db')
 
 
@@ -70,16 +73,7 @@ def check_license():
         set_full({})
         return "FULL"
 
-    # ── Caso 2: licencia JSON local válida (sistema RSA) → FULL ──────────────
-    if validate_local_license():
-        return "FULL"
-
-    # ── Caso 3: había licencia JSON pero ya no es válida → DEMO silencioso ────
-    if license_exists():
-        set_demo()
-        return "DEMO"
-
-    # ── Caso 4: primera vez, sin ningún registro → bienvenida ─────────────────
+    # ── Caso 2: primera vez, sin ningún registro → bienvenida ─────────────────
     try:
         from .activation_gui import WelcomeWindow
         win = WelcomeWindow()

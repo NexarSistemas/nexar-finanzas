@@ -948,7 +948,6 @@ def register_routes(app):
         """
         try:
             from licensing.license_api import get_license_file_id, download_license
-            from licensing.crypto_verify import verify_signature
 
             # 1. Buscar el file_id en el índice
             file_id = get_license_file_id(code)
@@ -959,14 +958,7 @@ def register_routes(app):
             # 2. Descargar licencia pública
             license_data = download_license(file_id)
 
-            # 3. Verificar firma RSA
-            try:
-                verify_signature(license_data)
-            except Exception:
-                flash('Licencia inválida: la firma digital no es auténtica.', 'danger')
-                return False
-
-            # 4. Verificar que la licencia es para este equipo
+            # 3. Verificar que la licencia es para este equipo
             current_hw = get_hardware_id()
             if license_data.get('hardware_id') != current_hw:
                 flash(
@@ -976,7 +968,7 @@ def register_routes(app):
                 )
                 return False
 
-            # 5. Guardar activación
+            # 4. Guardar activación
             _guardar_activacion(db_path, code, 'cliente', '')
             return True
 

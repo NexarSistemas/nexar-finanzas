@@ -1,4 +1,4 @@
-# build.ps1 — Script de build para Finanzas del Hogar v1.9.2
+# build.ps1 - Script de build para Finanzas del Hogar v1.9.2
 # Autor: Rolando Navarta
 #
 # Uso:
@@ -7,11 +7,15 @@
 #
 # Requisitos previos:
 #   - Python 3.10+  (https://www.python.org/downloads/)
-#   - NSIS 3.x      (https://nsis.sourceforge.io)  — solo para el instalador .exe
+#   - NSIS 3.x      (https://nsis.sourceforge.io) - solo para el instalador .exe
 #   - pip install pyinstaller
 
-Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+# Ir a la raiz del proyecto (carpeta padre de build_scripts\)
+$PROJECT_ROOT = Split-Path -Parent $PSScriptRoot
+Set-Location $PROJECT_ROOT
+Write-Host "Directorio de trabajo: $PROJECT_ROOT"
 
 $APP_NAME    = "FinanzasHogar"
 $APP_VERSION = "1.9.2"
@@ -22,35 +26,32 @@ $OUTPUT_DIR  = "release"
 
 Write-Host ""
 Write-Host "================================================" -ForegroundColor Cyan
-Write-Host "  Finanzas del Hogar v$APP_VERSION — Build Script" -ForegroundColor Cyan
+Write-Host "  Finanzas del Hogar v$APP_VERSION - Build Script" -ForegroundColor Cyan
 Write-Host "================================================" -ForegroundColor Cyan
 Write-Host ""
 
-# ── 1. Detectar Python ────────────────────────────────────────────────────────
+# 1. Detectar Python
 Write-Host "[1/5] Buscando Python..." -ForegroundColor Yellow
 
-$PYTHON = $null
+$PYTHON = ""
 
-# Intentar py launcher (forma recomendada en Windows)
 if (Get-Command "py" -ErrorAction SilentlyContinue) {
-    $ver = py --version 2>&1
-    if ($ver -match "Python 3\.(\d+)") {
+    $ver = (py --version 2>&1).ToString()
+    if ($ver -match "Python 3[.]([0-9]+)") {
         $minor = [int]$Matches[1]
         if ($minor -ge 10) { $PYTHON = "py" }
     }
 }
 
-# Intentar python directo
-if (-not $PYTHON -and (Get-Command "python" -ErrorAction SilentlyContinue)) {
-    $ver = python --version 2>&1
-    if ($ver -match "Python 3\.(\d+)") {
+if (($PYTHON -eq "") -and (Get-Command "python" -ErrorAction SilentlyContinue)) {
+    $ver = (python --version 2>&1).ToString()
+    if ($ver -match "Python 3[.]([0-9]+)") {
         $minor = [int]$Matches[1]
         if ($minor -ge 10) { $PYTHON = "python" }
     }
 }
 
-# Buscar en rutas conocidas
-if (-not $PYTHON) {
+if ($PYTHON -eq "") {
     $candidates = @(
         "$env:LOCALAPPDATA\Programs\Python\Python312\python.exe",
         "$env:LOCALAPPDATA\Programs\Python\Python311\python.exe",
@@ -64,19 +65,19 @@ if (-not $PYTHON) {
     }
 }
 
-if (-not $PYTHON) {
+if ($PYTHON -eq "") {
     Write-Host "[ERROR] Python 3.10+ no encontrado." -ForegroundColor Red
     Write-Host "        Descargalo en: https://www.python.org/downloads/" -ForegroundColor Red
     exit 1
 }
 
-$pyVer = & $PYTHON --version 2>&1
+$pyVer = (& $PYTHON --version 2>&1).ToString()
 Write-Host "[OK] $pyVer ($PYTHON)" -ForegroundColor Green
 
-# ── 2. Instalar/verificar PyInstaller ─────────────────────────────────────────
+# 2. Verificar PyInstaller
 Write-Host "[2/5] Verificando PyInstaller..." -ForegroundColor Yellow
 
-$pyiCheck = & $PYTHON -c "import PyInstaller; print(PyInstaller.__version__)" 2>&1
+& $PYTHON -c "import PyInstaller" 2>&1 | Out-Null
 if ($LASTEXITCODE -ne 0) {
     Write-Host "      Instalando PyInstaller..." -ForegroundColor Yellow
     & $PYTHON -m pip install pyinstaller --quiet
@@ -87,24 +88,23 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "[OK] PyInstaller disponible." -ForegroundColor Green
 
-# ── 3. Build con PyInstaller ──────────────────────────────────────────────────
+# 3. Build con PyInstaller
 Write-Host "[3/5] Compilando con PyInstaller..." -ForegroundColor Yellow
 
-# Limpiar build anterior
 if (Test-Path "build") { Remove-Item "build" -Recurse -Force }
 if (Test-Path "dist")  { Remove-Item "dist"  -Recurse -Force }
 
-& $PYTHON -m PyInstaller $SPEC_FILE --noconfirm 2>&1 | Tee-Object -Variable pyiOutput
+& $PYTHON -m PyInstaller $SPEC_FILE --noconfirm
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "[ERROR] PyInstaller falló." -ForegroundColor Red
+    Write-Host "[ERROR] PyInstaller fallo." -ForegroundColor Red
     exit 1
 }
 Write-Host "[OK] Build completado en dist\$APP_NAME\" -ForegroundColor Green
 
-# ── 4. Crear instalador con NSIS ──────────────────────────────────────────────
-Write-Host "[4/5] Buscando NSIS para crear instalador..." -ForegroundColor Yellow
+# 4. Crear instalador con NSIS
+Write-Host "[4/5] Buscando NSIS..." -ForegroundColor Yellow
 
-$MAKENSIS = $null
+$MAKENSIS = ""
 $nsisCandidates = @(
     "C:\Program Files (x86)\NSIS\makensis.exe",
     "C:\Program Files\NSIS\makensis.exe"
@@ -112,42 +112,43 @@ $nsisCandidates = @(
 foreach ($c in $nsisCandidates) {
     if (Test-Path $c) { $MAKENSIS = $c; break }
 }
-if (-not $MAKENSIS -and (Get-Command "makensis" -ErrorAction SilentlyContinue)) {
+if (($MAKENSIS -eq "") -and (Get-Command "makensis" -ErrorAction SilentlyContinue)) {
     $MAKENSIS = "makensis"
 }
 
-if (-not $MAKENSIS) {
-    Write-Host "[AVISO] NSIS no encontrado. Se omite la generacion del instalador .exe." -ForegroundColor Yellow
+if ($MAKENSIS -eq "") {
+    Write-Host "[AVISO] NSIS no encontrado. Se omite el instalador .exe." -ForegroundColor Yellow
     Write-Host "        Instalalo en: https://nsis.sourceforge.io" -ForegroundColor Yellow
 } else {
-    & $MAKENSIS $NSI_FILE 2>&1
+    # Crear carpeta release antes de que NSIS escriba el .exe ahi
+    if (-not (Test-Path $OUTPUT_DIR)) { New-Item -ItemType Directory $OUTPUT_DIR | Out-Null }
+    & $MAKENSIS $NSI_FILE
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "[ERROR] NSIS falló al crear el instalador." -ForegroundColor Red
+        Write-Host "[ERROR] NSIS fallo." -ForegroundColor Red
         exit 1
     }
-    Write-Host "[OK] Instalador creado: FinanzasHogar_v${APP_VERSION}_Setup.exe" -ForegroundColor Green
+    Write-Host "[OK] Instalador creado en release\FinanzasHogar_v${APP_VERSION}_Setup.exe" -ForegroundColor Green
 }
 
-# ── 5. Empaquetar release ─────────────────────────────────────────────────────
+# 5. Empaquetar release
 Write-Host "[5/5] Empaquetando release..." -ForegroundColor Yellow
 
 if (-not (Test-Path $OUTPUT_DIR)) { New-Item -ItemType Directory $OUTPUT_DIR | Out-Null }
 
-# ZIP portable (sin instalador)
 $portableZip = "$OUTPUT_DIR\FinanzasHogar_v${APP_VERSION}_portable_windows.zip"
 if (Test-Path $DIST_DIR) {
+    Write-Host "Esperando que el sistema libere los archivos..." -ForegroundColor Yellow
+    Start-Sleep -Seconds 5
     Compress-Archive -Path "$DIST_DIR\*" -DestinationPath $portableZip -Force
     Write-Host "[OK] Portable: $portableZip" -ForegroundColor Green
 }
 
-# Mover instalador si se generó
 $setupExe = "FinanzasHogar_v${APP_VERSION}_Setup.exe"
 if (Test-Path $setupExe) {
     Move-Item $setupExe "$OUTPUT_DIR\" -Force
     Write-Host "[OK] Instalador: $OUTPUT_DIR\$setupExe" -ForegroundColor Green
 }
 
-# Generar SHA256
 Write-Host ""
 Write-Host "Checksums SHA256:" -ForegroundColor Cyan
 $sha256File = "$OUTPUT_DIR\SHA256SUMS_windows.txt"

@@ -95,11 +95,21 @@ def _get_internal_dir():
 _APP_DIR = _get_app_dir()
 _INTERNAL_DIR = _get_internal_dir()
 
-BASE_DIR = (
-    os.environ.get('FINANZAS_DATA_DIR')
-    or (_APP_DIR if os.access(_APP_DIR, os.W_OK) else
-        os.path.join(os.path.expanduser('~'), '.local', 'share', 'finanzas-hogar'))
-)
+# Calcular directorio de datos del usuario segun el entorno:
+#   - Variable de entorno FINANZAS_DATA_DIR  → usarla siempre que este definida
+#   - .exe compilado en Windows              → %APPDATA%\FinanzasHogar
+#   - .exe compilado en Linux/Mac            → ~/.local/share/finanzas-hogar
+#   - Desarrollo / portable                  → directorio del script si es escribible,
+#                                              sino ~/.local/share/finanzas-hogar
+if os.environ.get('FINANZAS_DATA_DIR'):
+    BASE_DIR = os.environ['FINANZAS_DATA_DIR']
+elif getattr(sys, 'frozen', False) and os.name == 'nt':
+    BASE_DIR = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'FinanzasHogar')
+elif getattr(sys, 'frozen', False):
+    BASE_DIR = os.path.join(os.path.expanduser('~'), '.local', 'share', 'finanzas-hogar')
+else:
+    BASE_DIR = _APP_DIR if os.access(_APP_DIR, os.W_OK) else \
+               os.path.join(os.path.expanduser('~'), '.local', 'share', 'finanzas-hogar')
 
 if BASE_DIR != _APP_DIR:
     os.makedirs(BASE_DIR, exist_ok=True)
