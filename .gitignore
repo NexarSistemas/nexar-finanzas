@@ -43,6 +43,7 @@ backups/
 build/
 dist/
 *.spec
+build_scripts
 
 # ==============================
 # Sistema operativo
