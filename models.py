@@ -5,7 +5,105 @@ Crea todas las tablas necesarias si no existen.
 """
 
 import sqlite3
+import platform
+import uuid
 from datetime import date
+import base64 as _b64
+import hashlib as _hl
+
+
+# ─── Anti-reinstall — archivo externo de control de demo ─────────────────────
+#
+# Guarda la fecha de inicio de demo en un archivo FUERA de la BD.
+# Si el usuario borra la BD, el archivo sobrevive y mantiene la fecha original.
+# Nombre y contenido diseñados para no llamar la atención.
+# Carpeta: %APPDATA%\FinanzasHogar\  (Windows)
+#          ~/.local/share/FinanzasHogar/  (Linux/Mac)
+# Archivo: telemetry.bin
+#
+
+def _get_telemetry_path() -> str:
+    """Ruta del archivo externo de control de demo."""
+    if platform.system() == 'Windows':
+        import os
+        base   = os.environ.get('APPDATA', os.path.expanduser('~'))
+        folder = os.path.join(base, 'FinanzasHogar')
+    else:
+        import os
+        base   = os.environ.get('XDG_DATA_HOME',
+                                os.path.join(os.path.expanduser('~'), '.local', 'share'))
+        folder = os.path.join(base, 'FinanzasHogar')
+    os.makedirs(folder, exist_ok=True)
+    return os.path.join(folder, 'telemetry.bin')
+
+
+def _encode_date(date_str: str, machine_id: str) -> str:
+    """
+    Codifica la fecha junto con el machine_id para que el contenido
+    no sea legible ni obvio.
+    Formato interno: base64( sha256(machine_id)[:8] + ":" + date_str )
+    """
+    salt = _hl.sha256(machine_id.encode()).hexdigest()[:8]
+    raw  = f"{salt}:{date_str}"
+    return _b64.b64encode(raw.encode()).decode()
+
+
+def _decode_date(encoded: str, machine_id: str) -> str | None:
+    """
+    Decodifica y verifica que el contenido corresponda a este machine_id.
+    Retorna la fecha ISO o None si es inválido o de otra máquina.
+    """
+    try:
+        raw  = _b64.b64decode(encoded.strip()).decode()
+        salt = _hl.sha256(machine_id.encode()).hexdigest()[:8]
+        if not raw.startswith(f"{salt}:"):
+            return None  # archivo de otra máquina o corrupto
+        return raw.split(":", 1)[1]
+    except Exception:
+        return None
+
+
+def _read_telemetry(machine_id: str) -> str | None:
+    """
+    Lee la fecha de instalación del archivo externo.
+    Retorna fecha ISO string o None si no existe o es inválido.
+    """
+    path = _get_telemetry_path()
+    try:
+        with open(path, 'r') as f:
+            encoded = f.read().strip()
+        return _decode_date(encoded, machine_id)
+    except Exception:
+        return None
+
+
+def _write_telemetry(date_str: str, machine_id: str) -> bool:
+    """
+    Escribe la fecha de instalación en el archivo externo.
+    Retorna True si tuvo éxito.
+    """
+    path = _get_telemetry_path()
+    try:
+        encoded = _encode_date(date_str, machine_id)
+        with open(path, 'w') as f:
+            f.write(encoded)
+        return True
+    except Exception:
+        return False
+
+
+def _generate_machine_id() -> str:
+    """
+    Genera el hardware ID de esta PC usando la misma lógica
+    que licensing/hardware_id.py para garantizar consistencia.
+    """
+    raw = (
+        platform.node()
+        + platform.system()
+        + platform.machine()
+        + str(uuid.getnode())
+    )
+    return _hl.sha256(raw.encode()).hexdigest()
 
 
 def get_db(db_path: str) -> sqlite3.Connection:
@@ -262,6 +360,14 @@ def init_db(db_path: str):
     cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('backup_cantidad_max', '5')")
     cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('ai_api_key', '')")
     cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('ai_enabled', '1')")
+    # ── Sistema de licencias por tiers ────────────────────────────────────────
+    # license_tier:       'DEMO' | 'BASICA' | 'PRO'
+    # license_expires_at: fecha ISO de vencimiento PRO (vacío = no vence)
+    # demo_install_date:  fecha ISO de primera instalación (gestionada por anti-reinstall)
+    # machine_id:         hardware ID del equipo (gestionado más abajo)
+    cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('license_tier', 'DEMO')")
+    cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('license_expires_at', '')")
+    cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('demo_install_date', '')")
 
     # Categorías de gastos predeterminadas: (nombre, es_necesario)
     # 1 = necesario (básico para vivir), 0 = prescindible (opcional)
@@ -299,6 +405,64 @@ def init_db(db_path: str):
         cur.execute(
             "INSERT OR IGNORE INTO categories (name, type) VALUES (?, 'income')",
             (cat,)
+        )
+
+    # ── Machine ID — generar si no existe ─────────────────────────────────────
+    # Se genera una sola vez y se persiste. Identifica este equipo de forma única.
+    _mid_row = cur.execute("SELECT value FROM config WHERE key='machine_id'").fetchone()
+    if not _mid_row or not _mid_row[0]:
+        _new_mid = _generate_machine_id()
+        cur.execute(
+            "INSERT OR REPLACE INTO config (key, value) VALUES ('machine_id', ?)",
+            (_new_mid,)
+        )
+        _mid = _new_mid
+    else:
+        _mid = _mid_row[0]
+
+    # ── Anti-reinstall: demo_install_date ─────────────────────────────────────
+    # Lógica de 3 casos:
+    #   1. telemetry.bin existe y es válido → es la fuente de verdad
+    #      Si la DB fue borrada y la fecha difiere, se restaura la original
+    #   2. Solo la DB tiene fecha (post-update o primer arranque post-v1.9.x)
+    #      → crear el archivo externo con esa fecha
+    #   3. Ninguno tiene fecha → primera instalación real
+    #      → guardar hoy en DB y en archivo externo
+    _telem_date = _read_telemetry(_mid)
+    _inst_row   = cur.execute(
+        "SELECT value FROM config WHERE key='demo_install_date'"
+    ).fetchone()
+    _db_date = _inst_row[0] if _inst_row and _inst_row[0] else None
+
+    if _telem_date:
+        # Archivo externo es fuente de verdad: restaurar BD si fue borrada
+        if _db_date != _telem_date:
+            cur.execute(
+                "INSERT OR REPLACE INTO config (key, value) VALUES ('demo_install_date', ?)",
+                (_telem_date,)
+            )
+    elif _db_date:
+        # BD tiene fecha pero archivo no existe → crear archivo
+        _write_telemetry(_db_date, _mid)
+    else:
+        # Primera instalación real
+        _today = date.today().isoformat()
+        cur.execute(
+            "INSERT OR REPLACE INTO config (key, value) VALUES ('demo_install_date', ?)",
+            (_today,)
+        )
+        _write_telemetry(_today, _mid)
+
+    # ── Migración silenciosa: usuarios con código HMAC viejo ──────────────────
+    # Si version='FULL' pero license_tier es 'DEMO' o no existe, el usuario activó
+    # con el sistema HMAC anterior (XXXX-XXXX-XXXX-XXXX). Se los migra a BASICA
+    # permanente sin pedirles nada. Sus datos y activación siguen funcionando.
+    _ver_row  = cur.execute("SELECT value FROM config WHERE key='version'").fetchone()
+    _tier_row = cur.execute("SELECT value FROM config WHERE key='license_tier'").fetchone()
+    if (_ver_row and _ver_row[0] == 'FULL' and
+            (_tier_row is None or _tier_row[0] == 'DEMO')):
+        cur.execute(
+            "INSERT OR REPLACE INTO config (key, value) VALUES ('license_tier', 'BASICA')"
         )
 
     conn.commit()

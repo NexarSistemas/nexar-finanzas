@@ -1,10 +1,10 @@
 @echo off
 setlocal EnableDelayedExpansion
-title Finanzas del Hogar v1.9.2
+title Finanzas del Hogar v1.10.0
 
 echo.
 echo ================================================================
-echo   Finanzas del Hogar v1.9.2 - Rolando Navarta
+echo   Finanzas del Hogar v1.10.0 - Rolando Navarta
 echo   Modo Portable
 echo ================================================================
 echo.

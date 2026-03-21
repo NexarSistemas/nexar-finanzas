@@ -6,6 +6,35 @@ Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
 
+## [1.10.0] — 2026-03-20
+
+### Agregado
+- **Sistema de licencias por tiers (DEMO / BÁSICA / PRO)**: reemplazo completo del sistema binario DEMO/FULL anterior.
+  - **DEMO**: 30 días desde la primera ejecución, funcionalidad casi completa con límites suaves.
+  - **BÁSICA**: pago único permanente. Movimientos ilimitados, 1 cuenta por tipo, inversiones en solo lectura, hasta 3 presupuestos, reportes semanal + mensual.
+  - **PRO**: suscripción mensual. Acceso completo, actualizaciones incluidas, soporte WhatsApp.
+- **Activación por Token Base64 + RSA**: nuevo sistema de activación offline con firma digital RSA (PKCS1v15 + SHA256). Reemplaza los códigos HMAC anteriores para clientes nuevos.
+- **Anti-reinstall (`telemetry.bin`)**: la fecha de inicio de la demo se guarda fuera de la base de datos en `~/.local/share/FinanzasHogar/telemetry.bin` (Linux) o `%APPDATA%\FinanzasHogar	elemetry.bin` (Windows). Sobrevive al borrado de la BD.
+- **Detección de hardware ID (`machine_id`)**: se genera y persiste en la BD para vincular licencias al equipo.
+- **Pantalla de activación rediseñada**: campo token largo (textarea), tabla comparativa de planes, botón WhatsApp con ID pre-cargado, formulario de upgrade PRO desde BÁSICA.
+- **Badge de plan en navbar**: muestra DEMO (con días restantes), BÁSICA o PRO con estilos diferenciados.
+- **Banner de plan en contenido**: aviso rojo para DEMO vencida, amarillo para DEMO activa con días, verde suave para BÁSICA con botón upgrade. PRO sin banner.
+- **Aviso PRO vencido** en pie del sidebar con link directo a renovar.
+
+### Modificado
+- `activation.py`: soporte dual — Token Base64+RSA para clientes nuevos + HMAC legacy para códigos existentes (compatibilidad total).
+- `demo_limits.py`: reescrito con `TIER_LIMITS`, `get_tier()`, `is_pro_expired()`, `get_demo_days_remaining()`, `check_tier_limit()`. API original (`check_limit`, `is_full_version`, `get_demo_status`) preservada para compatibilidad.
+- `models.py`: nuevos campos `license_tier`, `license_expires_at`, `demo_install_date`, `machine_id` en `init_db()`. Anti-reinstall integrado.
+- `routes.py`: enforcement de tier en cuentas (por tipo), inversiones (solo lectura en BÁSICA), presupuestos (máx 3 en BÁSICA), reportes (sin anual en BÁSICA), actualizaciones (solo PRO). Ruta `/activate` acepta tokens en cualquier estado de activación (permite upgrade BÁSICA→PRO).
+- `base.html`: badge de 4 estados, candado visual en inversiones sidebar, banner diferenciado por tier.
+- `requirements.txt`: agregada dependencia `cryptography>=41.0.0` para verificación RSA.
+
+### Migración automática
+- Usuarios con código HMAC activo (`version=FULL`) son migrados silenciosamente a `tier=BASICA` al primer arranque. Sin intervención del usuario.
+
+---
+---
+
 ## [1.9.2] — 2026-03-14
 
 ### Corregido

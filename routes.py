@@ -62,7 +62,6 @@ def register_routes(app):
 
     @app.route('/')
     def index():
-        # Si no hay ningún usuario creado, ir a la configuración inicial
         if not _user_exists():
             return redirect(url_for('setup'))
         if 'user_id' in session:
@@ -71,7 +70,6 @@ def register_routes(app):
 
     @app.route('/login', methods=['GET', 'POST'])
     def login():
-        # Redirigir al setup si no existe ningún usuario todavía
         if not _user_exists():
             return redirect(url_for('setup'))
         if 'user_id' in session:
@@ -98,8 +96,6 @@ def register_routes(app):
 
     @app.route('/setup', methods=['GET', 'POST'])
     def setup():
-        """Primera configuración: crear usuario administrador."""
-        # Si ya existe un usuario, no permitir volver al setup
         if _user_exists():
             return redirect(url_for('login'))
 
@@ -133,7 +129,6 @@ def register_routes(app):
 
     @app.route('/forgot-password', methods=['GET', 'POST'])
     def forgot_password():
-        """Paso 1 — verificar respuesta secreta. Paso 2 — ingresar nueva contraseña."""
         if not _user_exists():
             return redirect(url_for('setup'))
         if 'user_id' in session:
@@ -143,7 +138,6 @@ def register_routes(app):
         user     = db.execute("SELECT * FROM user WHERE id=1").fetchone()
         db.close()
 
-        # Si no tiene pregunta configurada no podemos recuperar
         if not user or not user['recovery_question']:
             flash('No hay pregunta de seguridad configurada. Contactá al administrador.', 'warning')
             return redirect(url_for('login'))
@@ -153,11 +147,9 @@ def register_routes(app):
         if request.method == 'POST':
             action = request.form.get('action')
 
-            # ── Paso 1: verificar respuesta ──────────────────────────────────
             if action == 'verify_answer':
                 answer = request.form.get('recovery_answer', '').strip().lower()
                 if user['recovery_answer_hash'] == hash_password(answer):
-                    # Guardar token temporal en sesión Flask (sin BD)
                     session['recovery_verified'] = True
                     session['recovery_user_id']  = user['id']
                     return redirect(url_for('forgot_password', step='2'))
@@ -167,7 +159,6 @@ def register_routes(app):
                                            step='1',
                                            question=user['recovery_question'])
 
-            # ── Paso 2: cambiar contraseña ───────────────────────────────────
             if action == 'reset_password':
                 if not session.get('recovery_verified') or session.get('recovery_user_id') != user['id']:
                     flash('Sesión de recuperación inválida. Empezá de nuevo.', 'danger')
@@ -188,7 +179,6 @@ def register_routes(app):
                 db.commit()
                 db.close()
 
-                # Limpiar token de recuperación
                 session.pop('recovery_verified', None)
                 session.pop('recovery_user_id', None)
 
@@ -207,16 +197,10 @@ def register_routes(app):
 
     @app.route('/shutdown')
     def shutdown():
-        """Cierre controlado del servidor (accesible desde login y desde sesión activa)."""
         return render_template('shutdown.html')
 
     @app.route('/shutdown/confirm', methods=['POST'])
     def shutdown_confirm():
-        """Cierre controlado del servidor.
-        No requiere @login_required: el usuario puede cerrar la app desde
-        el login (después de cerrar sesión) sin quedar con ventana en blanco.
-        No hay riesgo de seguridad: la única acción es detener la app local.
-        """
         import threading, platform
 
         session.clear()
@@ -227,20 +211,13 @@ def register_routes(app):
 
         def stop():
             import time
-            time.sleep(1.5)  # Dar tiempo a que el navegador/webview reciba la respuesta
-
-            # ── Cerrar ventana pywebview si está activa ───────────────────────
-            # IMPORTANTE: destruir la ventana ANTES del os._exit para que
-            # pywebview no quede colgado con una ventana en blanco.
-            # NO matar el proceso padre (puede ser el gestor de sesión en Linux).
+            time.sleep(1.5)
             try:
                 webview_window = current_app.config.get('WEBVIEW_WINDOW')
                 if webview_window is not None:
                     webview_window.destroy()
             except Exception:
                 pass
-
-            # ── Terminar el proceso de la app limpiamente ─────────────────────
             os._exit(0)
 
         threading.Thread(target=stop, daemon=True).start()
@@ -279,19 +256,18 @@ def register_routes(app):
         db = get_db(get_db_path())
         if request.method == 'POST':
             acc_type = request.form.get('type', 'bank')
-            # Verificar límites DEMO
             resource = 'bank_accounts' if acc_type == 'bank' else \
-                       'virtual_wallets' if acc_type == 'virtual_wallet' else None
-            if resource:
-                count = db.execute(
-                    "SELECT COUNT(*) as n FROM accounts WHERE type=? AND active=1",
-                    (acc_type,)
-                ).fetchone()['n']
-                check = check_limit(get_db_path(), resource, count)
-                if not check['allowed']:
-                    db.close()
-                    flash(check['message'], 'danger')
-                    return redirect(url_for('accounts'))
+                       'virtual_wallets' if acc_type == 'virtual_wallet' else \
+                       'cash_accounts'
+            count = db.execute(
+                "SELECT COUNT(*) as n FROM accounts WHERE type=? AND active=1",
+                (acc_type,)
+            ).fetchone()['n']
+            check = check_limit(get_db_path(), resource, count)
+            if not check['allowed']:
+                db.close()
+                flash(check['message'], 'danger')
+                return redirect(url_for('accounts'))
 
             name            = request.form.get('name', '').strip()
             currency        = request.form.get('currency', 'ARS')
@@ -392,7 +368,7 @@ def register_routes(app):
                                today=date.today().isoformat())
 
     # ══════════════════════════════════════════════════════════════════════════
-    # TRANSACCIONES (INGRESOS Y GASTOS)
+    # TRANSACCIONES
     # ══════════════════════════════════════════════════════════════════════════
 
     @app.route('/transactions')
@@ -403,7 +379,6 @@ def register_routes(app):
         limit = 20
         offset = (page - 1) * limit
 
-        # Filtros
         tx_type  = request.args.get('type', '')
         cat_id   = request.args.get('category', '')
         month    = request.args.get('month', '')
@@ -468,7 +443,6 @@ def register_routes(app):
             tx_date  = request.form.get('date', date.today().isoformat())
             desc     = request.form.get('description', '').strip()
 
-            # Verificar límites DEMO
             resource = 'expenses' if tx_type == 'expense' else 'incomes'
             count = db.execute(
                 "SELECT COUNT(*) as n FROM transactions WHERE type=?", (tx_type,)
@@ -615,7 +589,6 @@ def register_routes(app):
     @app.route('/categories/<int:cat_id>/toggle-necesario', methods=['POST'])
     @login_required
     def category_toggle_necesario(cat_id):
-        """Alterna entre necesario / prescindible para una categoría de gasto."""
         db  = get_db(get_db_path())
         cat = db.execute("SELECT * FROM categories WHERE id=?", (cat_id,)).fetchone()
         if cat:
@@ -677,6 +650,16 @@ def register_routes(app):
         year   = int(request.form.get('year',  date.today().year))
 
         if cat_id and amount > 0:
+            # Verificar límite de presupuestos según tier
+            db = get_db(get_db_path())
+            count = db.execute("SELECT COUNT(*) as n FROM budgets WHERE year=? AND month=?",
+                               (year, month)).fetchone()['n']
+            db.close()
+            check = check_limit(get_db_path(), 'budgets', count)
+            if not check['allowed']:
+                flash(check['message'], 'danger')
+                return redirect(url_for('budgets', year=year, month=month))
+
             db = get_db(get_db_path())
             db.execute("""
                 INSERT INTO budgets (category_id, amount, month, year)
@@ -711,6 +694,13 @@ def register_routes(app):
         year  = int(request.args.get('year',  today.year))
         month = int(request.args.get('month', today.month))
         mode  = request.args.get('mode', 'monthly')
+
+        # Bloquear reporte anual en BASICA
+        from demo_limits import get_tier
+        tier = get_tier(get_db_path())
+        if mode == 'annual' and tier == 'BASICA':
+            flash('El reporte anual está disponible en el Plan Pro.', 'warning')
+            return redirect(url_for('reports', mode='monthly', year=year, month=month))
 
         if mode == 'annual':
             data = {'annual': services.get_annual_summary(get_db_path(), year)}
@@ -773,12 +763,11 @@ def register_routes(app):
     def investment_new():
         db = get_db(get_db_path())
         if request.method == 'POST':
-            # Verificar límites DEMO
-            count = db.execute("SELECT COUNT(*) as n FROM investments").fetchone()['n']
-            check = check_limit(get_db_path(), 'investments', count)
+            # Verificar que el tier permite escritura en inversiones
+            check = check_limit(get_db_path(), 'investments', 0)
             if not check['allowed']:
                 db.close()
-                flash(check['message'], 'danger')
+                flash(check['message'], 'warning')
                 return redirect(url_for('investments'))
 
             asset_type = request.form.get('asset_type', 'stock')
@@ -812,6 +801,12 @@ def register_routes(app):
     @app.route('/investments/<int:inv_id>/delete', methods=['POST'])
     @login_required
     def investment_delete(inv_id):
+        # En BASICA las inversiones son solo lectura — no se pueden eliminar
+        check = check_limit(get_db_path(), 'investments', 0)
+        if not check['allowed']:
+            flash('Las inversiones son de solo lectura en el Plan Básico.', 'warning')
+            return redirect(url_for('investments'))
+
         db = get_db(get_db_path())
         db.execute("DELETE FROM investments WHERE id=?", (inv_id,))
         db.commit()
@@ -822,7 +817,6 @@ def register_routes(app):
     @app.route('/investments/actualizar-precios', methods=['POST'])
     @login_required
     def investments_actualizar_precios():
-        """Actualiza precios de mercado de todas las posiciones abiertas."""
         resultado = services.actualizar_precios_mercado(get_db_path())
         actualizados = resultado['actualizados']
         fallidos     = resultado['fallidos']
@@ -844,7 +838,6 @@ def register_routes(app):
     @app.route('/investments/actualizar-precio/<asset_name>', methods=['POST'])
     @login_required
     def investments_actualizar_precio_uno(asset_name):
-        """Actualiza el precio de un activo individual."""
         resultado = services.actualizar_precios_mercado(get_db_path(), solo_activos=[asset_name])
         if resultado['actualizados'] > 0:
             flash(f'✅ Precio de {asset_name} actualizado correctamente.', 'success')
@@ -878,111 +871,112 @@ def register_routes(app):
     @app.route('/activate', methods=['GET', 'POST'])
     @login_required
     def activate():
-        db_path = get_db_path()
+        db_path     = get_db_path()
         already_full = is_full_version(db_path)
 
-        if request.method == 'POST' and not already_full:
-            code = request.form.get('code', '').strip().upper()
+        # Permitir POST también cuando ya está activado:
+        # - BASICA puede activar token PRO (upgrade)
+        # - PRO vencido puede renovar con nuevo token
+        # activar_token_rsa() valida internamente que PRO tenga BASICA previa
+        if request.method == 'POST':
+            token_raw = request.form.get('code', '').strip()
 
-            # ── Ruta RSA/Drive: códigos con formato FH-XXXXXXXX-XXX ────────────
-            if code.startswith('FH-'):
-                rsa_ok = _activar_rsa(code, db_path)
-                if rsa_ok:
-                    flash('¡Sistema activado exitosamente! Ahora tenés acceso sin límites.', 'success')
-                    return redirect(url_for('dashboard'))
+            # ── Sistema nuevo: Token Base64 (empieza con e o cualquier char Base64)
+            # Se detecta intentando decodificar — si contiene solo chars HMAC
+            # (guiones y mayúsculas) es legacy, si no es Base64
+            is_base64_token = _es_token_base64(token_raw)
 
-            # ── Ruta HMAC offline: códigos con formato XXXX-XXXX-XXXX-XXXX ────
-            else:
-                from activation import detect_license_type
-                licencia = detect_license_type(code)
-                if licencia:
-                    _guardar_activacion(db_path, code, licencia['tipo'], licencia['vencimiento'] or '')
-                    flash('¡Sistema activado exitosamente! Ahora tenés acceso sin límites.', 'success')
+            if is_base64_token:
+                # Token RSA nuevo — activar_token_rsa() maneja todo
+                from activation import activar_token_rsa
+                ok, msg, tier = activar_token_rsa(token_raw, db_path)
+                if ok:
+                    if tier == 'PRO':
+                        flash('🎉 Plan Pro activado. Acceso completo habilitado.', 'success')
+                    else:
+                        flash('✅ Plan Básico activado. Acceso permanente habilitado.', 'success')
                     return redirect(url_for('dashboard'))
                 else:
-                    flash('Código de activación inválido. Verificá e intentá nuevamente.', 'danger')
+                    flash(msg, 'danger')
 
+            else:
+                # ── Sistema legacy: código HMAC (XXXX-XXXX-XXXX-XXXX) ────────
+                from activation import detect_license_type
+                code    = token_raw.upper().replace(' ', '')
+                licencia = detect_license_type(code)
+                if licencia:
+                    _guardar_activacion(db_path, code,
+                                        licencia['tipo'],
+                                        licencia['vencimiento'] or '')
+                    flash('✅ Sistema activado. Ahora tenés acceso completo.', 'success')
+                    return redirect(url_for('dashboard'))
+                else:
+                    flash('Código o token inválido. Verificá e intentá nuevamente.', 'danger')
+
+        # Leer datos de activación para el template
         db = get_db(db_path)
         config_rows = db.execute(
             "SELECT key, value FROM config WHERE key IN "
-            "('activated_at','license_type','license_expires','activation_code')"
+            "('license_activated_at','license_type','license_expires_at',"
+            "'activation_code','license_tier')"
         ).fetchall()
         db.close()
         cfg = {r['key']: r['value'] for r in config_rows}
 
+        from demo_limits import get_tier, is_pro_expired, get_demo_days_remaining
+        tier_actual = get_tier(db_path)
+
         return render_template('activate.html',
                                already_full=already_full,
-                               activated_at=cfg.get('activated_at'),
+                               activated_at=cfg.get('license_activated_at'),
                                license_type=cfg.get('license_type', 'permanente'),
-                               license_expires=cfg.get('license_expires', ''),
+                               license_expires=cfg.get('license_expires_at', ''),
                                activation_code=cfg.get('activation_code', ''),
-                               hardware_id=get_hardware_id())
+                               hardware_id=get_hardware_id(),
+                               # Campos nuevos para el template
+                               tier=tier_actual,
+                               pro_expired=is_pro_expired(db_path),
+                               demo_days=get_demo_days_remaining(db_path))
 
 
-    def _guardar_activacion(db_path, code, tipo, vencimiento):
-        """Persiste en la BD los datos de una activación exitosa."""
+    def _es_token_base64(s: str) -> bool:
+        """
+        Detecta si el string es un Token Base64 (sistema nuevo)
+        o un código HMAC (sistema legacy XXXX-XXXX-XXXX-XXXX).
+
+        Los códigos HMAC tienen exactamente el formato:
+          4chars-4chars-4chars-4chars con solo mayúsculas y dígitos
+
+        Un Token Base64 es más largo y contiene caracteres Base64.
+        """
+        import re
+        # Patrón HMAC legacy: 4-4-4-4 con mayúsculas y dígitos
+        if re.match(r'^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$',
+                    s.strip().upper()):
+            return False
+        # Todo lo demás se trata como Token Base64
+        return len(s.strip()) > 20
+
+
+    def _guardar_activacion(db_path: str, code: str, tipo: str, vencimiento: str):
+        """
+        [LEGACY] Persiste activación HMAC en la BD.
+        Graba tier=BASICA para compatibilidad con el nuevo sistema de tiers.
+        """
         db = get_db(db_path)
         db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('version','FULL')")
-        db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('activated_at', ?)",
+        db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('license_activated_at', ?)",
                    (datetime.now().isoformat(),))
         db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('activation_code', ?)",
                    (code,))
         db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('license_type', ?)",
                    (tipo,))
-        db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('license_expires', ?)",
+        # Compatibilidad nuevo sistema: HMAC siempre es BASICA permanente
+        db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('license_tier', 'BASICA')")
+        db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('license_expires_at', ?)",
                    (vencimiento,))
         db.commit()
         db.close()
-
-
-    def _activar_rsa(code, db_path):
-        """
-        Flujo de activación RSA/Drive para códigos FH-*.
-        1. Descarga index.json de Drive y obtiene el file_id de la licencia.
-        2. Descarga la licencia pública.
-        3. Verifica firma RSA.
-        4. Verifica que el hardware_id coincida con esta máquina.
-        5. Guarda la activación en BD.
-        Retorna True si la activación fue exitosa, False en caso contrario.
-        Emite flash con el error específico cuando falla.
-        """
-        try:
-            from licensing.license_api import get_license_file_id, download_license
-
-            # 1. Buscar el file_id en el índice
-            file_id = get_license_file_id(code)
-            if not file_id:
-                flash('Licencia no encontrada. Verificá el código e intentá nuevamente.', 'danger')
-                return False
-
-            # 2. Descargar licencia pública
-            license_data = download_license(file_id)
-
-            # 3. Verificar que la licencia es para este equipo
-            current_hw = get_hardware_id()
-            if license_data.get('hardware_id') != current_hw:
-                flash(
-                    'Esta licencia fue generada para otro equipo. '
-                    'Contactá al desarrollador con tu ID de máquina.',
-                    'danger'
-                )
-                return False
-
-            # 4. Guardar activación
-            _guardar_activacion(db_path, code, 'cliente', '')
-            return True
-
-        except ConnectionError as e:
-            flash(str(e), 'warning')
-        except TimeoutError as e:
-            flash(str(e), 'warning')
-        except RuntimeError as e:
-            flash(str(e), 'danger')
-        except Exception as e:
-            flash(f'Error inesperado al verificar la licencia: {e}', 'danger')
-
-        return False
-
 
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -1041,7 +1035,7 @@ def register_routes(app):
                 db.execute("INSERT OR REPLACE INTO config (key,value) VALUES ('ai_enabled',?)", (ai_enabled,))
                 db.commit()
                 if api_key:
-                    flash('✅ Configuración de IA guardada. Ya podés usar el asistente y la clasificación automática.', 'success')
+                    flash('✅ Configuración de IA guardada.', 'success')
                 else:
                     flash('Clave de API eliminada. Las funciones de IA están desactivadas.', 'warning')
 
@@ -1062,13 +1056,11 @@ def register_routes(app):
         user     = db.execute("SELECT username, recovery_question FROM user WHERE id=1").fetchone()
         user_recovery_question = user['recovery_question'] if user else None
 
-        # Leer config de backup
         backup_cfg = {}
         for key in ('backup_frecuencia', 'backup_cantidad_max', 'backup_ultima_vez'):
             row = db.execute("SELECT value FROM config WHERE key=?", (key,)).fetchone()
             backup_cfg[key] = row['value'] if row else ''
 
-        # Leer config de IA
         ai_key_row = db.execute("SELECT value FROM config WHERE key='ai_api_key'").fetchone()
         ai_en_row  = db.execute("SELECT value FROM config WHERE key='ai_enabled'").fetchone()
         ai_api_key = ai_key_row['value'] if ai_key_row else ''
@@ -1093,14 +1085,12 @@ def register_routes(app):
     @app.route('/cotizaciones')
     @login_required
     def cotizaciones():
-        """Muestra cotizaciones guardadas en caché. El usuario puede forzar actualización."""
         datos = services.get_cotizaciones_cache(get_db_path())
         return render_template('cotizaciones.html', datos=datos)
 
     @app.route('/cotizaciones/actualizar', methods=['POST'])
     @login_required
     def cotizaciones_actualizar():
-        """Fuerza una consulta en tiempo real a las APIs de cotizaciones."""
         datos = services.fetch_all_cotizaciones(get_db_path())
         errores = [e for e in [datos.get('error_dolar'), datos.get('error_cripto'),
                                datos.get('error_monedas')] if e]
@@ -1118,7 +1108,6 @@ def register_routes(app):
     @app.route('/backup/manual', methods=['POST'])
     @login_required
     def backup_manual():
-        """Ejecuta una copia de seguridad inmediata."""
         resultado = services.realizar_backup(
             get_db_path(), current_app.config['BASE_DIR']
         )
@@ -1131,9 +1120,7 @@ def register_routes(app):
     @app.route('/backup/descargar/<nombre>')
     @login_required
     def backup_descargar(nombre):
-        """Permite descargar un archivo de backup al navegador."""
         import re
-        # Validar que el nombre sea seguro (solo caracteres alfanuméricos, guiones y puntos)
         if not re.match(r'^backup_\d{8}_\d{6}\.db$', nombre):
             flash('Nombre de archivo inválido.', 'danger')
             return redirect(url_for('settings'))
@@ -1152,26 +1139,27 @@ def register_routes(app):
     @app.route('/sistema/actualizar', methods=['POST'])
     @login_required
     def sistema_actualizar():
-        """
-        Recibe un ZIP de actualización, valida su contenido y aplica los archivos
-        nuevos SIN tocar database.db, backups/ ni archivos de configuración del sistema.
-        """
         import zipfile, json, shutil, tempfile
+        from demo_limits import get_tier
+
+        # Solo el Plan Pro puede instalar actualizaciones
+        tier = get_tier(get_db_path())
+        if tier != 'PRO':
+            flash('⚠ Las actualizaciones del sistema están disponibles solo en el Plan Pro.', 'warning')
+            return redirect(url_for('settings'))
 
         archivo = request.files.get('archivo_update')
         if not archivo or not archivo.filename.endswith('.zip'):
             flash('Seleccioná un archivo ZIP de actualización válido.', 'danger')
             return redirect(url_for('settings'))
 
-        base_dir  = current_app.config['BASE_DIR']
-        db_path   = get_db_path()
+        base_dir = current_app.config['BASE_DIR']
+        db_path  = get_db_path()
 
-        # Guardar el ZIP en un temp dir
         with tempfile.TemporaryDirectory() as tmpdir:
             zip_path = os.path.join(tmpdir, 'update.zip')
             archivo.save(zip_path)
 
-            # Validar que sea un ZIP válido
             if not zipfile.is_zipfile(zip_path):
                 flash('El archivo no es un ZIP válido.', 'danger')
                 return redirect(url_for('settings'))
@@ -1179,7 +1167,6 @@ def register_routes(app):
             with zipfile.ZipFile(zip_path, 'r') as zf:
                 nombres = zf.namelist()
 
-                # Buscar metadatos de actualización (acepta ambos nombres de archivo)
                 meta_file = None
                 for posible in ('update_manifest.json', 'UPDATE_META.json'):
                     matches = [n for n in nombres if n == posible or n.endswith('/' + posible)]
@@ -1199,40 +1186,29 @@ def register_routes(app):
                     flash('Metadatos de actualización corruptos.', 'danger')
                     return redirect(url_for('settings'))
 
-                version_nueva  = meta.get('version', '?')
-                version_actual = current_app.config.get('APP_VERSION', '1.0.0')
+                version_nueva = meta.get('version', '?')
 
-                # Archivos/directorios protegidos — nunca se sobreescriben
                 PROTEGIDOS = {
                     'database.db', 'backups/', 'backups',
                     'UPDATE_META.json', 'update_manifest.json',
                 }
 
-                # Hacer backup automático antes de actualizar
                 services.realizar_backup(db_path, base_dir)
 
-                # Extraer archivos permitidos
                 extraidos = 0
-                omitidos  = []
                 for nombre in nombres:
-                    # Ignorar protegidos
                     nombre_base = nombre.split('/')[0] if '/' in nombre else nombre
                     if nombre_base in PROTEGIDOS or nombre.startswith('backups/'):
-                        omitidos.append(nombre)
                         continue
-                    # Ignorar carpeta __pycache__
                     if '__pycache__' in nombre:
                         continue
 
                     destino = os.path.join(base_dir, nombre)
-
-                    # Seguridad: no permitir path traversal
                     destino_real = os.path.realpath(destino)
                     base_real    = os.path.realpath(base_dir)
                     if not destino_real.startswith(base_real):
                         continue
 
-                    # Crear directorios si hacen falta
                     if nombre.endswith('/'):
                         os.makedirs(destino, exist_ok=True)
                         continue
@@ -1242,11 +1218,10 @@ def register_routes(app):
                         shutil.copyfileobj(src, dst)
                     extraidos += 1
 
-        # Limpiar caché de módulos para que Flask detecte los cambios
-        import importlib, sys
+        import sys as _sys
         for mod in ['routes', 'services', 'models', 'activation', 'demo_limits']:
-            if mod in sys.modules:
-                del sys.modules[mod]
+            if mod in _sys.modules:
+                del _sys.modules[mod]
 
         flash(
             f'✅ Actualización a v{version_nueva} aplicada correctamente. '
@@ -1256,7 +1231,6 @@ def register_routes(app):
         )
         return redirect(url_for('settings'))
 
-
     # ══════════════════════════════════════════════════════════════════════════
     # INTELIGENCIA ARTIFICIAL
     # ══════════════════════════════════════════════════════════════════════════
@@ -1264,7 +1238,6 @@ def register_routes(app):
     @app.route('/ai/clasificar', methods=['POST'])
     @login_required
     def ai_clasificar():
-        """Sugiere categoría para una transacción según su descripción."""
         import ai_service
 
         data        = request.get_json(force=True) or {}
@@ -1297,7 +1270,6 @@ def register_routes(app):
     @app.route('/ai/chat', methods=['POST'])
     @login_required
     def ai_chat():
-        """Responde preguntas sobre las finanzas del usuario."""
         import ai_service
 
         data     = request.get_json(force=True) or {}
@@ -1315,10 +1287,7 @@ def register_routes(app):
         db.close()
 
         if not api_key or not api_key['value']:
-            return jsonify({
-                'respuesta': None,
-                'error': 'api_key_not_set'
-            })
+            return jsonify({'respuesta': None, 'error': 'api_key_not_set'})
 
         contexto = ai_service.construir_contexto_financiero(db_path)
         resultado = ai_service.chat_asistente(
@@ -1326,11 +1295,9 @@ def register_routes(app):
         )
         return jsonify(resultado)
 
-
     @app.route('/ai/analisis-gastos', methods=['POST'])
     @login_required
     def ai_analisis_gastos():
-        """Genera recomendaciones IA sobre gastos necesarios vs prescindibles."""
         import ai_service
 
         data    = request.get_json(force=True) or {}
@@ -1347,7 +1314,6 @@ def register_routes(app):
 
         analisis = services.get_analisis_necesario_prescindible(db_path, year, month)
 
-        # Armar resumen para la IA
         meses = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio',
                  'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
         mes_nombre = meses[month] if 1 <= month <= 12 else str(month)
@@ -1389,90 +1355,3 @@ Sé directo. No uses frases genéricas. Basate en los números. Máximo 5 puntos
     @login_required
     def about():
         return render_template('about.html')
-
-        base_dir = current_app.config['BASE_DIR']
-        db_path  = get_db_path()
-
-        # Archivos y carpetas que NUNCA se sobreescriben
-        PRESERVAR = {
-            'database.db', 'backups', '__pycache__',
-            'finanzas_hogar.ico', 'finanzas_hogar.png',
-        }
-
-        tmp_dir = tempfile.mkdtemp(prefix='fh_update_')
-        try:
-            # Guardar ZIP temporalmente
-            zip_path = os.path.join(tmp_dir, 'update.zip')
-            archivo.save(zip_path)
-
-            with zipfile.ZipFile(zip_path, 'r') as zf:
-                nombres = zf.namelist()
-
-                # Verificar que tiene manifest
-                manifest = None
-                for nombre in nombres:
-                    if nombre.endswith('update_manifest.json'):
-                        manifest = json.loads(zf.read(nombre).decode('utf-8'))
-                        break
-
-                if not manifest:
-                    flash('El archivo no es una actualización válida (falta manifiesto).', 'danger')
-                    return redirect(url_for('settings'))
-
-                nueva_version = manifest.get('version', '?')
-                version_minima = manifest.get('desde_version', '0.0.0')
-
-                # Extraer a carpeta temporal
-                zf.extractall(tmp_dir)
-
-            # Buscar carpeta raíz dentro del ZIP (puede ser finanzas_app/ o raíz)
-            carpeta_update = tmp_dir
-            posibles = [d for d in os.listdir(tmp_dir)
-                       if os.path.isdir(os.path.join(tmp_dir, d))
-                       and d not in ('__pycache__',)
-                       and os.path.exists(os.path.join(tmp_dir, d, 'app.py'))]
-            if posibles:
-                carpeta_update = os.path.join(tmp_dir, posibles[0])
-
-            # Copiar archivos actualizados (sin tocar los preservados)
-            archivos_actualizados = 0
-            for raiz, dirs, archivos in os.walk(carpeta_update):
-                # Saltar carpetas preservadas
-                dirs[:] = [d for d in dirs if d not in PRESERVAR]
-
-                for archivo_nombre in archivos:
-                    if archivo_nombre in PRESERVAR:
-                        continue
-                    ruta_origen  = os.path.join(raiz, archivo_nombre)
-                    ruta_relativa = os.path.relpath(ruta_origen, carpeta_update)
-                    ruta_destino = os.path.join(base_dir, ruta_relativa)
-
-                    os.makedirs(os.path.dirname(ruta_destino), exist_ok=True)
-                    shutil.copy2(ruta_origen, ruta_destino)
-                    archivos_actualizados += 1
-
-            # Registrar versión instalada
-            db = get_db(db_path)
-            db.execute("INSERT OR REPLACE INTO config (key,value) VALUES ('app_version',?)",
-                       (nueva_version,))
-            db.execute("INSERT OR REPLACE INTO config (key,value) VALUES ('ultima_actualizacion',?)",
-                       (__import__('datetime').datetime.now().isoformat(),))
-            db.commit()
-            db.close()
-
-            flash(
-                f'✅ Actualización a v{nueva_version} aplicada correctamente '
-                f'({archivos_actualizados} archivos). '
-                f'Reiniciá la aplicación para que los cambios tomen efecto.',
-                'success'
-            )
-
-        except zipfile.BadZipFile:
-            flash('El archivo ZIP está dañado o es inválido.', 'danger')
-        except Exception as e:
-            flash(f'Error durante la actualización: {str(e)[:120]}', 'danger')
-        finally:
-            shutil.rmtree(tmp_dir, ignore_errors=True)
-
-        return redirect(url_for('settings'))
-

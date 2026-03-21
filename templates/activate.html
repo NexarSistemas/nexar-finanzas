@@ -4,122 +4,140 @@
 
 <h5 class="fw-bold mb-3"><i class="bi bi-key"></i> Licencia del sistema</h5>
 
+{# ══ DEMO VENCIDA ════════════════════════════════════════════════════════════ #}
+{% if demo_info.get('is_expired') and not already_full %}
+<div class="row g-3 justify-content-center">
+  <div class="col-md-7">
+    <div class="card border-danger shadow-sm mb-3">
+      <div class="card-body text-center py-4">
+        <span style="font-size:3.5rem;">⏰</span>
+        <h5 class="fw-bold text-danger mt-2">Demo vencida</h5>
+        <p class="text-muted small">
+          Tu período de prueba de 30 días terminó. Podés seguir viendo tus datos
+          pero no agregar nuevos registros hasta activar un plan.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# ══ SISTEMA ACTIVADO ════════════════════════════════════════════════════════ #}
 {% if already_full %}
 
-<!-- ══ SISTEMA ACTIVADO ══════════════════════════════════════════════════════ -->
 <div class="row g-3 justify-content-center">
   <div class="col-md-7">
 
-    {% if license_type == 'mensual' %}
-    <!-- Licencia mensual -->
-    <div class="card border-warning shadow-sm">
+    {% if tier == 'PRO' %}
+    {# ── PRO activo ── #}
+    <div class="card shadow-sm" style="border:2px solid #6f42c1;">
       <div class="card-body text-center py-5">
-        <div class="mb-3">
-          <span style="font-size:4rem;">📅</span>
-        </div>
-        <h4 class="fw-bold text-warning">Licencia mensual activa</h4>
-        <p class="text-muted mb-4">Tu sistema está habilitado sin restricciones durante este período.</p>
+        <span style="font-size:4rem;">🚀</span>
+        <h4 class="fw-bold mt-2" style="color:#6f42c1;">Plan Pro activo</h4>
+        <p class="text-muted mb-4">Acceso completo, actualizaciones incluidas.</p>
 
         <div class="row g-2 justify-content-center mb-4">
           <div class="col-auto">
-            <div class="card bg-warning bg-opacity-10 border-warning px-4 py-3 text-center">
-              <div class="small text-muted mb-1">Tipo de licencia</div>
-              <div class="fw-bold text-warning fs-5">
-                <i class="bi bi-calendar-month"></i> Mensual
-              </div>
+            <div class="card px-4 py-3 text-center" style="border-color:#6f42c1;border:1px solid;">
+              <div class="small text-muted mb-1">Activado el</div>
+              <div class="fw-bold">{{ activated_at[:10]|replace('-','/') if activated_at else '—' }}</div>
             </div>
           </div>
           <div class="col-auto">
-            <div class="card bg-warning bg-opacity-10 border-warning px-4 py-3 text-center">
-              <div class="small text-muted mb-1">Fecha de activación</div>
-              <div class="fw-bold">
-                {{ activated_at[:10] | replace('-', '/') if activated_at else '—' }}
-              </div>
-            </div>
-          </div>
-          <div class="col-auto">
-            <div class="card border-danger px-4 py-3 text-center">
-              <div class="small text-muted mb-1">⚠️ Fecha de vencimiento</div>
-              <div class="fw-bold text-danger fs-5">
-                {% if license_expires %}
-                  {{ license_expires | replace('-', '/') }}
-                {% else %}
-                  —
-                {% endif %}
+            <div class="card px-4 py-3 text-center" style="border-color:#6f42c1;border:1px solid;">
+              <div class="small text-muted mb-1">Vence el</div>
+              <div class="fw-bold {% if pro_expired %}text-danger{% else %}text-success{% endif %}">
+                {{ license_expires|replace('-','/') if license_expires else '—' }}
               </div>
             </div>
           </div>
         </div>
 
-        {% if license_expires %}
-        {% set hoy = today_date %}
+        {% if pro_expired %}
         <div class="alert alert-warning py-2 small mx-auto" style="max-width:420px;">
-          <i class="bi bi-info-circle"></i>
-          Al vencer la licencia, el sistema continuará funcionando en modo
-          <strong>DEMO</strong> con funcionalidad limitada.
-          Renová antes del <strong>{{ license_expires | replace('-', '/') }}</strong>
-          para mantener el acceso completo.
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          Tu Plan Pro venció. Estás usando el <strong>Plan Básico</strong>.
+          Activá un nuevo token PRO para recuperar el acceso completo.
+        </div>
+        {% else %}
+        <div class="badge py-2 px-4 fs-6 mb-3" style="background:#6f42c1;">
+          <i class="bi bi-stars"></i> Acceso completo activo
         </div>
         {% endif %}
 
-        <a href="{{ url_for('dashboard') }}" class="btn btn-warning mt-2">
+        <br>
+        <a href="{{ url_for('dashboard') }}" class="btn mt-2" style="background:#6f42c1;color:white;">
           <i class="bi bi-speedometer2"></i> Ir al panel principal
         </a>
       </div>
     </div>
 
-    {% elif license_type in ('permanente', 'cliente', None, '') %}
-    <!-- Licencia permanente o cliente -->
+    {% elif tier == 'BASICA' %}
+    {# ── BÁSICA activa ── #}
     <div class="card border-success shadow-sm">
       <div class="card-body text-center py-5">
-        <div class="mb-3">
-          <span style="font-size:4rem;">🏆</span>
-        </div>
-        <h4 class="fw-bold text-success">Licencia completa activa</h4>
-        <p class="text-muted mb-4">Tu sistema está habilitado de forma permanente, sin restricciones ni vencimiento.</p>
+        <span style="font-size:4rem;">✅</span>
+        <h4 class="fw-bold text-success mt-2">Plan Básico activo</h4>
+        <p class="text-muted mb-4">Acceso permanente habilitado.</p>
 
         <div class="row g-2 justify-content-center mb-4">
           <div class="col-auto">
             <div class="card bg-success bg-opacity-10 border-success px-4 py-3 text-center">
               <div class="small text-muted mb-1">Tipo de licencia</div>
-              <div class="fw-bold text-success fs-5">
-                <i class="bi bi-infinity"></i>
-                {% if license_type == 'cliente' %}Licencia cliente{% else %}Permanente{% endif %}
-              </div>
+              <div class="fw-bold text-success fs-5"><i class="bi bi-infinity"></i> Permanente</div>
             </div>
           </div>
           <div class="col-auto">
             <div class="card bg-success bg-opacity-10 border-success px-4 py-3 text-center">
               <div class="small text-muted mb-1">Activado el</div>
-              <div class="fw-bold">
-                {{ activated_at[:10] | replace('-', '/') if activated_at else '—' }}
-              </div>
+              <div class="fw-bold">{{ activated_at[:10]|replace('-','/') if activated_at else '—' }}</div>
             </div>
           </div>
           <div class="col-auto">
             <div class="card bg-success bg-opacity-10 border-success px-4 py-3 text-center">
               <div class="small text-muted mb-1">Vencimiento</div>
-              <div class="fw-bold text-success fs-5">
-                <i class="bi bi-infinity"></i> Sin vencimiento
-              </div>
+              <div class="fw-bold text-success fs-5"><i class="bi bi-infinity"></i> Sin vencimiento</div>
             </div>
           </div>
         </div>
 
-        <div class="badge bg-success py-2 px-4 fs-6 mb-3">
-          <i class="bi bi-patch-check-fill"></i> Acceso ilimitado garantizado
-        </div>
-        <br>
         <a href="{{ url_for('dashboard') }}" class="btn btn-success mt-2">
           <i class="bi bi-speedometer2"></i> Ir al panel principal
         </a>
       </div>
     </div>
+
+    {# Formulario para activar token PRO sobre BASICA #}
+    <div class="card mt-3" style="border:2px solid #6f42c1;">
+      <div class="card-header py-2 fw-semibold" style="color:#6f42c1;">
+        <i class="bi bi-stars"></i> Activar Plan Pro
+      </div>
+      <div class="card-body">
+        <p class="small text-muted mb-2">
+          Si ya tenés tu token Pro, pegalo acá para activarlo sobre tu Plan Básico.
+        </p>
+        <form method="POST">
+          <textarea name="code" class="form-control font-monospace mb-2"
+                    rows="4" placeholder="Pegá el token Pro aquí..."
+                    style="font-size:.75rem; resize:vertical;"
+                    required></textarea>
+          <button type="submit" class="btn w-100"
+                  style="background:#6f42c1;color:white;">
+            <i class="bi bi-stars"></i> Activar Plan Pro
+          </button>
+        </form>
+        <hr class="my-2">
+        <p class="small text-muted mb-0 text-center">
+          ¿No tenés el token todavía? Solicitalo por WhatsApp usando el botón de abajo.
+        </p>
+      </div>
+    </div>
+
     {% endif %}
 
   </div>
 
-  <!-- Panel lateral: código y contacto -->
+  {# Panel lateral con detalle #}
   <div class="col-md-4">
     <div class="card border-0 bg-light">
       <div class="card-body small">
@@ -132,52 +150,126 @@
             <td><span class="badge bg-success">ACTIVA</span></td>
           </tr>
           <tr>
-            <td class="text-muted">Tipo</td>
+            <td class="text-muted">Plan</td>
             <td class="fw-semibold">
-              {% if license_type == 'mensual' %}Mensual
-              {% elif license_type == 'cliente' %}Cliente
-              {% else %}Permanente{% endif %}
+              {% if tier == 'PRO' %}Pro mensual
+              {% else %}Básico permanente{% endif %}
             </td>
           </tr>
           {% if activation_code %}
           <tr>
             <td class="text-muted">Código</td>
-            <td class="font-monospace small text-muted">{{ activation_code }}</td>
+            <td class="font-monospace small text-muted" style="font-size:.72rem;">{{ activation_code[:16] }}…</td>
           </tr>
           {% endif %}
         </table>
         <hr>
-        <p class="text-muted mb-1 fw-semibold">¿Necesitás renovar o contactar soporte?</p>
+        <p class="text-muted mb-1 fw-semibold">Contacto y soporte</p>
         <p class="mb-0">
           📱 <a href="https://wa.me/5492645858874">+54 9 264 585-8874</a><br>
           ✉️ <a href="mailto:rolojnb@outlook.com.ar">rolojnb@outlook.com.ar</a>
         </p>
       </div>
     </div>
+
+    {# ── ID de máquina — siempre visible para solicitar upgrade ── #}
+    <div class="card border-secondary mt-3">
+      <div class="card-header py-2 fw-semibold small">
+        <i class="bi bi-pc-display"></i> ID de tu equipo
+      </div>
+      <div class="card-body small">
+        <p class="text-muted mb-2">
+          {% if tier == 'BASICA' %}
+            Necesitás este código para solicitar el <strong>Plan Pro</strong>.
+          {% else %}
+            Código único que identifica tu computadora.
+          {% endif %}
+        </p>
+        <div class="input-group mb-2">
+          <input type="text" id="hwid-field"
+                 class="form-control form-control-sm font-monospace"
+                 value="{{ hardware_id }}"
+                 readonly>
+          <button class="btn btn-outline-secondary btn-sm" type="button"
+                  onclick="copyHWID()" title="Copiar ID">
+            <i class="bi bi-clipboard" id="hwid-icon"></i>
+          </button>
+        </div>
+        {% if tier == 'BASICA' %}
+        {# Botón WhatsApp con el ID pre-cargado en el mensaje #}
+        <a href="https://wa.me/5492645858874?text=Hola%2C%20quiero%20el%20Plan%20Pro.%20Mi%20ID%20de%20equipo%20es%3A%20{{ hardware_id | urlencode }}"
+           target="_blank" class="btn btn-success btn-sm w-100">
+          <i class="bi bi-whatsapp"></i> Solicitar Plan Pro por WhatsApp
+        </a>
+        {% endif %}
+      </div>
+    </div>
+
+    {# Si el PRO venció, permitir activar nuevo token directamente #}
+    {% if pro_expired %}
+    <div class="card mt-3 border-warning">
+      <div class="card-header py-2 fw-semibold text-warning">
+        <i class="bi bi-arrow-repeat"></i> Renovar Plan Pro
+      </div>
+      <div class="card-body">
+        <p class="small text-muted mb-2">Pegá tu nuevo token Pro para renovar:</p>
+        <form method="POST">
+          <textarea name="code" class="form-control font-monospace mb-2"
+                    rows="3" placeholder="Pegá el token aquí..." required
+                    style="font-size:.75rem;"></textarea>
+          <button type="submit" class="btn btn-warning w-100 btn-sm">
+            <i class="bi bi-arrow-repeat"></i> Renovar Pro
+          </button>
+        </form>
+        <hr class="my-2">
+        <a href="https://wa.me/5492645858874?text=Hola%2C%20necesito%20renovar%20el%20Plan%20Pro.%20Mi%20ID%20de%20equipo%20es%3A%20{{ hardware_id | urlencode }}"
+           target="_blank" class="btn btn-outline-success btn-sm w-100 mt-1">
+          <i class="bi bi-whatsapp"></i> Solicitar renovación por WhatsApp
+        </a>
+      </div>
+    </div>
+    {% endif %}
   </div>
 </div>
 
+{# ══ VERSIÓN DEMO — formulario de activación ════════════════════════════════ #}
 {% else %}
 
-<!-- ══ VERSIÓN DEMO — formulario de activación ═══════════════════════════════ -->
 <div class="row g-3">
   <div class="col-md-6">
 
-    <!-- Card estado DEMO -->
+    {# Card estado actual #}
     <div class="card border-warning mb-3">
       <div class="card-body text-center py-4">
+        {% if demo_info.get('is_expired') %}
+        <span style="font-size:3rem;">⏰</span>
+        <h5 class="fw-bold text-danger mt-2">Demo vencida</h5>
+        <p class="text-muted small mb-0">Activá un plan para continuar usando la app.</p>
+        {% else %}
         <span style="font-size:3rem;">🔒</span>
-        <h5 class="fw-bold text-warning mt-2">Versión DEMO activa</h5>
-        <p class="text-muted small mb-3">Funcionalidad limitada. Activá para acceso completo sin restricciones.</p>
+        <h5 class="fw-bold text-warning mt-2">
+          Versión DEMO activa
+          {% if demo_days is not none %}
+            <span class="badge bg-warning text-dark ms-1" style="font-size:.7rem;">
+              {{ demo_days }} día{{ 's' if demo_days != 1 else '' }}
+            </span>
+          {% endif %}
+        </h5>
+        <p class="text-muted small mb-3">Funcionalidad limitada. Activá para acceso completo.</p>
+        {% endif %}
+
         {% if demo_info.limits %}
         <div class="table-responsive">
           <table class="table table-sm mb-0">
-            <thead class="table-light"><tr><th>Recurso</th><th>Usado</th><th>Límite</th><th></th></tr></thead>
+            <thead class="table-light">
+              <tr><th>Recurso</th><th>Usado</th><th>Límite</th><th></th></tr>
+            </thead>
             <tbody>
               {% for resource, info in demo_info.limits.items() %}
+              {% if info.limit %}
               {% set pct = (info.current / info.limit * 100) if info.limit else 0 %}
               <tr>
-                <td>{{ resource | replace('_',' ') | title }}</td>
+                <td>{{ resource|replace('_',' ')|title }}</td>
                 <td>{{ info.current }}</td>
                 <td>{{ info.limit }}</td>
                 <td style="width:80px">
@@ -187,6 +279,7 @@
                   </div>
                 </td>
               </tr>
+              {% endif %}
               {% endfor %}
             </tbody>
           </table>
@@ -195,28 +288,31 @@
       </div>
     </div>
 
-    <!-- Formulario de activación -->
+    {# Formulario de activación con Token Base64 #}
     <div class="card">
       <div class="card-header py-2 fw-semibold">
-        <i class="bi bi-unlock"></i> Ingresar código de activación
+        <i class="bi bi-unlock"></i> Ingresar token de activación
       </div>
       <div class="card-body">
-        <p class="text-muted small">
-          Ingresá el código que recibiste. La activación es completamente offline,
-          no requiere conexión a internet.
+        <p class="text-muted small mb-3">
+          Pegá el token que recibiste por WhatsApp. La activación es
+          <strong>completamente offline</strong>, no requiere internet.
         </p>
         <form method="POST">
           <div class="mb-3">
-            <label class="form-label fw-semibold">Código de activación</label>
-            <input type="text" name="code" class="form-control font-monospace text-uppercase text-center"
-                   placeholder="XXXX-XXXX-XXXX-XXXX"
-                   style="letter-spacing:.15em; font-size:1.15rem;"
-                   required maxlength="19"
-                   oninput="this.value=this.value.toUpperCase()">
-            <div class="form-text text-center">Formato: XXXX-XXXX-XXXX-XXXX</div>
+            <label class="form-label fw-semibold">Token de activación</label>
+            <textarea name="code" class="form-control font-monospace"
+                      rows="4"
+                      placeholder="Pegá aquí el token completo que recibiste..."
+                      style="font-size:.78rem; resize:vertical;"
+                      required></textarea>
+            <div class="form-text">
+              El token es un texto largo en Base64.
+              Si tenés dos tokens (Básico + Pro), activá primero el Básico.
+            </div>
           </div>
           <button type="submit" class="btn btn-success w-100 py-2">
-            <i class="bi bi-unlock-fill"></i> Activar sistema FULL
+            <i class="bi bi-unlock-fill"></i> Activar plan
           </button>
         </form>
       </div>
@@ -224,64 +320,49 @@
 
   </div>
 
-  <div class="col-md-5">
+  <div class="col-md-5 offset-md-1">
 
-    <!-- Beneficios de la versión completa -->
-    <div class="card border-success mb-3">
-      <div class="card-header py-2 fw-semibold text-success">
-        <i class="bi bi-star-fill"></i> Versión FULL — Sin restricciones
-      </div>
-      <div class="card-body small">
-        <ul class="mb-0 ps-3">
-          <li>Transacciones ilimitadas</li>
-          <li>Cuentas bancarias y billeteras ilimitadas</li>
-          <li>Inversiones ilimitadas con precios automáticos</li>
-          <li>Reportes y exportaciones sin límite</li>
-          <li>Copias de seguridad automáticas</li>
-          <li>Cotizaciones en tiempo real</li>
-        </ul>
-      </div>
-    </div>
-
-    <!-- Tipos de licencia disponibles -->
+    {# Comparativa de planes #}
     <div class="card mb-3">
       <div class="card-header py-2 fw-semibold">
-        <i class="bi bi-tags"></i> Tipos de licencia
+        <i class="bi bi-tags"></i> Planes disponibles
       </div>
-      <div class="card-body small p-0">
+      <div class="card-body p-0">
         <table class="table table-sm mb-0">
-          <tbody>
+          <thead class="table-light">
             <tr>
-              <td class="ps-3 py-2">
-                <i class="bi bi-calendar-month text-warning"></i> <strong>Mensual</strong><br>
-                <span class="text-muted">Válida un mes calendario</span>
-              </td>
+              <th>Función</th>
+              <th class="text-center">Básico</th>
+              <th class="text-center" style="color:#6f42c1;">Pro</th>
             </tr>
+          </thead>
+          <tbody style="font-size:.82rem;">
+            <tr><td>Movimientos</td><td class="text-center text-success">✓ Ilimitados</td><td class="text-center text-success">✓ Ilimitados</td></tr>
+            <tr><td>Cuentas</td><td class="text-center text-muted">1 por tipo</td><td class="text-center text-success">✓ Ilimitadas</td></tr>
+            <tr><td>Inversiones</td><td class="text-center text-muted">Solo ver</td><td class="text-center text-success">✓ Completo</td></tr>
+            <tr><td>Presupuestos</td><td class="text-center text-muted">Hasta 3</td><td class="text-center text-success">✓ Ilimitados</td></tr>
+            <tr><td>Reportes</td><td class="text-center text-muted">Sem. + Mens.</td><td class="text-center text-success">✓ Completos</td></tr>
+            <tr><td>IA (API key)</td><td class="text-center text-success">✓</td><td class="text-center text-success">✓</td></tr>
+            <tr><td>Actualizaciones</td><td class="text-center text-muted">✗</td><td class="text-center text-success">✓ Incluidas</td></tr>
+            <tr><td>Soporte WhatsApp</td><td class="text-center text-muted">✗</td><td class="text-center text-success">✓</td></tr>
             <tr>
-              <td class="ps-3 py-2">
-                <i class="bi bi-infinity text-success"></i> <strong>Permanente</strong><br>
-                <span class="text-muted">Sin fecha de vencimiento</span>
-              </td>
-            </tr>
-            <tr>
-              <td class="ps-3 py-2">
-                <i class="bi bi-person-check text-primary"></i> <strong>Cliente</strong><br>
-                <span class="text-muted">Licencia personalizada, sin vencimiento</span>
-              </td>
+              <td class="fw-semibold">Precio</td>
+              <td class="text-center fw-semibold">Pago único</td>
+              <td class="text-center fw-semibold" style="color:#6f42c1;">Mensual</td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
 
-    <!-- ID de máquina -->
+    {# ID de máquina #}
     <div class="card border-secondary mb-3">
       <div class="card-header py-2 fw-semibold">
         <i class="bi bi-pc-display"></i> ID de tu equipo
       </div>
       <div class="card-body small">
         <p class="text-muted mb-2">
-          Enviá este código junto con tu solicitud de licencia.
+          Enviá este código al solicitar tu licencia.
           Identifica de forma única tu computadora.
         </p>
         <div class="input-group">
@@ -290,15 +371,14 @@
                  value="{{ hardware_id }}"
                  readonly>
           <button class="btn btn-outline-secondary btn-sm" type="button"
-                  onclick="copyHWID()"
-                  title="Copiar ID">
+                  onclick="copyHWID()" title="Copiar ID">
             <i class="bi bi-clipboard" id="hwid-icon"></i>
           </button>
         </div>
       </div>
     </div>
 
-    <!-- Contacto -->
+    {# Contacto #}
     <div class="card border-0 bg-light">
       <div class="card-body small">
         <p class="fw-semibold mb-1">Para adquirir tu licencia:</p>
@@ -318,6 +398,7 @@
 function copyHWID() {
   const field = document.getElementById('hwid-field');
   const icon  = document.getElementById('hwid-icon');
+  if (!field) return;
   navigator.clipboard.writeText(field.value).then(() => {
     icon.className = 'bi bi-clipboard-check text-success';
     setTimeout(() => { icon.className = 'bi bi-clipboard'; }, 2000);

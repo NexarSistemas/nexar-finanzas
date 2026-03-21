@@ -1,4 +1,4 @@
-💰 Finanzas del Hogar v1.9.2
+💰 Finanzas del Hogar v1.10.0
 
 
 Aplicación web local de gestión financiera personal. Funciona completamente offline, utilizando base de datos SQLite local, y está optimizada para equipos de gama media/baja.
@@ -241,6 +241,7 @@ El asistente tiene acceso de solo lectura a los datos reales del usuario (transa
 
 | Versión | Cambios principales |
 |---|---|
+| **v1.10.0** | Sistema de licencias por tiers (DEMO/BÁSICA/PRO) con Token RSA; anti-reinstall; badge por plan; upgrade BÁSICA→PRO |
 | **v1.9.2** | Pantalla de activación muestra el ID de máquina con botón copiar para solicitar licencia |
 | **v1.9.1** | Licencia MIT visible en Acerca de como sección colapsable |
 | **v1.9.0** | Corrección de cierre sin sesión activa; avisos de costo del asistente de IA |

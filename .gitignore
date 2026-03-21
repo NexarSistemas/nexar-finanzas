@@ -40,10 +40,13 @@ backups/
 # PyInstaller build
 # ==============================
 
-build/
+build*/
 dist/
 *.spec
-build_scripts
+/dist/
+*.exe
+*.zip
+*.tar.gz
 
 # ==============================
 # Sistema operativo

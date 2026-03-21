@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Finanzas del Hogar{% endblock %}</title>
-  <!-- Bootstrap 5 CDN liviano -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <style>
@@ -16,8 +15,12 @@
     .sidebar .nav-link i { width: 20px; }
     .sidebar-section { color: #6c757d; font-size: .7rem; padding: .5rem 1rem .1rem; text-transform: uppercase; letter-spacing: .05em; }
     .content-area { padding: 1.5rem; }
-    .demo-badge { background: #fd7e14; color: #fff; font-size:.7rem; padding: 2px 7px; border-radius: 20px; }
+    /* ── Badges de plan ──────────────────────────────────────────── */
+    .demo-badge  { background: #fd7e14; color: #fff; font-size:.7rem; padding: 2px 7px; border-radius: 20px; }
     .full-badge  { background: #198754; color: #fff; font-size:.7rem; padding: 2px 7px; border-radius: 20px; }
+    .pro-badge   { background: linear-gradient(135deg,#6f42c1,#0d6efd); color: #fff; font-size:.7rem; padding: 2px 8px; border-radius: 20px; }
+    .basica-badge { background: #198754; color: #fff; font-size:.7rem; padding: 2px 7px; border-radius: 20px; }
+    /* ── Resto ───────────────────────────────────────────────────── */
     .card-stat { border-left: 4px solid; }
     .card-stat.income  { border-color: #198754; }
     .card-stat.expense { border-color: #dc3545; }
@@ -38,10 +41,15 @@
 <nav class="navbar navbar-dark bg-dark py-1 px-3">
   <span class="navbar-brand">
     <i class="bi bi-cash-coin"></i> Finanzas del Hogar
-    {% if demo_info.is_demo %}
-      <span class="demo-badge ms-2">DEMO</span>
+    {# ── Badge de plan — 4 estados ────────────────────────── #}
+    {% if demo_info.get('tier') == 'PRO' %}
+      <span class="pro-badge ms-2">PRO</span>
+    {% elif demo_info.get('tier') == 'BASICA' %}
+      <span class="basica-badge ms-2">BÁSICA</span>
+    {% elif demo_info.get('is_expired') %}
+      <span class="demo-badge ms-2" style="background:#dc3545;">DEMO VENCIDA</span>
     {% else %}
-      <span class="full-badge ms-2">FULL</span>
+      <span class="demo-badge ms-2">DEMO{% if demo_info.get('demo_days') is not none %} · {{ demo_info.get('demo_days') }}d{% endif %}</span>
     {% endif %}
   </span>
   <div class="d-flex gap-2 align-items-center">
@@ -85,6 +93,10 @@
       </a>
       <a href="{{ url_for('investments') }}" class="nav-link {% if 'investment' in request.endpoint %}active{% endif %}">
         <i class="bi bi-graph-up-arrow"></i> Inversiones
+        {# Candado visual en BASICA #}
+        {% if demo_info.get('tier') == 'BASICA' %}
+          <i class="bi bi-lock-fill ms-1" style="font-size:.65rem;opacity:.6;" title="Solo lectura en Plan Básico"></i>
+        {% endif %}
       </a>
       <a href="{{ url_for('cotizaciones') }}" class="nav-link {% if request.endpoint=='cotizaciones' %}active{% endif %}">
         <i class="bi bi-currency-exchange"></i> Cotizaciones
@@ -109,6 +121,17 @@
         <i class="bi bi-info-circle"></i> Acerca de…
       </a>
     </div>
+
+    {# ── Aviso PRO vencido — pie del sidebar ──────────────── #}
+    {% if demo_info.get('pro_expired') %}
+    <div style="margin:0 8px 12px;background:#fff3e0;border-radius:6px;padding:6px 10px;font-size:.72rem;color:#e65100;border:1px solid #ffb74d;">
+      <i class="bi bi-exclamation-triangle-fill me-1"></i>
+      <strong>Pro vencido</strong> — Plan Básico activo<br>
+      <a href="{{ url_for('activate') }}" style="color:#e65100;font-weight:700;">
+        <i class="bi bi-arrow-repeat"></i> Renovar Pro →
+      </a>
+    </div>
+    {% endif %}
   </div>
 
   <!-- ── Contenido ───────────────────────────────────────── -->
@@ -122,12 +145,44 @@
       {% endfor %}
     {% endwith %}
 
-    {% if demo_info.is_demo %}
+    {# ── Banner de plan — diferenciado por estado ─────────── #}
+    {% if demo_info.get('is_expired') %}
+    {# DEMO VENCIDA: modo lectura, no puede agregar nada #}
+    <div class="alert alert-danger py-2 px-3 small d-flex justify-content-between align-items-center">
+      <span>
+        <i class="bi bi-lock-fill"></i>
+        <strong>Demo vencida</strong> — Podés ver tus datos pero no agregar nuevos registros.
+      </span>
+      <a href="{{ url_for('activate') }}" class="btn btn-danger btn-sm py-0">Activar plan</a>
+    </div>
+    {% elif demo_info.is_demo %}
+    {# DEMO activa: mostrar días restantes #}
     <div class="alert alert-warning py-1 px-3 small d-flex justify-content-between align-items-center">
-      <span><i class="bi bi-info-circle"></i> Versión <strong>DEMO</strong> — funcionalidad limitada.</span>
+      <span>
+        <i class="bi bi-clock"></i>
+        Versión <strong>DEMO</strong>
+        {% if demo_info.get('demo_days') is not none %}
+          — {{ demo_info.get('demo_days') }} día{{ 's' if demo_info.get('demo_days') != 1 else '' }} restante{{ 's' if demo_info.get('demo_days') != 1 else '' }}
+        {% endif %}
+        — funcionalidad limitada.
+      </span>
       <a href="{{ url_for('activate') }}" class="btn btn-warning btn-sm py-0">Activar</a>
     </div>
+    {% elif demo_info.get('tier') == 'BASICA' %}
+    {# BÁSICA: mostrar banner suave con opción de upgrade #}
+    <div class="alert py-1 px-3 small d-flex justify-content-between align-items-center"
+         style="background:#e8f5e9;border:1px solid #a5d6a7;color:#2e7d32;">
+      <span>
+        <i class="bi bi-patch-check-fill"></i>
+        Plan <strong>Básico</strong> activo — Inversiones en solo lectura · 1 cuenta por tipo · 3 presupuestos.
+      </span>
+      <a href="{{ url_for('activate') }}" class="btn btn-sm py-0"
+         style="background:#2e7d32;color:white;font-size:.75rem;">
+        <i class="bi bi-stars"></i> Upgrade a Pro
+      </a>
+    </div>
     {% endif %}
+    {# PRO: sin banner (experiencia limpia) #}
 
     {% block content %}{% endblock %}
   </div>
@@ -144,7 +199,6 @@
      CHAT FLOTANTE — Asistente financiero IA
      ══════════════════════════════════════════════════════════ -->
 <style>
-  /* Botón flotante */
   #ai-fab {
     position: fixed; bottom: 24px; right: 24px; z-index: 1050;
     width: 52px; height: 52px; border-radius: 50%;
@@ -160,8 +214,6 @@
     width: 14px; height: 14px; background: #dc3545;
     border-radius: 50%; display: none;
   }
-
-  /* Panel del chat */
   #ai-chat-panel {
     position: fixed; bottom: 88px; right: 24px; z-index: 1049;
     width: 360px; max-width: calc(100vw - 32px);
@@ -171,8 +223,6 @@
     overflow: hidden; font-size: .88rem;
     transition: opacity .2s;
   }
-
-  /* Header del chat */
   #ai-chat-header {
     background: linear-gradient(135deg, #6f42c1, #0d6efd);
     color: #fff; padding: 12px 16px;
@@ -185,8 +235,6 @@
     font-size: 1.1rem; cursor: pointer; padding: 0; opacity: .8;
   }
   #ai-btn-close-chat:hover { opacity: 1; }
-
-  /* Mensajes */
   #ai-messages {
     flex-grow: 1; overflow-y: auto; padding: 14px;
     max-height: 340px; min-height: 120px;
@@ -208,8 +256,6 @@
   }
   .ai-msg.error { background: #fff3cd; color: #856404; border: 1px solid #ffc107; }
   .ai-msg.typing { background: #f3f0ff; color: #6c757d; }
-
-  /* Sugerencias rápidas */
   #ai-sugerencias {
     padding: 0 14px 10px; display: flex; flex-wrap: wrap; gap: 6px;
   }
@@ -219,8 +265,6 @@
     cursor: pointer; transition: background .15s;
   }
   .ai-sug-btn:hover { background: #e8e0ff; }
-
-  /* Input área */
   #ai-chat-footer {
     border-top: 1px solid #eee; padding: 10px 12px;
     display: flex; gap: 8px; align-items: flex-end;
@@ -242,26 +286,21 @@
   }
   #ai-send-btn:hover { transform: scale(1.08); }
   #ai-send-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
-
-  /* No configurada */
   #ai-no-config {
     padding: 20px 16px; text-align: center; color: #6c757d;
     font-size: .82rem;
   }
-
   @media (max-width: 480px) {
     #ai-chat-panel { width: calc(100vw - 32px); right: 16px; }
     #ai-fab { bottom: 16px; right: 16px; }
   }
 </style>
 
-<!-- Botón flotante -->
 <button id="ai-fab" title="Asistente financiero IA" onclick="toggleAiChat()">
   <i class="bi bi-stars"></i>
   <span class="ai-fab-badge" id="ai-fab-badge"></span>
 </button>
 
-<!-- Panel del chat -->
 <div id="ai-chat-panel">
   <div id="ai-chat-header">
     <i class="bi bi-stars" style="font-size:1.2rem;"></i>
@@ -277,7 +316,6 @@
     </button>
   </div>
 
-  <!-- Vista: sin API key -->
   <div id="ai-no-config" style="display:none;">
     <i class="bi bi-stars" style="font-size:2rem; color:#d0c7f5;"></i>
     <p class="mt-2 mb-2">El asistente de IA no está configurado.</p>
@@ -293,18 +331,14 @@
     </a>
   </div>
 
-  <!-- Vista: chat activo -->
   <div id="ai-chat-body">
     <div id="ai-messages"></div>
-
-    <!-- Sugerencias rápidas (solo al inicio) -->
     <div id="ai-sugerencias">
       <button class="ai-sug-btn" onclick="enviarSugerencia(this)">¿Cómo cerré el mes?</button>
       <button class="ai-sug-btn" onclick="enviarSugerencia(this)">¿En qué gasté más?</button>
       <button class="ai-sug-btn" onclick="enviarSugerencia(this)">¿Cómo van mis presupuestos?</button>
       <button class="ai-sug-btn" onclick="enviarSugerencia(this)">¿Cuánto ahorré?</button>
     </div>
-
     <div id="ai-chat-footer">
       <textarea id="ai-input" rows="1"
                 placeholder="Preguntame sobre tus finanzas..."
@@ -320,8 +354,8 @@
 (function () {
   let chatAbierto  = false;
   let cargando     = false;
-  let historial    = [];          // [{role, content}]
-  let aiConfigurado = null;       // null = no chequeado todavía
+  let historial    = [];
+  let aiConfigurado = null;
   let mensajesContador = 0;
 
   window.toggleAiChat = function () {
@@ -330,15 +364,12 @@
     const badge = document.getElementById('ai-fab-badge');
     panel.style.display = chatAbierto ? 'flex' : 'none';
     badge.style.display = 'none';
-
     if (chatAbierto && historial.length === 0) {
-      // Primer apertura: verificar si está configurado y mostrar bienvenida
       verificarConfig();
     }
   };
 
   function verificarConfig() {
-    // Enviar un ping silencioso — si responde api_key_not_set mostramos la pantalla de config
     fetch('/ai/chat', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
@@ -362,9 +393,7 @@
         );
       }
     })
-    .catch(() => {
-      aiConfigurado = true; // asumir configurado, el error real se mostrará al chatear
-    });
+    .catch(() => { aiConfigurado = true; });
   }
 
   window.enviarSugerencia = function (btn) {
@@ -451,15 +480,12 @@
   }
 
   function formatearRespuesta(texto) {
-    // Convertir markdown básico a HTML
     return texto
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/
-/g, '<br>');
+      .replace(/\n/g, '<br>');
   }
 
-  // Auto-resize del textarea
   document.addEventListener('DOMContentLoaded', function () {
     const inp = document.getElementById('ai-input');
     if (inp) {
@@ -474,7 +500,6 @@
 })();
 </script>
 {% endif %}
-<!-- FIN CHAT FLOTANTE ══════════════════════════════════════════════════════ -->
 
 </body>
 </html>
