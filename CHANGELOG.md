@@ -6,6 +6,16 @@ Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
 
+## [1.10.1] — 2026-03-21
+
+### Corregido
+- **Renovación Pro sin interrupciones**: el formulario para pegar el token de
+  renovación ahora aparece en la pantalla de Activación cuando el Plan Pro está
+  **activo**, no solo cuando ya venció. Permite al usuario renovar antes del
+  vencimiento sin perder ni un día de servicio.
+
+---
+
 ## [1.10.0] — 2026-03-20
 
 ### Agregado
