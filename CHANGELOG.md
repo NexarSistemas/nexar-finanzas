@@ -6,6 +6,13 @@ Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
 
+## [1.10.2] - 2026-03-21
+
+### Fixed
+- **Sistema de actualización**: Los archivos del update ahora se escriben en `APP_DIR`
+  (directorio del código) en lugar de `BASE_DIR` (directorio de datos). En instalaciones
+  `.deb` estos directorios son distintos, lo que causaba que las actualizaciones no se
+  aplicaran. (`routes.py` + `app.py`)
 ## [1.10.1] — 2026-03-21
 
 ### Corregido

@@ -6,15 +6,114 @@
 
 <div class="accordion" id="helpAccordion">
 
-  <!-- v1.9.2 (actual) -->
-  <div class="accordion-item border-primary">
+  <!-- v1.10.2 (actual) -->
+  <div class="accordion-item border-success">
     <h2 class="accordion-header">
-      <button class="accordion-button bg-primary text-white" type="button"
+      <button class="accordion-button bg-success text-white" type="button"
+              data-bs-toggle="collapse" data-bs-target="#help_v1102">
+        🐛 Versión 1.10.2 — Fix sistema de actualización in-app
+      </button>
+    </h2>
+    <div id="help_v1102" class="accordion-collapse collapse show"
+         data-bs-parent="#helpAccordion">
+      <div class="accordion-body">
+        <h6 class="fw-bold text-success">Fix crítico: actualización in-app en instalaciones .deb</h6>
+        <p>
+          Se corrigió un error donde el sistema de actualización in-app escribía
+          los archivos del update en el directorio de <strong>datos</strong>
+          (<code>~/.local/share/finanzas-hogar/</code>) en lugar del directorio
+          del <strong>código</strong> (<code>/opt/finanzas-hogar/</code>).
+        </p>
+        <p>
+          En instalaciones portables ambos directorios son el mismo, por lo que
+          no se notaba. En instalaciones <code>.deb</code> son distintos y la
+          actualización no se aplicaba. Ahora funciona correctamente en todos
+          los casos.
+        </p>
+        <div class="alert alert-success py-2 small mt-2">
+          <i class="bi bi-check-circle-fill"></i>
+          Si instalaste desde el <code>.deb</code> y las actualizaciones no se
+          aplicaban, esta versión lo soluciona.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- v1.10.1 -->
+  <div class="accordion-item">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed bg-secondary text-white" type="button"
+              data-bs-toggle="collapse" data-bs-target="#help_v1101">
+        🔧 Versión 1.10.1 — Corrección formulario de renovación Pro
+      </button>
+    </h2>
+    <div id="help_v1101" class="accordion-collapse collapse"
+         data-bs-parent="#helpAccordion">
+      <div class="accordion-body">
+        <h6 class="fw-bold text-primary">Formulario de renovación Pro</h6>
+        <p>
+          Se corrigió un error donde el formulario para renovar el
+          <strong>Plan Pro</strong> aparecía visible antes de que la licencia
+          hubiera vencido, generando confusión en el flujo de activación.
+        </p>
+        <p>
+          Ahora el formulario de renovación solo se muestra cuando corresponde:
+          al vencer el plan o cuando el sistema detecta que está próximo a vencer.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- v1.10.0 -->
+  <div class="accordion-item">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed bg-secondary text-white" type="button"
+              data-bs-toggle="collapse" data-bs-target="#help_v1100">
+        🔐 Versión 1.10.0 — Sistema de licencias por tiers
+      </button>
+    </h2>
+    <div id="help_v1100" class="accordion-collapse collapse"
+         data-bs-parent="#helpAccordion">
+      <div class="accordion-body">
+        <h6 class="fw-bold text-primary">Planes DEMO / BÁSICA / PRO</h6>
+        <p>
+          Se incorporó un sistema completo de licencias por niveles. La app
+          ahora distingue tres planes con funcionalidades diferenciadas:
+        </p>
+        <ul>
+          <li><strong>DEMO:</strong> 30 días completos, luego modo lectura.</li>
+          <li><strong>BÁSICA:</strong> Permanente, con límites por funcionalidad.</li>
+          <li><strong>PRO:</strong> Sin límites, mensual. Al vencer vuelve a BÁSICA.</li>
+        </ul>
+        <h6 class="fw-bold text-primary mt-3">Activación por Token RSA (offline)</h6>
+        <p>
+          Las licencias se activan pegando un <strong>token Base64</strong> firmado
+          digitalmente. No requiere internet. El token se genera a partir del
+          ID de tu hardware, por lo que es único por equipo.
+        </p>
+        <h6 class="fw-bold text-primary mt-3">Anti-reinstall</h6>
+        <p>
+          El contador de demo es resistente a reinstalaciones. Se guarda fuera
+          de la base de datos y no se reinicia borrando <code>database.db</code>.
+        </p>
+        <div class="alert alert-info py-2 small mt-2">
+          <i class="bi bi-info-circle-fill"></i>
+          Para activar el Plan Pro primero debe estar activo el Plan Básico.
+          Si adquirís ambos, activá primero el Básico y luego el Pro.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- v1.9.2 -->
+  <div class="accordion-item">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed bg-secondary text-white" type="button"
               data-bs-toggle="collapse" data-bs-target="#help_v192">
         🔑 Versión 1.9.2 — ID de máquina visible en pantalla de activación
       </button>
     </h2>
-    <div id="help_v192" class="accordion-collapse collapse show"
+    <div id="help_v192" class="accordion-collapse collapse"
          data-bs-parent="#helpAccordion">
       <div class="accordion-body">
         <h6 class="fw-bold text-primary">Hardware ID visible al solicitar licencia</h6>

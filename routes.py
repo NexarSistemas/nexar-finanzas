@@ -1153,6 +1153,7 @@ def register_routes(app):
             flash('Seleccioná un archivo ZIP de actualización válido.', 'danger')
             return redirect(url_for('settings'))
 
+        app_dir  = current_app.config.get('APP_DIR', current_app.config['BASE_DIR'])  # FIX v1.10.2
         base_dir = current_app.config['BASE_DIR']
         db_path  = get_db_path()
 
@@ -1203,9 +1204,9 @@ def register_routes(app):
                     if '__pycache__' in nombre:
                         continue
 
-                    destino = os.path.join(base_dir, nombre)
+                    destino = os.path.join(app_dir, nombre)
                     destino_real = os.path.realpath(destino)
-                    base_real    = os.path.realpath(base_dir)
+                    base_real    = os.path.realpath(app_dir)
                     if not destino_real.startswith(base_real):
                         continue
 

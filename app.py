@@ -156,9 +156,10 @@ app.secret_key = os.environ.get(
 
 app.config['DB_PATH'] = DB_PATH
 app.config['BASE_DIR'] = BASE_DIR
+app.config['APP_DIR'] = _APP_DIR  # FIX v1.10.2
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
 
-APP_VERSION = '1.10.1'
+APP_VERSION = '1.10.2'
 
 
 # ─── Base de datos ────────────────────────────────────────────
