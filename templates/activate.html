@@ -205,25 +205,42 @@
       </div>
     </div>
 
-    {# Si el PRO venció, permitir activar nuevo token directamente #}
-    {% if pro_expired %}
-    <div class="card mt-3 border-warning">
-      <div class="card-header py-2 fw-semibold text-warning">
-        <i class="bi bi-arrow-repeat"></i> Renovar Plan Pro
+    {# Renovar Pro — visible siempre que el tier sea PRO (activo o vencido) #}
+    {% if tier == 'PRO' or pro_expired %}
+    <div class="card mt-3 {% if pro_expired %}border-warning{% else %}border-0{% endif %}"
+         style="{% if not pro_expired %}background:#f3f0ff;{% endif %}">
+      <div class="card-header py-2 fw-semibold
+                  {% if pro_expired %}text-warning{% endif %}"
+           style="{% if not pro_expired %}color:#6f42c1;background:transparent;{% endif %}">
+        <i class="bi bi-arrow-repeat"></i>
+        {% if pro_expired %}Renovar Plan Pro (vencido){% else %}Renovar Plan Pro{% endif %}
       </div>
       <div class="card-body">
-        <p class="small text-muted mb-2">Pegá tu nuevo token Pro para renovar:</p>
+        {% if pro_expired %}
+        <div class="alert alert-warning py-1 px-2 small mb-2">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          Tu Pro venció — estás en Plan Básico. Activá el nuevo token para recuperar el acceso completo.
+        </div>
+        {% else %}
+        <p class="small text-muted mb-2">
+          Cuando recibas el token del próximo mes, pegalo acá para renovar
+          sin interrupciones.
+        </p>
+        {% endif %}
         <form method="POST">
           <textarea name="code" class="form-control font-monospace mb-2"
-                    rows="3" placeholder="Pegá el token aquí..." required
-                    style="font-size:.75rem;"></textarea>
-          <button type="submit" class="btn btn-warning w-100 btn-sm">
-            <i class="bi bi-arrow-repeat"></i> Renovar Pro
+                    rows="3" placeholder="Pegá el token de renovación aquí..."
+                    required style="font-size:.75rem;"></textarea>
+          <button type="submit" class="btn w-100 btn-sm
+                  {% if pro_expired %}btn-warning{% endif %}"
+                  style="{% if not pro_expired %}background:#6f42c1;color:white;{% endif %}">
+            <i class="bi bi-arrow-repeat"></i>
+            {% if pro_expired %}Reactivar Pro{% else %}Renovar Pro{% endif %}
           </button>
         </form>
         <hr class="my-2">
-        <a href="https://wa.me/5492645858874?text=Hola%2C%20necesito%20renovar%20el%20Plan%20Pro.%20Mi%20ID%20de%20equipo%20es%3A%20{{ hardware_id | urlencode }}"
-           target="_blank" class="btn btn-outline-success btn-sm w-100 mt-1">
+        <a href="https://wa.me/5492645858874?text=Hola%2C%20quiero%20renovar%20el%20Plan%20Pro.%20Mi%20ID%20de%20equipo%20es%3A%20{{ hardware_id | urlencode }}"
+           target="_blank" class="btn btn-outline-success btn-sm w-100">
           <i class="bi bi-whatsapp"></i> Solicitar renovación por WhatsApp
         </a>
       </div>
