@@ -43,10 +43,6 @@ backups/
 build*/
 dist/
 *.spec
-/dist/
-*.exe
-*.zip
-*.tar.gz
 
 # ==============================
 # Sistema operativo

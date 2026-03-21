@@ -1,7 +1,8 @@
-💰 Finanzas del Hogar v1.10.0
+# 💰 Finanzas del Hogar v1.10.0
 
-
-Aplicación web local de gestión financiera personal. Funciona completamente offline, utilizando base de datos SQLite local, y está optimizada para equipos de gama media/baja.
+Aplicación de gestión financiera personal para escritorio. Funciona completamente
+offline, utilizando base de datos SQLite local, y está optimizada para equipos
+de gama media/baja.
 
 **Creado por Rolando Navarta · Desarrollado junto a Claude.ai · 2026**
 
@@ -15,8 +16,8 @@ finanzas_app/
 ├── models.py             → Schema de base de datos SQLite
 ├── routes.py             → Rutas y controladores HTTP
 ├── services.py           → Lógica de negocio y reportes
-├── activation.py         → Validación de códigos de licencia
-├── demo_limits.py        → Control de límites DEMO
+├── activation.py         → Validación de licencias (Token RSA + HMAC legacy)
+├── demo_limits.py        → Control de tiers DEMO / BÁSICA / PRO
 ├── ai_service.py         → Módulo de inteligencia artificial
 ├── requirements.txt      → Dependencias Python
 ├── iniciar.bat           → Lanzador Windows
@@ -24,28 +25,10 @@ finanzas_app/
 ├── finanzas_hogar.ico    → Ícono de la aplicación (Windows)
 ├── finanzas_hogar.png    → Ícono de la aplicación (Linux)
 ├── database.db           → Base de datos (se crea al iniciar)
-└── templates/
-    ├── base.html               → Layout base con menú
-    ├── login.html              → Pantalla de login
-    ├── setup.html              → Configuración inicial
-    ├── dashboard.html          → Panel principal
-    ├── transactions.html       → Lista de movimientos
-    ├── transaction_form.html
-    ├── accounts.html           → Cuentas bancarias / billeteras
-    ├── account_form.html
-    ├── transfer_form.html      → Transferencias entre cuentas
-    ├── categories.html         → Categorías dinámicas
-    ├── budgets.html            → Presupuestos con semáforo
-    ├── reports.html            → Reportes y gráficos
-    ├── investments.html        → Inversiones con precios de mercado
-    ├── investment_form.html    → Formulario con guía de tickers
-    ├── cotizaciones.html       → Cotizaciones en tiempo real
-    ├── activate.html           → Activación de licencia (visual)
-    ├── settings.html           → Configuración + actualización del sistema
-    ├── help.html               → Manual completo integrado
-    ├── about.html              → Acerca de
-    ├── shutdown.html           → Cierre del servidor
-    └── error.html              → Página de error
+├── keys/
+│   └── public_key.pem   → Clave pública RSA para verificación de licencias
+├── licensing/            → Módulo de hardware ID y estado de licencia
+└── templates/            → Plantillas HTML Jinja2
 ```
 
 ---
@@ -62,20 +45,25 @@ finanzas_app/
 # 1. Ir a la carpeta del proyecto
 cd finanzas_app/
 
-# 2. Instalar dependencias (Flask es la única obligatoria)
+# 2. Instalar dependencias
 pip install -r requirements.txt
 
 # 3. Ejecutar la aplicación
 python app.py
 ```
 
-### Acceder
-Abrí tu navegador en: **http://127.0.0.1:5000**
+### Inicio
+La aplicación abre en una **ventana nativa** (pywebview). Si pywebview no está
+disponible en el sistema, se abre automáticamente en el navegador predeterminado.
+
+El puerto se asigna dinámicamente — si el 5000 está libre se usa ese, si no el
+sistema elige uno disponible. El puerto real se muestra en la consola al iniciar.
 
 En la primera ejecución se te pedirá crear tu usuario administrador.
 
 ### Windows — doble clic
-Ejecutá `iniciar.bat`. Verifica Python, instala Flask si hace falta y abre el navegador automáticamente.
+Ejecutá `iniciar.bat`. Verifica Python, instala dependencias si hace falta y
+abre la app automáticamente.
 
 ### Linux / Mac
 ```bash
@@ -83,9 +71,18 @@ chmod +x iniciar.sh
 ./iniciar.sh
 ```
 
+> **Linux — ventana nativa:** para que pywebview funcione se necesitan las
+> librerías GTK/WebKit:
+> ```bash
+> sudo apt install python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.1
+> ```
+> Si no están instaladas, la app abre en el navegador del sistema igualmente.
+
 ---
 
 ## 🔄 Actualizar una versión existente
+
+> ⚠️ La instalación de actualizaciones está disponible solo en el **Plan Pro**.
 
 Los datos, cuentas, historial y licencia **no se modifican** al actualizar.
 
@@ -95,36 +92,55 @@ Los datos, cuentas, historial y licencia **no se modifican** al actualizar.
 4. Hacé clic en **"Instalar actualización"**
 5. Reiniciá la aplicación
 
-> ⚠️ El sistema hace una copia de seguridad automática antes de aplicar cualquier actualización.
+El sistema hace una copia de seguridad automática antes de aplicar cualquier
+actualización.
 
 ---
 
-## 🔐 Sistema de activación
+## 🔐 Sistema de licencias
 
-### Versión DEMO (por defecto)
-| Recurso | Límite |
-|---|---|
-| Gastos | 30 |
-| Ingresos | 5 |
-| Cuentas bancarias | 4 |
-| Billeteras virtuales | 4 |
-| Inversiones | 10 |
+La aplicación usa un sistema de **3 planes** con activación por **Token Base64
+firmado con RSA**, completamente offline.
 
-### Tipos de licencia
-| Tipo | Descripción |
-|---|---|
-| **Mensual** | Válida un mes calendario, muestra fecha de vencimiento |
-| **Permanente** | Sin fecha de vencimiento |
-| **Cliente** | Licencia personalizada, sin vencimiento |
+### Planes disponibles
 
-### Activar versión FULL
-1. Obtener código de activación (contactar al desarrollador)
+| Función | DEMO (30 días) | BÁSICA | PRO |
+|---|:---:|:---:|:---:|
+| Movimientos | Ilimitados | Ilimitados | Ilimitados |
+| Cuentas | 3 en total | 1 por tipo | Ilimitadas |
+| Inversiones | Hasta 3 | Solo lectura | Completo |
+| Presupuestos | Ilimitados | Hasta 3 | Ilimitados |
+| Reportes | Completos | Semanal + Mensual | Completos |
+| IA (API key) | ✅ | ✅ | ✅ |
+| Actualizaciones | ❌ | ❌ | ✅ |
+| Soporte WhatsApp | ❌ | ❌ | ✅ |
+| Duración | 30 días | Permanente | Mensual |
+| Al vencer | Modo lectura | — | Vuelve a BÁSICA |
+
+### DEMO
+Los 30 días se cuentan desde la **primera ejecución**. Al vencer, podés seguir
+viendo todos tus datos pero no agregar nuevos registros. El contador es
+resistente a reinstalaciones — se guarda fuera de la base de datos.
+
+### Activar un plan
+
+1. Contactar al desarrollador para adquirir el token de activación
 2. Ir a **Activar sistema** en el menú lateral
-3. Ingresar el código (formato: `XXXX-XXXX-XXXX-XXXX`)
-4. El sistema se activa offline, sin internet
+3. Pegar el token completo en el campo de activación
+4. Hacer clic en **Activar plan**
 
-### Contacto para licencias
-- 📱 WhatsApp: +54 9 264 585-8874
+El proceso es completamente offline. No requiere internet.
+
+> Para activar el **Plan Pro** primero debe estar activo el **Plan Básico**.
+> Si adquirís ambos, recibirás dos tokens — activar primero el Básico y luego el Pro.
+
+### Solicitar licencia
+
+La pantalla de activación muestra el **ID de tu equipo** con un botón para
+enviarlo directamente por WhatsApp. El desarrollador usa ese ID para generar
+tu token personalizado.
+
+- 📱 WhatsApp: [+54 9 264 585-8874](https://wa.me/5492645858874)
 - ✉️ rolojnb@outlook.com.ar
 
 ---
@@ -153,8 +169,6 @@ Para restaurar: cerrá la app y reemplazá `database.db` con el backup.
 
 ## 📈 Inversiones — cotizaciones automáticas
 
-El módulo de inversiones obtiene precios de mercado de forma automática desde fuentes gratuitas:
-
 | Tipo de activo | Fuente | Ejemplo ticker |
 |---|---|---|
 | Acciones argentinas | Yahoo Finance | `GGAL.BA`, `YPF.BA` |
@@ -164,7 +178,8 @@ El módulo de inversiones obtiene precios de mercado de forma automática desde 
 | FCI | API CAFCI (oficial) | Por nombre del fondo |
 | Criptomonedas | CoinGecko | `BTC`, `ETH`, `SOL` |
 
-Por cada posición muestra: costo promedio, valor a mercado, ganancia/pérdida y rendimiento %.
+Por cada posición muestra: costo promedio, valor a mercado, ganancia/pérdida y
+rendimiento %. Disponible en Plan Pro; en Plan Básico es solo lectura.
 
 ---
 
@@ -183,77 +198,74 @@ Los datos se cachean localmente para funcionar sin conexión.
 ## 📊 Funcionalidades completas
 
 - ✅ Dashboard con resumen del mes y alertas
-- ✅ Ingresos y gastos con categorías dinámicas
+- ✅ Ingresos y gastos con categorías dinámicas e ilimitadas
 - ✅ Múltiples cuentas (banco, billetera virtual, efectivo)
 - ✅ Transferencias entre cuentas propias
 - ✅ Presupuestos mensuales con semáforo de alertas
-- ✅ Reportes mensual / anual / semanal
-- ✅ Exportación CSV
+- ✅ Reportes mensual / anual / semanal con exportación CSV
 - ✅ Inversiones con cotizaciones automáticas (Yahoo Finance, BYMA, CAFCI, CoinGecko)
 - ✅ Cálculo de ganancias y pérdidas por posición
 - ✅ Cotizaciones en tiempo real (dólar, monedas, cripto)
 - ✅ Copias de seguridad automáticas programables
-- ✅ Sistema de actualización sin pérdida de datos
-- ✅ Licencia visual con tipo y fecha de vencimiento
-- ✅ **Clasificación de categorías: Necesario / Prescindible** con análisis y recomendaciones en Reportes
-- ✅ **Cierre completo**: cierra terminal (Linux SIGHUP / Windows taskkill) y pestaña del navegador
-- ✅ **Clasificación automática de gastos con IA** (sugiere categoría al escribir la descripción)
-- ✅ **Asistente financiero en lenguaje natural** (chat flotante con acceso a todos tus datos)
-- ✅ Sistema DEMO / FULL con activación offline
+- ✅ Sistema de actualización sin pérdida de datos *(Plan Pro)*
+- ✅ Clasificación de categorías: Necesario / Prescindible con análisis en Reportes
+- ✅ Clasificación automática de gastos con IA
+- ✅ Asistente financiero en lenguaje natural (chat flotante)
+- ✅ Sistema de licencias por tiers: DEMO / BÁSICA / PRO
+- ✅ Activación offline por Token RSA — sin internet
+- ✅ Anti-reinstall: la demo no se reinicia borrando la base de datos
+- ✅ Ventana nativa pywebview con fallback al navegador
+- ✅ Puerto dinámico — sin conflictos de red
 - ✅ Manual completo integrado
-- ✅ Cierre controlado del servidor
 
 ---
 
-
 ## 🤖 Inteligencia Artificial
 
-La IA se configura en **Configuración → Inteligencia Artificial** ingresando una clave de API de Anthropic.
+La IA se configura en **Configuración → Inteligencia Artificial** ingresando
+una clave de API de Anthropic. Disponible en todos los planes.
 
 ### Clasificación automática de gastos
-Al ingresar una nueva transacción, la IA analiza la descripción en tiempo real y sugiere la categoría más adecuada. El usuario puede aceptar o ignorar la sugerencia. Si no hay clave configurada, el campo funciona normalmente sin IA.
+Al ingresar una nueva transacción, la IA analiza la descripción en tiempo real
+y sugiere la categoría más adecuada.
 
 ### Asistente financiero (chat flotante)
-El ícono ✨ en la esquina inferior derecha abre un chat que responde preguntas en lenguaje natural sobre las finanzas del usuario:
-- *¿Cómo cerré el mes?*
-- *¿En qué gasté más?*
-- *¿Cómo van mis presupuestos?*
-- *¿Cuánto ahorré este mes?*
+El ícono ✨ en la esquina inferior derecha abre un chat con acceso de lectura
+a tus datos reales — transacciones, cuentas, presupuestos e inversiones.
 
-El asistente tiene acceso de solo lectura a los datos reales del usuario (transacciones, cuentas, presupuestos, inversiones). Requiere conexión a internet.
-
-> La clave de API se guarda localmente en la base de datos del usuario y nunca se envía a servidores propios.
+> La clave de API se guarda localmente y nunca sale de tu equipo.
 > Obtené tu clave en: https://console.anthropic.com/
+> **Nota de costos:** la clave es gratuita pero cada consulta tiene un costo
+> según el uso (Anthropic API).
+
+---
 
 ## 🛠 Tecnologías utilizadas
 
-- Python 3.10+
-- Flask
-- SQLite
-- HTML5 + Jinja2
-- JavaScript
-- Yahoo Finance API (no oficial)
-- BYMA Open Data
-- CoinGecko API
-- Anthropic API (IA)
+- Python 3.10+ · Flask · SQLite · HTML5 + Jinja2
+- pywebview (ventana nativa de escritorio)
+- cryptography (verificación de licencias RSA)
+- Yahoo Finance · BYMA · CAFCI · CoinGecko · dolarapi.com
+- Anthropic API (IA opcional)
+
+---
 
 ## 📋 Historial de versiones
 
 | Versión | Cambios principales |
 |---|---|
-| **v1.10.0** | Sistema de licencias por tiers (DEMO/BÁSICA/PRO) con Token RSA; anti-reinstall; badge por plan; upgrade BÁSICA→PRO |
-| **v1.9.2** | Pantalla de activación muestra el ID de máquina con botón copiar para solicitar licencia |
+| **v1.10.0** | Sistema de licencias por tiers (DEMO/BÁSICA/PRO); activación por Token RSA; anti-reinstall; badge de plan; upgrade BÁSICA→PRO |
+| **v1.9.2** | ID de máquina visible en pantalla de activación con botón copiar |
 | **v1.9.1** | Licencia MIT visible en Acerca de como sección colapsable |
 | **v1.9.0** | Corrección de cierre sin sesión activa; avisos de costo del asistente de IA |
-| **v1.8.0** | Recuperación de contraseña; pantalla de activación con tipos de licencia (mensual, permanente, cliente) |
-| **v1.7.0** | Puerto dinámico configurable; mejoras de estabilidad |
-| **v1.6.0** | Categorías Necesario/Prescindible; análisis con recomendaciones y IA en Reportes; cierre de terminal y pestaña al apagar |
-| **v1.5.0** | Clasificación automática de gastos con IA (sugiere categoría al escribir); asistente financiero en chat flotante con acceso a datos reales del usuario |
-| **v1.4.1** | Corrección: sección de actualización duplicada en Configuración; corrección: error "falta UPDATE_META.json" al instalar actualizaciones |
-| **v1.4.0** | Sistema de actualización sin pérdida de datos desde Configuración; instaladores Windows (.exe x64/x86) y Linux (.deb); versión portable mejorada |
-| **v1.3.0** | Corrección de categorías duplicadas en DB; pantalla de licencia rediseñada con tipo y fecha de vencimiento visual |
-| **v1.2.0** | Cotizaciones de mercado automáticas para inversiones; cálculo de ganancias/pérdidas; campo ticker con guía contextual |
-| **v1.1.0** | Cotizaciones en tiempo real (dólar, forex, cripto); copias de seguridad automáticas programables; botón de cierre en login |
+| **v1.8.0** | Recuperación de contraseña por pregunta secreta |
+| **v1.7.0** | Puerto dinámico — sin conflictos si el 5000 está ocupado |
+| **v1.6.0** | Categorías Necesario/Prescindible; análisis con IA en Reportes; cierre de terminal |
+| **v1.5.0** | Clasificación automática de gastos con IA; asistente financiero en chat |
+| **v1.4.0** | Actualización sin pérdida de datos; instaladores .exe y .deb |
+| **v1.3.0** | Corrección de categorías duplicadas; pantalla de licencia rediseñada |
+| **v1.2.0** | Cotizaciones automáticas para inversiones; ganancias/pérdidas |
+| **v1.1.0** | Cotizaciones en tiempo real; copias de seguridad automáticas |
 | **v1.0.0** | Versión inicial |
 
 ---
