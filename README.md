@@ -1,10 +1,10 @@
-# 💰 Finanzas del Hogar v1.10.2
+# 💰 Nexar Finanzas v1.10.2
 
 Aplicación de gestión financiera personal para escritorio. Funciona completamente
 offline, utilizando base de datos SQLite local, y está optimizada para equipos
 de gama media/baja.
 
-**Creado por Rolando Navarta · Desarrollado junto a Claude.ai · 2026**
+**Creado por Nexar Sistemas · Desarrollado junto a Claude.ai · 2026**
 
 ---
 
@@ -22,8 +22,8 @@ finanzas_app/
 ├── requirements.txt      → Dependencias Python
 ├── iniciar.bat           → Lanzador Windows
 ├── iniciar.sh            → Lanzador Linux/Mac
-├── finanzas_hogar.ico    → Ícono de la aplicación (Windows)
-├── finanzas_hogar.png    → Ícono de la aplicación (Linux)
+├── nexar_finanzas.ico    → Ícono de la aplicación (Windows)
+├── nexar_finanzas.png    → Ícono de la aplicación (Linux)
 ├── database.db           → Base de datos (se crea al iniciar)
 ├── keys/
 │   └── public_key.pem   → Clave pública RSA para verificación de licencias
@@ -272,4 +272,4 @@ a tus datos reales — transacciones, cuentas, presupuestos e inversiones.
 
 ---
 
-*Creado por Rolando Navarta · Desarrollado junto a Claude.ai · 2026*
+*Creado por Nexar Sistemas · Desarrollado junto a Claude.ai · 2026*

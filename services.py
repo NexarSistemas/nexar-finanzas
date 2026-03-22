@@ -371,7 +371,7 @@ def fetch_precio_yahoo(ticker: str) -> dict | None:
         url = (f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
                f"?interval=1d&range=1d")
         req = urllib.request.Request(url, headers={
-            'User-Agent': 'Mozilla/5.0 FinanzasHogar/1.2'
+            'User-Agent': 'Mozilla/5.0 NexarFinanzas/1.2'
         })
         with urllib.request.urlopen(req, timeout=8) as resp:
             data = json.loads(resp.read())
@@ -397,7 +397,7 @@ def fetch_precio_coingecko(coingecko_id: str) -> dict | None:
     try:
         url = (f"https://api.coingecko.com/api/v3/simple/price"
                f"?ids={coingecko_id}&vs_currencies=usd&include_24hr_change=true")
-        req = urllib.request.Request(url, headers={'User-Agent': 'FinanzasHogar/1.2'})
+        req = urllib.request.Request(url, headers={'User-Agent': 'NexarFinanzas/1.2'})
         with urllib.request.urlopen(req, timeout=8) as resp:
             data = json.loads(resp.read())
         if coingecko_id in data:
@@ -430,7 +430,7 @@ def fetch_precio_byma(ticker: str) -> dict | None:
         }).encode()
         req = urllib.request.Request(url, data=payload, headers={
             'Content-Type': 'application/json',
-            'User-Agent':   'FinanzasHogar/1.2',
+            'User-Agent':   'NexarFinanzas/1.2',
         })
         with urllib.request.urlopen(req, timeout=8) as resp:
             data = json.loads(resp.read())
@@ -464,7 +464,7 @@ def fetch_precio_fci(nombre_fci: str) -> dict | None:
         url_fondos = ("https://api.cafci.org.ar/fondo?"
                       "estado=1&populate=regenteFondo,tipoFondo,clase")
         req = urllib.request.Request(url_fondos, headers={
-            'User-Agent': 'FinanzasHogar/1.2'
+            'User-Agent': 'NexarFinanzas/1.2'
         })
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read())
@@ -487,7 +487,7 @@ def fetch_precio_fci(nombre_fci: str) -> dict | None:
         if not fondo_id or not clase_id:
             return None
         url_cp = f"https://api.cafci.org.ar/fondo/{fondo_id}/clase/{clase_id}/cuotaparte?limit=1"
-        req2 = urllib.request.Request(url_cp, headers={'User-Agent': 'FinanzasHogar/1.2'})
+        req2 = urllib.request.Request(url_cp, headers={'User-Agent': 'NexarFinanzas/1.2'})
         with urllib.request.urlopen(req2, timeout=10) as resp2:
             data2 = json.loads(resp2.read())
         cuotapartes = data2.get('data', [])
@@ -761,7 +761,7 @@ def fetch_all_cotizaciones(db_path: str) -> dict:
     # ── 1. Tipos de dólar (dolarapi.com) ──────────────────────────────────────
     try:
         url = "https://dolarapi.com/v1/dolares"
-        req = urllib.request.Request(url, headers={'User-Agent': 'FinanzasHogar/1.1'})
+        req = urllib.request.Request(url, headers={'User-Agent': 'NexarFinanzas/1.1'})
         with urllib.request.urlopen(req, timeout=6) as resp:
             datos = json.loads(resp.read())
         nombres_esp = {
@@ -787,7 +787,7 @@ def fetch_all_cotizaciones(db_path: str) -> dict:
     # ── 2. Euro y monedas internacionales (frankfurter.app — gratuita, sin key) ─
     try:
         url2 = "https://api.frankfurter.app/latest?base=USD&symbols=EUR,BRL,CLP,UYU,GBP"
-        req2 = urllib.request.Request(url2, headers={'User-Agent': 'FinanzasHogar/1.1'})
+        req2 = urllib.request.Request(url2, headers={'User-Agent': 'NexarFinanzas/1.1'})
         with urllib.request.urlopen(req2, timeout=6) as resp2:
             datos2 = json.loads(resp2.read())
         nombres_monedas = {
@@ -812,7 +812,7 @@ def fetch_all_cotizaciones(db_path: str) -> dict:
         url3 = ("https://api.coingecko.com/api/v3/simple/price"
                 "?ids=bitcoin,ethereum,tether,binancecoin,ripple"
                 "&vs_currencies=usd&include_24hr_change=true")
-        req3 = urllib.request.Request(url3, headers={'User-Agent': 'FinanzasHogar/1.1'})
+        req3 = urllib.request.Request(url3, headers={'User-Agent': 'NexarFinanzas/1.1'})
         with urllib.request.urlopen(req3, timeout=8) as resp3:
             datos3 = json.loads(resp3.read())
         nombres_cripto = {

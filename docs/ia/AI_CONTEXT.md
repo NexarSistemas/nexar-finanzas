@@ -1,6 +1,6 @@
 # AI Context
 
-Proyecto: Finanzas del Hogar  
+Proyecto: Nexar Finanzas  
 Versión: 1.9.0  
 Lenguaje: Python  
 Framework: Flask  
@@ -10,7 +10,7 @@ Modo de ejecución: aplicación local con pywebview o navegador
 
 ## Objetivo del proyecto
 
-Finanzas del Hogar es una aplicación local para gestión financiera personal que permite:
+Nexar Finanzas es una aplicación local para gestión financiera personal que permite:
 
 - registrar ingresos y gastos
 - administrar cuentas

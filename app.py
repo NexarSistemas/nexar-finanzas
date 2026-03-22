@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 app.py
-Punto de entrada principal — Finanzas del Hogar v1.10.1
+Punto de entrada principal — Nexar Finanzas v1.10.1
 Modo de visualización: pywebview (ventana nativa) con fallback
 al navegador SOLO si pywebview falla o no está disponible.
 """
@@ -97,23 +97,79 @@ _INTERNAL_DIR = _get_internal_dir()
 
 # Calcular directorio de datos del usuario segun el entorno:
 #   - Variable de entorno FINANZAS_DATA_DIR  → usarla siempre que este definida
-#   - .exe compilado en Windows              → %APPDATA%\FinanzasHogar
-#   - .exe compilado en Linux/Mac            → ~/.local/share/finanzas-hogar
+#   - .exe compilado en Windows              → %APPDATA%\NexarFinanzas
+#   - .exe compilado en Linux/Mac            → ~/.local/share/nexar-finanzas
 #   - Desarrollo / portable                  → directorio del script si es escribible,
-#                                              sino ~/.local/share/finanzas-hogar
+#                                              sino ~/.local/share/nexar-finanzas
 if os.environ.get('FINANZAS_DATA_DIR'):
     BASE_DIR = os.environ['FINANZAS_DATA_DIR']
 elif getattr(sys, 'frozen', False) and os.name == 'nt':
-    BASE_DIR = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'FinanzasHogar')
+    BASE_DIR = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'NexarFinanzas')
 elif getattr(sys, 'frozen', False):
-    BASE_DIR = os.path.join(os.path.expanduser('~'), '.local', 'share', 'finanzas-hogar')
+    BASE_DIR = os.path.join(os.path.expanduser('~'), '.local', 'share', 'nexar-finanzas')
 else:
     BASE_DIR = _APP_DIR if os.access(_APP_DIR, os.W_OK) else \
-               os.path.join(os.path.expanduser('~'), '.local', 'share', 'finanzas-hogar')
+               os.path.join(os.path.expanduser('~'), '.local', 'share', 'nexar-finanzas')
 
 if BASE_DIR != _APP_DIR:
     os.makedirs(BASE_DIR, exist_ok=True)
     os.makedirs(os.path.join(BASE_DIR, 'backups'), exist_ok=True)
+
+# ─── Migración automática de datos (finanzas-hogar → nexar-finanzas) ─────
+
+def _migrate_data_if_needed():
+    """
+    Si existen datos en ~/.local/share/finanzas-hogar/, migrar a nexar-finanzas/
+    Solo ejecuta si BASE_DIR es 'nexar-finanzas' y no está ya migrado.
+    """
+    if 'nexar-finanzas' not in BASE_DIR:
+        return  # No es necesario migrar si la ruta no es la nueva
+    
+    old_data_dir = os.path.join(
+        os.path.expanduser('~'), '.local', 'share', 'finanzas-hogar'
+    )
+    
+    # Si no existe el directorio viejo, no hay nada que migrar
+    if not os.path.exists(old_data_dir):
+        return
+    
+    # Marcar que ya se migró
+    migration_marker = os.path.join(BASE_DIR, '.migrated_from_finanzas_hogar')
+    if os.path.exists(migration_marker):
+        return  # Ya se migró antes
+    
+    try:
+        import shutil
+        
+        # Copiar database.db si existe
+        old_db = os.path.join(old_data_dir, 'database.db')
+        if os.path.exists(old_db) and not os.path.exists(os.path.join(BASE_DIR, 'database.db')):
+            shutil.copy2(old_db, os.path.join(BASE_DIR, 'database.db'))
+            logging.info(f"✓ Database migrada de {old_data_dir}")
+        
+        # Copiar backups si existen
+        old_backups = os.path.join(old_data_dir, 'backups')
+        if os.path.exists(old_backups):
+            new_backups = os.path.join(BASE_DIR, 'backups')
+            if not os.path.exists(new_backups):
+                os.makedirs(new_backups)
+            for backup_file in os.listdir(old_backups):
+                src = os.path.join(old_backups, backup_file)
+                dst = os.path.join(new_backups, backup_file)
+                if os.path.isfile(src) and not os.path.exists(dst):
+                    shutil.copy2(src, dst)
+            logging.info(f"✓ Backups migrados de {old_data_dir}")
+        
+        # Crear marcador de migración
+        with open(migration_marker, 'w') as f:
+            f.write("Migración completada de finanzas-hogar a nexar-finanzas\n")
+        
+        logging.info("✓ Migración de datos completada exitosamente")
+    except Exception as e:
+        logging.error(f"⚠ Error durante migración de datos: {e}")
+
+
+_migrate_data_if_needed()
 
 DB_PATH = os.path.join(BASE_DIR, 'database.db')
 
@@ -151,7 +207,7 @@ app = Flask(
 
 app.secret_key = os.environ.get(
     'FLASK_SECRET_KEY',
-    'FinanzasHogar_2026_SessionKey_Change_In_Prod_XK9Z'
+    'NexarFinanzas_2026_SessionKey_Change_In_Prod_XK9Z'
 )
 
 app.config['DB_PATH'] = DB_PATH
@@ -204,7 +260,7 @@ def inject_globals():
     return {
         'demo_info': demo_info,
         'app_version': APP_VERSION,
-        'app_name': 'Finanzas del Hogar',
+        'app_name': 'Nexar Finanzas',
         'license_mode': LICENSE_MODE
     }
 
@@ -214,8 +270,8 @@ def inject_globals():
 if __name__ == '__main__':
 
     print("=" * 55)
-    print(f"  💰 Finanzas del Hogar v{APP_VERSION}")
-    print("  Creado por Rolando Navarta")
+    print(f"  💰 Nexar Finanzas v{APP_VERSION}")
+    print("  Creado por Nexar Sistemas")
     print("=" * 55)
 
     # ── Verificación de licencia ──────────────────────────────
@@ -286,7 +342,7 @@ if __name__ == '__main__':
         logging.info("Iniciando pywebview.")
 
         window = webview.create_window(
-            title=f'Finanzas del Hogar v{APP_VERSION}',
+            title=f'Nexar Finanzas v{APP_VERSION}',
             url=URL,
             width=1280,
             height=800,

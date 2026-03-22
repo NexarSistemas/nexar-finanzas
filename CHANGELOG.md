@@ -1,4 +1,4 @@
-# Changelog — Finanzas del Hogar
+# Changelog — Nexar Finanzas
 
 Todos los cambios notables de este proyecto se documentan aquí.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
@@ -31,7 +31,7 @@ Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
   - **BÁSICA**: pago único permanente. Movimientos ilimitados, 1 cuenta por tipo, inversiones en solo lectura, hasta 3 presupuestos, reportes semanal + mensual.
   - **PRO**: suscripción mensual. Acceso completo, actualizaciones incluidas, soporte WhatsApp.
 - **Activación por Token Base64 + RSA**: nuevo sistema de activación offline con firma digital RSA (PKCS1v15 + SHA256). Reemplaza los códigos HMAC anteriores para clientes nuevos.
-- **Anti-reinstall (`telemetry.bin`)**: la fecha de inicio de la demo se guarda fuera de la base de datos en `~/.local/share/FinanzasHogar/telemetry.bin` (Linux) o `%APPDATA%\FinanzasHogar	elemetry.bin` (Windows). Sobrevive al borrado de la BD.
+- **Anti-reinstall (`telemetry.bin`)**: la fecha de inicio de la demo se guarda fuera de la base de datos en `~/.local/share/NexarFinanzas/telemetry.bin` (Linux) o `%APPDATA%\NexarFinanzas	elemetry.bin` (Windows). Sobrevive al borrado de la BD.
 - **Detección de hardware ID (`machine_id`)**: se genera y persiste en la BD para vincular licencias al equipo.
 - **Pantalla de activación rediseñada**: campo token largo (textarea), tabla comparativa de planes, botón WhatsApp con ID pre-cargado, formulario de upgrade PRO desde BÁSICA.
 - **Badge de plan en navbar**: muestra DEMO (con días restantes), BÁSICA o PRO con estilos diferenciados.

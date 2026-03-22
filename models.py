@@ -17,8 +17,8 @@ import hashlib as _hl
 # Guarda la fecha de inicio de demo en un archivo FUERA de la BD.
 # Si el usuario borra la BD, el archivo sobrevive y mantiene la fecha original.
 # Nombre y contenido diseñados para no llamar la atención.
-# Carpeta: %APPDATA%\FinanzasHogar\  (Windows)
-#          ~/.local/share/FinanzasHogar/  (Linux/Mac)
+# Carpeta: %APPDATA%\NexarFinanzas\  (Windows)
+#          ~/.local/share/NexarFinanzas/  (Linux/Mac)
 # Archivo: telemetry.bin
 #
 
@@ -27,12 +27,12 @@ def _get_telemetry_path() -> str:
     if platform.system() == 'Windows':
         import os
         base   = os.environ.get('APPDATA', os.path.expanduser('~'))
-        folder = os.path.join(base, 'FinanzasHogar')
+        folder = os.path.join(base, 'NexarFinanzas')
     else:
         import os
         base   = os.environ.get('XDG_DATA_HOME',
                                 os.path.join(os.path.expanduser('~'), '.local', 'share'))
-        folder = os.path.join(base, 'FinanzasHogar')
+        folder = os.path.join(base, 'NexarFinanzas')
     os.makedirs(folder, exist_ok=True)
     return os.path.join(folder, 'telemetry.bin')
 
@@ -352,7 +352,7 @@ def init_db(db_path: str):
 
     # Versión por defecto: DEMO
     cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('version', 'DEMO')")
-    cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('app_name', 'Finanzas del Hogar')")
+    cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('app_name', 'Nexar Finanzas')")
     cur.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('app_version', '1.6.0')")
     # Configuración de copias de seguridad automáticas
     cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('backup_frecuencia', 'semanal')")

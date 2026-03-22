@@ -22,7 +22,7 @@ def _get_db_path():
     Calcula la ruta a database.db usando la misma prioridad que app.py:
       1. Variable de entorno FINANZAS_DATA_DIR
       2. Directorio del script si es escribible  (modo portable)
-      3. ~/.local/share/finanzas-hogar/          (instalación en /opt/)
+      3. ~/.local/share/nexar-finanzas/          (instalación en /opt/)
     """
     # __file__ está en  <raiz>/licensing/check_license.py
     # _app_dir apunta a <raiz>/
@@ -31,12 +31,12 @@ def _get_db_path():
     if os.environ.get('FINANZAS_DATA_DIR'):
         base_dir = os.environ['FINANZAS_DATA_DIR']
     elif getattr(sys, 'frozen', False) and os.name == 'nt':
-        base_dir = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'FinanzasHogar')
+        base_dir = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'NexarFinanzas')
     elif getattr(sys, 'frozen', False):
-        base_dir = os.path.join(os.path.expanduser('~'), '.local', 'share', 'finanzas-hogar')
+        base_dir = os.path.join(os.path.expanduser('~'), '.local', 'share', 'nexar-finanzas')
     else:
         base_dir = _app_dir if os.access(_app_dir, os.W_OK) else \
-                   os.path.join(os.path.expanduser('~'), '.local', 'share', 'finanzas-hogar')
+                   os.path.join(os.path.expanduser('~'), '.local', 'share', 'nexar-finanzas')
     return os.path.join(base_dir, 'database.db')
 
 

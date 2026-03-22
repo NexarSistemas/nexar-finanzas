@@ -1,10 +1,10 @@
 @echo off
 setlocal EnableDelayedExpansion
-title Finanzas del Hogar v1.10.1
+title Nexar Finanzas v1.10.1
 
 echo.
 echo ================================================================
-echo   Finanzas del Hogar v1.10.1 - Rolando Navarta
+echo   Nexar Finanzas v1.10.1 - Nexar Sistemas
 echo   Modo Portable
 echo ================================================================
 echo.

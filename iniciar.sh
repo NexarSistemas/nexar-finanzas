@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # ══════════════════════════════════════════════════════════════════════════════
-# iniciar_portable.sh — Finanzas del Hogar v1.10.1
+# iniciar_portable.sh — Nexar Finanzas v1.10.1
 # Lanzador portable para Linux / macOS
-# Autor: Rolando Navarta · 2026
+# Autor: Nexar Sistemas · 2026
 #
 # Uso:
 #   chmod +x iniciar_portable.sh
@@ -17,7 +17,7 @@ PORT="${PORT:-5000}"
 
 echo ""
 echo "================================================================"
-echo "  Finanzas del Hogar v${APP_VERSION} - Rolando Navarta"
+echo "  Nexar Finanzas v${APP_VERSION} - Nexar Sistemas"
 echo "  Modo Portable"
 echo "================================================================"
 echo ""

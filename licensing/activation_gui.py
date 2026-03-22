@@ -23,7 +23,7 @@ class WelcomeWindow:
 
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("Finanzas del Hogar")
+        self.root.title("Nexar Finanzas")
         self.root.resizable(False, False)
         self._center(480, 340)
         self.root.configure(bg="#ffffff")
@@ -50,7 +50,7 @@ class WelcomeWindow:
 
         tk.Label(
             self.root,
-            text="Finanzas del Hogar",
+            text="Nexar Finanzas",
             font=("", 16, "bold"),
             fg="#1a1a1a",
             bg="#ffffff"

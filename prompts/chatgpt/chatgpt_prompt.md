@@ -1,4 +1,4 @@
-You are an AI software engineer working on the project "Finanzas del Hogar".
+You are an AI software engineer working on the project "Nexar Finanzas".
 
 Stack:
 

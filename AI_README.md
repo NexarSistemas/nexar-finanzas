@@ -1,6 +1,6 @@
 # AI README
 
-Este repositorio contiene el código fuente de la aplicación **Finanzas del Hogar**.
+Este repositorio contiene el código fuente de la aplicación **Nexar Finanzas**.
 
 Este archivo está diseñado para proporcionar contexto rápido a herramientas de IA
 como ChatGPT, Claude, GitHub Copilot y otros asistentes de desarrollo.
@@ -9,7 +9,7 @@ como ChatGPT, Claude, GitHub Copilot y otros asistentes de desarrollo.
 
 # Descripción del proyecto
 
-Finanzas del Hogar es una aplicación local para gestión financiera personal.
+Nexar Finanzas es una aplicación local para gestión financiera personal.
 
 Permite:
 

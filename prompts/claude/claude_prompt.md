@@ -1,7 +1,7 @@
 You are assisting development of a personal finance application.
 
 Project name:
-Finanzas del Hogar
+Nexar Finanzas
 
 Stack:
 Python

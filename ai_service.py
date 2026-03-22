@@ -1,6 +1,6 @@
 """
 ai_service.py
-Módulo de inteligencia artificial para Finanzas del Hogar.
+Módulo de inteligencia artificial para Nexar Finanzas.
 
 Funcionalidades:
   1. Clasificación automática de gastos/ingresos por descripción

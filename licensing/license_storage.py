@@ -3,7 +3,7 @@ import json
 import os
 from pathlib import Path
 
-APP_DIR = Path.home() / ".finanzashogar"
+APP_DIR = Path.home() / ".nexarfinanzas"
 LICENSE_FILE = APP_DIR / "license.json"
 
 

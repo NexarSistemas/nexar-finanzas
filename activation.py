@@ -1,6 +1,6 @@
 """
 activation.py
-Sistema de activación de licencias para Finanzas del Hogar.
+Sistema de activación de licencias para Nexar Finanzas.
 
 Soporta dos sistemas en paralelo:
 
@@ -78,7 +78,7 @@ def validar_token_rsa(token_b64: str) -> tuple:
 
         # Paso 2: verificar que es para FH
         if data.get("product") != "fh":
-            return False, "Este token no corresponde a Finanzas del Hogar.", None
+            return False, "Este token no corresponde a Nexar Finanzas.", None
 
         # Paso 3: reconstruir payload para verificar firma
         # ATENCIÓN: campos y orden DEBEN ser idénticos a create_fh_license()
@@ -233,7 +233,7 @@ def _guardar_activacion_bd(db_path: str, license_key: str, tier: str,
 #
 
 # ⚠️ CLAVE SECRETA LEGACY — NO MODIFICAR (rompe compatibilidad con códigos existentes)
-_SECRET_KEY = b"FinanzasHogar2026_RolandoNavarta_SecretKey_X9Z"
+_SECRET_KEY = b"NexarFinanzas2026_RolandoNavarta_SecretKey_X9Z"
 
 
 def _compute_hmac(seed: str) -> str:

@@ -1,6 +1,6 @@
 """
 demo_limits.py
-Sistema de tiers y límites por plan para Finanzas del Hogar.
+Sistema de tiers y límites por plan para Nexar Finanzas.
 
 Planes:
   DEMO   — 30 días desde primera instalación, casi full con límites suaves
