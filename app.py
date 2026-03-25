@@ -54,7 +54,7 @@ def _setup_logging():
         else:
             log_dir = os.path.join(
                 os.environ.get('HOME', os.path.expanduser('~')),
-                '.local', 'share', 'finanzas-hogar'
+                '.local', 'share', 'nexar-finanzas'
             )
             os.makedirs(log_dir, exist_ok=True)
 
@@ -115,18 +115,18 @@ if BASE_DIR != _APP_DIR:
     os.makedirs(BASE_DIR, exist_ok=True)
     os.makedirs(os.path.join(BASE_DIR, 'backups'), exist_ok=True)
 
-# ─── Migración automática de datos (finanzas-hogar → nexar-finanzas) ─────
+# ─── Migración automática de datos (nexar-finanzas → nexar-finanzas) ─────
 
 def _migrate_data_if_needed():
     """
-    Si existen datos en ~/.local/share/finanzas-hogar/, migrar a nexar-finanzas/
+    Si existen datos en ~/.local/share/nexar-finanzas/, migrar a nexar-finanzas/
     Solo ejecuta si BASE_DIR es 'nexar-finanzas' y no está ya migrado.
     """
     if 'nexar-finanzas' not in BASE_DIR:
         return  # No es necesario migrar si la ruta no es la nueva
     
     old_data_dir = os.path.join(
-        os.path.expanduser('~'), '.local', 'share', 'finanzas-hogar'
+        os.path.expanduser('~'), '.local', 'share', 'nexar-finanzas'
     )
     
     # Si no existe el directorio viejo, no hay nada que migrar
@@ -162,7 +162,7 @@ def _migrate_data_if_needed():
         
         # Crear marcador de migración
         with open(migration_marker, 'w') as f:
-            f.write("Migración completada de finanzas-hogar a nexar-finanzas\n")
+            f.write("Migración completada de nexar-finanzas a nexar-finanzas\n")
         
         logging.info("✓ Migración de datos completada exitosamente")
     except Exception as e:
