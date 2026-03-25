@@ -204,7 +204,7 @@ app = Flask(
     __name__,
     template_folder=os.path.join(_INTERNAL_DIR, 'templates'),
     static_folder=os.path.join(_INTERNAL_DIR, 'static'),
-)pyt
+)
 
 app.secret_key = os.environ.get(
     'FLASK_SECRET_KEY',
