@@ -141,7 +141,7 @@ enviarlo directamente por WhatsApp. El desarrollador usa ese ID para generar
 tu token personalizado.
 
 - 📱 WhatsApp: [+54 9 264 585-8874](https://wa.me/5492645858874)
-- ✉️ rolojnb@outlook.com.ar
+- ✉️ nexarsistemas@outlook.com.ar
 
 ---
 
