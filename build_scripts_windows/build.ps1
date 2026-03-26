@@ -138,5 +138,5 @@ exit 1
 Write-Host "[OK] Instalador generado" -ForegroundColor Green
 
 Write-Host ""
-Write-Host "✔ BUILD COMPLETO"
+Write-Host "[OK] BUILD COMPLETO"
 Write-Host ""
