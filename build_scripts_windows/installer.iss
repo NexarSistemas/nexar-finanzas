@@ -1,4 +1,5 @@
 #define MyAppVersion "0.0.0"
+#define MyAppExeName "NexarFinanzas.exe"
 
 [Setup]
 AppName=Nexar Finanzas
@@ -30,4 +31,4 @@ Name: "{group}\Nexar Finanzas"; Filename: "{app}\NexarFinanzas.exe"
 Name: "{commondesktop}\Nexar Finanzas"; Filename: "{app}\NexarFinanzas.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\NexarFinanzas.exe"; Description: "Abrir Nexar Finanzas"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "Abrir Nexar Finanzas"; Flags: nowait postinstall skipifsilent
