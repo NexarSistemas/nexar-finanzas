@@ -238,7 +238,7 @@ if ($ISCC -eq "") {
     Write-Host "[AVISO] Inno Setup no encontrado. Se omite el instalador." -ForegroundColor Yellow
     Write-Host "        Instalalo en: https://jrsoftware.org/isinfo.php" -ForegroundColor Yellow
 } else {
-    & $ISCC $ISS_FILE
+    & $ISCC "/DMyAppVersion=$APP_VERSION" $ISS_FILE
     if ($LASTEXITCODE -ne 0) {
         Write-Host "[ERROR] Inno Setup fallo." -ForegroundColor Red
         exit 1

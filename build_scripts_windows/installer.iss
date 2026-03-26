@@ -1,11 +1,12 @@
 [Setup]
 AppName=Nexar Finanzas
-AppVersion=1.10.2
+#define MyAppVersion "0.0.0"
+AppVersion={#MyAppVersion}
 AppPublisher=Nexar Sistemas
 DefaultDirName={pf}\NexarFinanzas
 DefaultGroupName=Nexar Finanzas
 OutputDir=dist_installer
-OutputBaseFilename=NexarFinanzasSetup
+OutputBaseFilename=NexarFinanzas_v{#MyAppVersion}_setup
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
