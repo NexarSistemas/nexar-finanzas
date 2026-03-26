@@ -1,4 +1,6 @@
-#define MyAppVersion "0.0.0"
+#ifndef MyAppVersion
+  #define MyAppVersion "0.0.0"
+#endif
 #define MyAppExeName "NexarFinanzas.exe"
 
 [Setup]
@@ -21,7 +23,7 @@ Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 
 [Files]
 ; Copia TODO lo que generó PyInstaller
-Source: "dist\NexarFinanzas\*"; DestDir: "{app}"; Flags: recursesubdirs
+Source: "{#SourcePath}\..\dist\NexarFinanzas\*"; DestDir: "{app}"; Flags: recursesubdirs
 
 [Tasks]
 Name: "desktopicon"; Description: "Crear acceso directo en el escritorio"; GroupDescription: "Opciones:"; Flags: unchecked
