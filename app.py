@@ -134,7 +134,7 @@ def _migrate_data_if_needed():
         return
     
     # Marcar que ya se migró
-    migration_marker = os.path.join(BASE_DIR, '.migrated_from_finanzas_hogar')
+    migration_marker = os.path.join(BASE_DIR, '.migrated_from_nexar_finanzas')
     if os.path.exists(migration_marker):
         return  # Ya se migró antes
     

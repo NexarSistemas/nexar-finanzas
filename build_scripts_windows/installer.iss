@@ -1,0 +1,31 @@
+[Setup]
+AppName=Nexar Finanzas
+AppVersion=1.10.2
+AppPublisher=Nexar Sistemas
+DefaultDirName={pf}\NexarFinanzas
+DefaultGroupName=Nexar Finanzas
+OutputDir=dist_installer
+OutputBaseFilename=NexarFinanzasSetup
+Compression=lzma
+SolidCompression=yes
+WizardStyle=modern
+
+; Permite instalación sin admin si querés cambiar luego
+PrivilegesRequired=lowest
+
+[Languages]
+Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
+
+[Files]
+; Copia TODO lo que generó PyInstaller
+Source: "dist\NexarFinanzas*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
+
+[Tasks]
+Name: "desktopicon"; Description: "Crear acceso directo en el escritorio"; GroupDescription: "Opciones:"; Flags: unchecked
+
+[Icons]
+Name: "{group}\Nexar Finanzas"; Filename: "{app}\NexarFinanzas.exe"
+Name: "{commondesktop}\Nexar Finanzas"; Filename: "{app}\NexarFinanzas.exe"; Tasks: desktopicon
+
+[Run]
+Filename: "{app}\NexarFinanzas.exe"; Description: "Abrir Nexar Finanzas"; Flags: nowait postinstall skipifsilent
