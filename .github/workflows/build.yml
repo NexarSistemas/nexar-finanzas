@@ -60,8 +60,10 @@ jobs:
     - name: Ejecutar build.ps1
       run: powershell -ExecutionPolicy Bypass -File build_scripts_windows/build.ps1
 
-    - name: Subir artefacto Windows
+    - name: Subir artefactos Windows
       uses: actions/upload-artifact@v4
       with:
         name: windows-build
-        path: release/
+        path: |
+          release/
+          build_scripts_windows/dist_installer/
