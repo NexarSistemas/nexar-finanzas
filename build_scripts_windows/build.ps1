@@ -27,7 +27,7 @@ $APP_NAME    = "NexarFinanzas"
 $APP_VERSION = "1.10.2"
 $SPEC_FILE   = "build_scripts_windows\nexar_finanzas.spec"
 $ISS_FILE    = "build_scripts_windows\installer.iss"
-$DIST_DIR    = "dist$APP_NAME"
+$DIST_DIR    = "dist\$APP_NAME"
 $OUTPUT_DIR  = "release"
 $VENV_DIR    = ".venv_build"
 
@@ -83,6 +83,9 @@ exit 1
 }
 
 Write-Host "[OK] EXE generado" -ForegroundColor Green
+
+Write-Host "=== DEBUG DIST ==="
+Get-ChildItem -Recurse dist
 
 # ── 4. Portable ZIP ──────────────────────────────────────────
 
