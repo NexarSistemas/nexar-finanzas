@@ -25,7 +25,7 @@ Write-Host "Directorio de trabajo: $PROJECT_ROOT"
 $APP_NAME    = "NexarFinanzas"
 $APP_VERSION = "1.10.2"           # <── actualizar en cada release
 $SPEC_FILE   = "build_scripts_windows\nexar_finanzas_windows.spec"
-$NSI_FILE    = "build_scripts_windows\nexar_finanzas.nsi"
+$ISS_FILE    = "build_scripts_windows\installer.iss"
 $DIST_DIR    = "dist\$APP_NAME"
 $OUTPUT_DIR  = "release"
 $VENV_DIR    = ".venv_build"
@@ -214,31 +214,36 @@ $portableZip = "$OUTPUT_DIR\${APP_NAME}_v${APP_VERSION}_portable_windows.zip"
 Compress-Archive -Path "$DIST_DIR\*" -DestinationPath $portableZip -Force
 Write-Host "[OK] Portable: $portableZip" -ForegroundColor Green
 
-# ── 5. Instalador con NSIS ────────────────────────────────────────────────────
-Write-Host "[5/5] Buscando NSIS para crear instalador..." -ForegroundColor Yellow
+# ── 5. Instalador con Inno Setup ─────────────────────────────────────────────
+Write-Host "[5/5] Buscando Inno Setup para crear instalador..." -ForegroundColor Yellow
 
-$MAKENSIS = ""
-$nsisCandidates = @(
-    "C:\Program Files (x86)\NSIS\makensis.exe",
-    "C:\Program Files\NSIS\makensis.exe"
+$ISCC = ""
+
+# Rutas típicas
+$innoCandidates = @(
+    "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
+    "C:\Program Files\Inno Setup 6\ISCC.exe"
 )
-foreach ($c in $nsisCandidates) {
-    if (Test-Path $c) { $MAKENSIS = $c; break }
-}
-if (($MAKENSIS -eq "") -and (Get-Command "makensis" -ErrorAction SilentlyContinue)) {
-    $MAKENSIS = "makensis"
+
+foreach ($c in $innoCandidates) {
+    if (Test-Path $c) { $ISCC = $c; break }
 }
 
-if ($MAKENSIS -eq "") {
-    Write-Host "[AVISO] NSIS no encontrado. Se omite el instalador .exe." -ForegroundColor Yellow
-    Write-Host "        Instalalo en: https://nsis.sourceforge.io" -ForegroundColor Yellow
+# También intentar si está en PATH
+if (($ISCC -eq "") -and (Get-Command "iscc" -ErrorAction SilentlyContinue)) {
+    $ISCC = "iscc"
+}
+
+if ($ISCC -eq "") {
+    Write-Host "[AVISO] Inno Setup no encontrado. Se omite el instalador." -ForegroundColor Yellow
+    Write-Host "        Instalalo en: https://jrsoftware.org/isinfo.php" -ForegroundColor Yellow
 } else {
-    & $MAKENSIS $NSI_FILE
+    & $ISCC $ISS_FILE
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "[ERROR] NSIS fallo." -ForegroundColor Red
+        Write-Host "[ERROR] Inno Setup fallo." -ForegroundColor Red
         exit 1
     }
-    Write-Host "[OK] Instalador: $OUTPUT_DIR\${APP_NAME}_v${APP_VERSION}_Setup.exe" -ForegroundColor Green
+    Write-Host "[OK] Instalador generado en dist_installer\" -ForegroundColor Green
 }
 
 # ── Checksums SHA256 ──────────────────────────────────────────────────────────
