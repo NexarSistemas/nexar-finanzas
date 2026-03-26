@@ -37,7 +37,6 @@ jobs:
         name: linux-build
         path: release/
 
-  # 🪟 BUILD WINDOWS (.exe)
   build-windows:
     runs-on: windows-latest
 
@@ -55,11 +54,14 @@ jobs:
         pip install -r requirements.txt
         pip install pyinstaller pywebview
 
-    - name: Build EXE
-      run: pyinstaller --onefile --add-data "templates;templates" --collect-all webview --hidden-import=licensing.check_license --hidden-import=licensing.demo_state app.py
+    - name: Instalar Inno Setup
+      run: choco install innosetup -y
+
+    - name: Ejecutar build.ps1
+      run: powershell -ExecutionPolicy Bypass -File build_scripts_windows/build.ps1
 
     - name: Subir artefacto Windows
       uses: actions/upload-artifact@v4
       with:
         name: windows-build
-        path: dist/
+        path: release/
