@@ -23,8 +23,11 @@ $ErrorActionPreference = "Stop"
 $PROJECT_ROOT = Split-Path -Parent $PSScriptRoot
 Set-Location $PROJECT_ROOT
 
-$APP_NAME    = "NexarFinanzas"
-$APP_VERSION = "1.10.2"
+$APP_NAME = "NexarFinanzas"
+
+$APP_VERSION = Get-Content "VERSION"
+$APP_VERSION = $APP_VERSION.Trim()
+
 $SPEC_FILE   = "build_scripts_windows\nexar_finanzas.spec"
 $ISS_FILE    = "build_scripts_windows\installer.iss"
 $DIST_DIR    = "dist\$APP_NAME"
@@ -97,7 +100,7 @@ New-Item -ItemType Directory $OUTPUT_DIR | Out-Null
 
 $portableZip = "$OUTPUT_DIR${APP_NAME}_v${APP_VERSION}_portable_windows.zip"
 
-Compress-Archive -Path "$DIST_DIR*" -DestinationPath $portableZip -Force
+Compress-Archive -Path "$DIST_DIR\*" -DestinationPath $portableZip -Force
 
 Write-Host "[OK] Portable generado" -ForegroundColor Green
 
