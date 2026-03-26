@@ -234,15 +234,24 @@ if (($ISCC -eq "") -and (Get-Command "iscc" -ErrorAction SilentlyContinue)) {
     $ISCC = "iscc"
 }
 
+Write-Host "Version enviada a Inno: $APP_VERSION"
+
 if ($ISCC -eq "") {
     Write-Host "[AVISO] Inno Setup no encontrado. Se omite el instalador." -ForegroundColor Yellow
     Write-Host "        Instalalo en: https://jrsoftware.org/isinfo.php" -ForegroundColor Yellow
 } else {
-    & $ISCC "/DMyAppVersion=$APP_VERSION" $ISS_FILE
+    $arguments = @(
+        "/DMyAppVersion=$APP_VERSION",
+        $ISS_FILE
+    )
+
+    & $ISCC @arguments
+
     if ($LASTEXITCODE -ne 0) {
         Write-Host "[ERROR] Inno Setup fallo." -ForegroundColor Red
         exit 1
     }
+
     Write-Host "[OK] Instalador generado en dist_installer\" -ForegroundColor Green
 }
 

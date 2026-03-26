@@ -1,6 +1,7 @@
+#define MyAppVersion "0.0.0"
+
 [Setup]
 AppName=Nexar Finanzas
-#define MyAppVersion "0.0.0"
 AppVersion={#MyAppVersion}
 AppPublisher=Nexar Sistemas
 DefaultDirName={pf}\NexarFinanzas
