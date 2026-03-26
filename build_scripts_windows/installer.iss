@@ -20,7 +20,7 @@ Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 
 [Files]
 ; Copia TODO lo que generó PyInstaller
-Source: "dist\NexarFinanzas*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
+Source: "dist\NexarFinanzas\*"; DestDir: "{app}"; Flags: recursesubdirs
 
 [Tasks]
 Name: "desktopicon"; Description: "Crear acceso directo en el escritorio"; GroupDescription: "Opciones:"; Flags: unchecked
