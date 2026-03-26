@@ -37,7 +37,6 @@ jobs:
         name: linux-build
         path: release/
 
-  # 🪟 BUILD WINDOWS (.exe + installer)
   build-windows:
     runs-on: windows-latest
 
@@ -52,7 +51,6 @@ jobs:
 
     - name: Instalar dependencias
       run: |
-        python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pyinstaller pywebview
 
@@ -66,4 +64,6 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: windows-build
-        path: release/
+        path: |
+          release/
+          build_scripts_windows/dist_installer/
