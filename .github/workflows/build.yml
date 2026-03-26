@@ -56,7 +56,6 @@ jobs:
         pip install pyinstaller pywebview
 
     - name: Build EXE
-      run: |
       run: pyinstaller --onefile --add-data "templates;templates" --collect-all webview --hidden-import=licensing.check_license --hidden-import=licensing.demo_state app.py
 
     - name: Subir artefacto Windows
