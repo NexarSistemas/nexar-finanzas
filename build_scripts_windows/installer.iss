@@ -7,16 +7,15 @@
 AppName=Nexar Finanzas
 AppVersion={#MyAppVersion}
 AppPublisher=Nexar Sistemas
-DefaultDirName={pf}\NexarFinanzas
+ArchitecturesInstallIn64BitMode=x64
+DefaultDirName={pf64}\NexarFinanzas
 DefaultGroupName=Nexar Finanzas
+PrivilegesRequired=admin
 OutputDir=dist_installer
 OutputBaseFilename=NexarFinanzas_v{#MyAppVersion}_setup
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
-
-; Permite instalación sin admin si querés cambiar luego
-PrivilegesRequired=lowest
 
 [Languages]
 Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
