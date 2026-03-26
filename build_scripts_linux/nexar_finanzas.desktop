@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Nexar Finanzas
+Comment=Gestor de finanzas del hogar
+Exec=/opt/NexarFinanzas/NexarFinanzas
+Icon=nexar-finanzas
+Terminal=false
+Categories=Finance;Office;
+Keywords=finanzas;dinero;presupuesto;hogar;
+StartupNotify=true
+StartupWMClass=NexarFinanzas

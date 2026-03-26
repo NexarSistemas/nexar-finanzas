@@ -40,9 +40,10 @@ backups/
 # PyInstaller build
 # ==============================
 
-build*/
+build/
 dist/
-*.spec
+release/
+
 
 # ==============================
 # Sistema operativo
