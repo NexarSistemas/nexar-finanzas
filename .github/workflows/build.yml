@@ -3,6 +3,8 @@ name: Build Nexar Finanzas
 on:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -37,6 +39,7 @@ jobs:
         name: linux-build
         path: release/
 
+  # 🪟 BUILD WINDOWS (portable ZIP + installer Inno Setup)
   build-windows:
     runs-on: windows-latest
 
@@ -49,11 +52,6 @@ jobs:
       with:
         python-version: '3.11'
 
-    - name: Instalar dependencias
-      run: |
-        pip install -r requirements.txt
-        pip install pyinstaller pywebview
-
     - name: Instalar Inno Setup
       run: choco install innosetup -y
 
@@ -64,6 +62,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: windows-build
-        path: |
-          release/
-          build_scripts_windows/dist_installer/
+        path: release/
