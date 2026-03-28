@@ -173,13 +173,13 @@ cat > "${DEB_DIR}/DEBIAN/control" <<EOF
 Package: nexar-finanzas
 Version: ${APP_VERSION}
 Architecture: ${DEB_ARCH}
-Maintainer: Nexar Sistemas <contacto@nexarsistemas.com>
+Maintainer: Nexar Sistemas <nexarsistemas@outlook.com.ar>
 Installed-Size: ${INSTALLED_KB}
 Depends: ${DEB_DEPENDS}
 Description: Nexar Finanzas - Gestor de finanzas del hogar
  Aplicacion de escritorio para administrar las finanzas
  personales del hogar.
-Homepage: https://github.com/rolojnb
+Homepage: https://github.com/NexarSistemas
 Section: finance
 Priority: optional
 EOF

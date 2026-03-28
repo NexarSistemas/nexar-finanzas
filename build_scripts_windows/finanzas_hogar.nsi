@@ -12,7 +12,7 @@ Unicode True
 !define APP_NAME       "Nexar Finanzas"
 !define APP_VERSION    "1.10.2"
 !define APP_PUBLISHER  "Nexar Sistemas"
-!define APP_URL        "https://github.com/rolojnb"
+!define APP_URL        "https://github.com/NexarSistemas"
 !define APP_EXE        "NexarFinanzas.exe"
 !define INSTALL_DIR    "$PROGRAMFILES64\NexarFinanzas"
 !define UNINSTALL_KEY  "Software\Microsoft\Windows\CurrentVersion\Uninstall\NexarFinanzas"
