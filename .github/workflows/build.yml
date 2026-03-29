@@ -157,12 +157,52 @@ jobs:
           name: final
           path: final/
 
+      # ✅ NUEVO: asegurar gh CLI
+      - name: Instalar GitHub CLI
+        run: sudo apt-get update && sudo apt-get install -y gh
+
+      # ✅ CLAVE: limpiar assets si ya existe la release
+      - name: Limpiar assets existentes
+        run: |
+          TAG="v${{ needs.check.outputs.version }}"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release existe, limpiando assets..."
+
+            for asset in $(gh release view "$TAG" --json assets -q '.assets[].name'); do
+              echo "Eliminando $asset"
+              gh release delete-asset "$TAG" "$asset" -y || true
+            done
+          else
+            echo "Release no existe, no se limpia nada"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ✅ MEJORADO: generación robusta de descripción
       - name: Generar descripción desde CHANGELOG
         run: |
           VER="${{ needs.check.outputs.version }}"
-          awk "/## \[$VER\]/,/## \[/" CHANGELOG.md | sed '$d' > release.md
 
-      - name: Crear o actualizar Release (sin duplicados)
+          awk -v ver="$VER" '
+          $0 ~ "\\["ver"\\]" {flag=1; next}
+          /^## \[/ && flag {exit}
+          flag
+          ' CHANGELOG.md > release.md
+
+          echo "----- RELEASE BODY -----"
+          cat release.md
+
+      # ✅ VALIDACIÓN (evita releases vacías)
+      - name: Validar descripción
+        run: |
+          if [ ! -s release.md ]; then
+            echo "ERROR: release.md está vacío"
+            exit 1
+          fi
+
+      # 🚀 RELEASE FINAL
+      - name: Crear o actualizar Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.check.outputs.version }}
@@ -171,4 +211,5 @@ jobs:
           files: final/*
           prerelease: false
           make_latest: true
-          append_body: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
