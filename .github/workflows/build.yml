@@ -218,9 +218,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Subir archivos (sin errores)
+      - name: Subir archivos (sin conflictos reales)
         run: |
           TAG="v${{ needs.check.outputs.version }}"
-          gh release upload "$TAG" final/* --clobber
+
+          for file in final/*; do
+            name=$(basename "$file")
+
+            echo "Procesando $name..."
+
+            # Intentar borrar si existe
+            gh release delete-asset "$TAG" "$name" -y 2>/dev/null || true
+
+            # Subir limpio
+            gh release upload "$TAG" "$file"
+          done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
