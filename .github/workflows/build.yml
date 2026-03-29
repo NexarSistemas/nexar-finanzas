@@ -202,14 +202,25 @@ jobs:
           fi
 
       # 🚀 RELEASE FINAL
-      - name: Crear o actualizar Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ needs.check.outputs.version }}
-          name: Nexar Finanzas v${{ needs.check.outputs.version }}
-          body_path: release.md
-          files: final/*
-          prerelease: false
-          make_latest: true
+      - name: Crear release si no existe
+        run: |
+          TAG="v${{ needs.check.outputs.version }}"
+
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Creando release..."
+            gh release create "$TAG" \
+              --title "Nexar Finanzas v${{ needs.check.outputs.version }}" \
+              --notes-file release.md \
+              --latest
+          else
+            echo "Release ya existe"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Subir archivos (sin errores)
+        run: |
+          TAG="v${{ needs.check.outputs.version }}"
+          gh release upload "$TAG" final/* --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
