@@ -22,13 +22,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Obtener versión
+      - name: Obtener versión desde CHANGELOG
         id: ver
         run: |
           VERSION=$(grep -m1 -oP '\[\K[0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md)
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Versión detectada: $VERSION"
 
-  # 🐧 LINUX
+  # 🐧 BUILD LINUX
   build-linux:
     needs: check
     runs-on: ubuntu-latest
@@ -36,12 +37,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Instalar deps
+      - name: Instalar dependencias
         run: |
           sudo apt update
           sudo apt install -y fakeroot dpkg python3-gi python3-gi-cairo gir1.2-webkit2-4.1
 
-      - name: Build
+      - name: Build Linux
         run: |
           chmod +x build_scripts_linux/build.sh
           bash build_scripts_linux/build.sh
@@ -51,7 +52,7 @@ jobs:
           name: linux
           path: release/**/*
 
-  # 🪟 WINDOWS
+  # 🪟 BUILD WINDOWS
   build-windows:
     needs: check
     runs-on: windows-latest
@@ -63,9 +64,10 @@ jobs:
         with:
           python-version: '3.11'
 
-      - run: choco install innosetup -y
+      - name: Instalar Inno Setup
+        run: choco install innosetup -y
 
-      - name: Build
+      - name: Build Windows
         run: powershell -ExecutionPolicy Bypass -File build_scripts_windows/build.ps1
 
       - uses: actions/upload-artifact@v4
@@ -73,7 +75,7 @@ jobs:
           name: windows
           path: release/**/*
 
-  # 📦 PACKAGE + SIGN + SHA256
+  # 📦 PACKAGE + SHA256 + FIRMA
   package:
     needs: [check, build-linux, build-windows]
     runs-on: ubuntu-latest
@@ -83,12 +85,18 @@ jobs:
         with:
           path: artifacts/
 
-      - name: Unificar
+      - name: Unificar artefactos
         run: |
           mkdir final
           find artifacts -type f -exec cp {} final/ \;
 
-      - name: SHA256 global
+      - name: Limpiar basura legacy (CRÍTICO)
+        run: |
+          rm -f final/SHA256SUMS_*.txt
+          rm -f final/SHA256SUMS-*.txt
+          rm -f final/*.sha256
+
+      - name: Generar SHA256 único
         run: |
           cd final
           sha256sum * > SHA256SUMS.txt
@@ -100,11 +108,11 @@ jobs:
           echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
           gpgconf --kill gpg-agent
 
-      - name: Importar clave
+      - name: Importar clave GPG
         run: |
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
 
-      - name: Firmar
+      - name: Firmar archivos
         run: |
           find final -type f ! -name "*.sig" -exec \
           gpg --batch --yes \
@@ -130,10 +138,10 @@ jobs:
           name: final
           path: final/
 
-      - name: Instalar GH CLI
+      - name: Instalar GitHub CLI
         run: sudo apt-get update && sudo apt-get install -y gh
 
-      - name: Generar descripción
+      - name: Generar descripción desde CHANGELOG
         run: |
           VER="${{ needs.check.outputs.version }}"
           awk -v ver="$VER" '
@@ -147,22 +155,25 @@ jobs:
           TAG="v${{ needs.check.outputs.version }}"
 
           if ! gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Creando release..."
             gh release create "$TAG" \
               --title "Nexar Finanzas v${{ needs.check.outputs.version }}" \
               --notes-file release.md \
               --latest
+          else
+            echo "Release ya existe"
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Subir archivos (robusto)
+      - name: Subir assets (robusto sin conflictos)
         run: |
           TAG="v${{ needs.check.outputs.version }}"
 
           for file in final/*; do
             name=$(basename "$file")
 
-            echo "Subiendo $name"
+            echo "Procesando $name..."
 
             gh release delete-asset "$TAG" "$name" -y 2>/dev/null || true
             gh release upload "$TAG" "$file"
