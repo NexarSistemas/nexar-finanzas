@@ -6,6 +6,18 @@ Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
 
+## [1.10.3] — 2026-03-28
+
+### Mejorado
+- **Pipeline de build y release automatizado**: integración completa con GitHub Actions para generación de paquetes Linux y Windows.
+- **Generación automática de SHA256** para todos los artefactos de distribución.
+- **Firma digital GPG** de binarios (`.sig`) para verificación de integridad y autenticidad.
+- **Release automática basada en CHANGELOG**: el sistema detecta la versión desde este archivo y genera la release en GitHub sin intervención manual.
+
+### Técnico
+- Unificación del flujo CI/CD entre Nexar Finanzas y Nexar Almacén.
+- Preparación del proyecto para distribución profesional (instaladores + portable + firma).
+
 ## [1.10.2] - 2026-03-21
 
 ### Fixed
@@ -13,6 +25,7 @@ Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
   (directorio del código) en lugar de `BASE_DIR` (directorio de datos). En instalaciones
   `.deb` estos directorios son distintos, lo que causaba que las actualizaciones no se
   aplicaran. (`routes.py` + `app.py`)
+  
 ## [1.10.1] — 2026-03-21
 
 ### Corregido

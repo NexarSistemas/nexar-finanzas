@@ -216,7 +216,7 @@ app.config['BASE_DIR'] = BASE_DIR
 app.config['APP_DIR'] = _APP_DIR  # FIX v1.10.2
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
 
-APP_VERSION = '1.10.2'
+APP_VERSION = '1.10.3'
 
 
 # ─── Base de datos ────────────────────────────────────────────

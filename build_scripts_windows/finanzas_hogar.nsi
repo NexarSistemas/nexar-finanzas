@@ -10,7 +10,7 @@ Unicode True
 
 !define ROOT           ".."
 !define APP_NAME       "Nexar Finanzas"
-!define APP_VERSION    "1.10.2"
+!define APP_VERSION    "1.10.3"
 !define APP_PUBLISHER  "Nexar Sistemas"
 !define APP_URL        "https://github.com/NexarSistemas"
 !define APP_EXE        "NexarFinanzas.exe"
