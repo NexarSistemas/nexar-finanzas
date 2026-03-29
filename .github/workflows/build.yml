@@ -155,6 +155,19 @@ jobs:
           name: signed
           path: release/
 
+          - name: Borrar assets existentes (si existen)
+          run: |
+            TAG="v${{ steps.ver.outputs.VERSION }}"
+            
+            assets=$(gh release view $TAG --json assets -q '.assets[].name' || true)
+
+            for file in $assets; do
+              echo "Eliminando asset: $file"
+              gh release delete-asset $TAG "$file" -y || true
+            done
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   # ════════════════════════════════════════
   # 🚀 RELEASE
   # ════════════════════════════════════════
