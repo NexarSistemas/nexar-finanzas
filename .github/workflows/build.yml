@@ -148,8 +148,9 @@ jobs:
       - name: Generar descripción desde CHANGELOG
         run: |
           VER="${{ needs.check.outputs.version }}"
+          # Modificamos el buscador para que encuentre la versión al principio de la línea
           awk -v ver="$VER" '
-          $0 ~ "\\["ver"\\]" {flag=1; next}
+          $0 ~ "## \\["ver"\\]" {flag=1; next}
           /^## \[/ && flag {exit}
           flag
           ' CHANGELOG.md > release.md
