@@ -15,7 +15,6 @@ ROOT = os.path.abspath(os.path.join(SPECPATH, '..'))
 # ── Archivos del proyecto ─────────────────────────────────────────────────────
 added_files = [
     (os.path.join(ROOT, 'templates'),          'templates'),
-    (os.path.join(ROOT, 'keys'),               'keys'),
     (os.path.join(ROOT, 'licensing'),          'licensing'),
     (os.path.join(ROOT, 'VERSION'),            '.'),
     (os.path.join(ROOT, 'LICENSE'),            '.'),
