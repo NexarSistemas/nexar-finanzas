@@ -216,7 +216,19 @@ app.config['BASE_DIR'] = BASE_DIR
 app.config['APP_DIR'] = _APP_DIR  # FIX v1.10.2
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
 
-APP_VERSION = '1.10.3'
+def get_version():
+    try:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        version_file = os.path.join(base_dir, 'VERSION')
+
+        with open(version_file, 'r', encoding='utf-8') as f:
+            return f.read().strip()
+
+    except Exception:
+        return "0.0.0"  # fallback seguro
+
+
+APP_VERSION = get_version()
 
 
 # ─── Base de datos ────────────────────────────────────────────

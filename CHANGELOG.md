@@ -6,6 +6,23 @@ Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
 
+## [1.10.4] - 2026-03-30
+
+### 🛠️ CI/CD
+- Pipeline de release estabilizado
+- Generación de SHA256 única para artefactos
+- Firma GPG integrada en releases
+- Upload de assets robusto y sin duplicados
+- Eliminación previa de assets para evitar conflictos
+- Uso de `gh cli` con uploads idempotentes (`--clobber`)
+- Prevención de race conditions en releases
+
+### 🔧 Chores
+- Ajustes en `.gitignore`
+
+### 🐛 Fixes
+- Correcciones en workflows de build y release
+
 ## [1.10.3] — 2026-03-28
 
 ### Mejorado
