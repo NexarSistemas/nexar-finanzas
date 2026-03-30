@@ -70,3 +70,6 @@ Thumbs.db
 # ==============================
 
 keys/private_key.pem
+*.pem
+*.key
+keys/
