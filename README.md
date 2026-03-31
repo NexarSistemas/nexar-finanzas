@@ -274,4 +274,14 @@ a tus datos reales — transacciones, cuentas, presupuestos e inversiones.
 
 ---
 
+## 🔒 Auditoría de Seguridad
+
+Consulta el reporte completo de vulnerabilidades, recomendaciones y estado de seguridad en [SECURITY_AUDIT.md](SECURITY_AUDIT.md).
+
+- Última auditoría: 30/03/2026
+- Severidad: Crítica/Alta/Moderada
+- Incluye plan de acción y código de remediación
+
+---
+
 *Creado por Nexar Sistemas · Desarrollado junto a Claude.ai · 2026*
