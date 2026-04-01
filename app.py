@@ -12,6 +12,7 @@ import logging
 import traceback
 import threading
 import time
+import secrets
 import socket as _socket
 from flask import Flask, render_template, session, redirect, url_for
 from dotenv import load_dotenv
@@ -208,9 +209,10 @@ app = Flask(
     static_folder=os.path.join(_INTERNAL_DIR, 'static'),
 )
 
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY")
-if not app.config["SECRET_KEY"]:
-    raise ValueError("SECRET_KEY no configurada. Revisá el archivo .env")
+def get_secret_key():
+    return os.environ.get("SECRET_KEY") or secrets.token_hex(32)
+
+app.config["SECRET_KEY"] = get_secret_key()
 
 app.config['DB_PATH'] = DB_PATH
 app.config['BASE_DIR'] = BASE_DIR
