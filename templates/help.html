@@ -6,7 +6,279 @@
 
 <div class="accordion" id="helpAccordion">
 
-<!-- v1.10.5 (actual) -->
+  <!-- Instalación -->
+  <div class="accordion-item">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#help1">
+        1. Instalación y primer arranque
+      </button>
+    </h2>
+    <div id="help1" class="accordion-collapse collapse show" data-bs-parent="#helpAccordion">
+      <div class="accordion-body">
+        <h6>Requisitos</h6>
+        <ul>
+          <li>Python 3.10 o superior</li>
+          <li>Sistema operativo: Windows o Linux</li>
+          <li>Conexión a internet solo para cotización USD (opcional)</li>
+        </ul>
+        <h6>Pasos de instalación</h6>
+        <ol>
+          <li>Descomprimí la carpeta <code>finanzas_app/</code> en tu equipo.</li>
+          <li>Abrí una terminal en esa carpeta.</li>
+          <li>Instalá las dependencias: <code>pip install -r requirements.txt</code></li>
+          <li>Ejecutá la app: <code>python app.py</code></li>
+          <li>La app abre automáticamente en una ventana propia (pywebview) o en el navegador.
+              Si necesitás ingresar manualmente, el puerto real se muestra en la consola:
+              <code>Puerto : 5000</code> (o el que se haya asignado automáticamente).</li>
+          <li>En la primera ejecución, creá tu usuario administrador.</li>
+        </ol>
+        <h6>En Windows (doble clic)</h6>
+        <p>Podés crear un archivo <code>iniciar.bat</code> con el contenido:</p>
+        <pre class="bg-light p-2 rounded"><code>@echo off
+cd /d "%~dp0"
+python app.py
+pause</code></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- Crear cuentas -->
+  <div class="accordion-item">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#help2">
+        2. Crear y gestionar cuentas bancarias / billeteras
+      </button>
+    </h2>
+    <div id="help2" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+      <div class="accordion-body">
+        <p>Desde el menú <strong>Cuentas</strong> podés agregar:</p>
+        <ul>
+          <li><strong>Cuenta bancaria:</strong> con CBU y alias (Ej: Cuenta Nación, Galicia)</li>
+          <li><strong>Billetera virtual:</strong> con CVU y alias (Ej: Mercado Pago, Ualá)</li>
+          <li><strong>Efectivo:</strong> para el dinero en mano</li>
+        </ul>
+        <p>Al crear una cuenta, ingresá el <strong>saldo inicial</strong>. El saldo actual se calculará automáticamente conforme registrés ingresos, gastos y transferencias.</p>
+        <h6>Transferencias entre cuentas</h6>
+        <p>Usá el botón <strong>Transferir</strong> para mover dinero entre tus propias cuentas sin que afecte el balance general.</p>
+        <div class="alert alert-info py-2 small">
+          <strong>DEMO:</strong> Máximo 4 cuentas bancarias y 4 billeteras virtuales.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Registrar movimientos -->
+  <div class="accordion-item">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#help3">
+        3. Registrar ingresos y gastos
+      </button>
+    </h2>
+    <div id="help3" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+      <div class="accordion-body">
+        <h6>Registrar un gasto</h6>
+        <ol>
+          <li>Clic en <strong>Nuevo gasto</strong> en el menú o dashboard.</li>
+          <li>Elegí el tipo: Gasto o Ingreso.</li>
+          <li>Completá: monto, moneda (ARS/USD), fecha, categoría, método de pago y cuenta.</li>
+          <li>Agregá una descripción opcional y guardá.</li>
+        </ol>
+        <h6>Métodos de pago disponibles</h6>
+        <ul>
+          <li>💵 Efectivo</li>
+          <li>💳 Débito</li>
+          <li>💳 Crédito</li>
+          <li>🔄 Transferencia bancaria</li>
+          <li>📱 Billetera virtual (QR, Mercado Pago, etc.)</li>
+        </ul>
+        <h6>Categorías</h6>
+        <p>Podés agregar tus propias categorías desde el menú <strong>Categorías</strong>.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Presupuestos -->
+  <div class="accordion-item">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#help4">
+        4. Configurar presupuestos y alertas
+      </button>
+    </h2>
+    <div id="help4" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+      <div class="accordion-body">
+        <p>En <strong>Presupuestos</strong> podés fijar un límite mensual de gasto por categoría.</p>
+        <p>El sistema muestra un semáforo automático:</p>
+        <ul>
+          <li>🟢 <strong>Normal:</strong> gastaste menos del 80% del presupuesto</li>
+          <li>🟡 <strong>Advertencia:</strong> entre 80% y 99%</li>
+          <li>🔴 <strong>Excedido:</strong> superaste el 100%</li>
+        </ul>
+        <p>Las alertas también aparecen en el <strong>Panel principal</strong>.</p>
+        <p>Podés definir presupuestos distintos para cada mes y año.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reportes -->
+  <div class="accordion-item">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#help5">
+        5. Reportes y gráficos
+      </button>
+    </h2>
+    <div id="help5" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+      <div class="accordion-body">
+        <p>En <strong>Reportes</strong> encontrás tres vistas:</p>
+        <ul>
+          <li><strong>Mensual:</strong> ingresos, gastos, balance y gráfico de torta por categoría.</li>
+          <li><strong>Anual:</strong> gráfico de barras mes a mes comparando ingresos vs gastos.</li>
+          <li><strong>Semanal:</strong> movimientos de los últimos 7 días.</li>
+        </ul>
+        <h6>Exportación CSV</h6>
+        <p>Desde la vista de reportes podés descargar tus transacciones en formato CSV para abrirlo en Excel u otra planilla de cálculo.</p>
+        <h6>Gráficos</h6>
+      </div>
+    </div>
+  </div>
+
+  <!-- Inversiones -->
+  <div class="accordion-item">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#help6">
+        6. Gestión de inversiones
+      </button>
+    </h2>
+    <div id="help6" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+      <div class="accordion-body">
+        <p>Desde el menú <strong>Inversiones</strong> podés registrar operaciones de:</p>
+        <ul>
+          <li>Acciones, CEDEARs, Bonos</li>
+          <li>Criptomonedas</li>
+          <li>Fondos comunes de inversión</li>
+          <li>Plazos fijos</li>
+        </ul>
+        <p>El sistema calcula:</p>
+        <ul>
+          <li>Posiciones abiertas (cantidad neta y costo promedio)</li>
+          <li>Total invertido vs. total recuperado por moneda</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Activar versión FULL -->
+  <div class="accordion-item">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#help7">
+        7. Activar versión FULL
+      </button>
+    </h2>
+    <div id="help7" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+      <div class="accordion-body">
+        <p>La versión DEMO tiene los siguientes límites:</p>
+        <ul>
+          <li>Máximo 30 gastos</li>
+          <li>Máximo 5 ingresos</li>
+          <li>Máximo 4 cuentas bancarias</li>
+          <li>Máximo 4 billeteras virtuales</li>
+          <li>Máximo 10 inversiones</li>
+        </ul>
+        <p>Para activar la versión FULL:</p>
+        <ol>
+          <li>Contactá al desarrollador para adquirir tu código.</li>
+          <li>Andá a <strong>Activar sistema</strong> en el menú.</li>
+          <li>Ingresá el código con formato <code>XXXX-XXXX-XXXX-XXXX</code>.</li>
+          <li>El sistema se activa offline sin necesidad de internet.</li>
+        </ol>
+        <p>
+          📱 <a href="https://wa.me/5492645858874">+54 9 264 585-8874</a> |
+          ✉️ <a href="mailto:nexarsistemas@outlook.com.ar">nexarsistemas@outlook.com.ar</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Copias de seguridad -->
+  <div class="accordion-item">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#help8">
+        8. Copia de seguridad manual y restauración
+      </button>
+    </h2>
+    <div id="help8" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+      <div class="accordion-body">
+        <h6>Copia manual del archivo</h6>
+        <p>Todos los datos están en un único archivo: <code>database.db</code> en la carpeta de la aplicación.</p>
+        <p>Para hacer una copia: <strong>copiá ese archivo</strong> a otro lugar (pendrive, nube, etc.).</p>
+        <pre class="bg-light p-2 rounded"><code># Windows (cmd)
+copy database.db copia_finanzas_2026.db
+
+# Linux / Mac
+cp database.db copia_finanzas_2026.db</code></pre>
+        <h6>Restaurar una copia</h6>
+        <p>Para restaurar: cerrá la app y <strong>reemplazá</strong> el archivo <code>database.db</code> con tu copia de seguridad.</p>
+        <div class="alert alert-warning py-2 small">
+          ⚠️ Hacé copias regularmente. La recuperación de datos eliminados no es posible una vez borrados.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cotizaciones -->
+  <div class="accordion-item">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#help9">
+        9. Cotizaciones en tiempo real
+      </button>
+    </h2>
+    <div id="help9" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+      <div class="accordion-body">
+        <p>La sección <strong>Cotizaciones</strong> muestra valores actualizados de múltiples fuentes gratuitas sin necesidad de registro ni clave de acceso.</p>
+        <h6>Fuentes de datos</h6>
+        <ul>
+          <li><strong>dolarapi.com</strong> — Todos los tipos de dólar en Argentina (oficial, blue, MEP, CCL, cripto, mayorista, tarjeta)</li>
+          <li><strong>frankfurter.app</strong> — Monedas internacionales (Euro, Real, Peso chileno, Peso uruguayo, Libra)</li>
+          <li><strong>CoinGecko</strong> — Criptomonedas (BTC, ETH, USDT, BNB, XRP) con variación de 24hs</li>
+        </ul>
+        <h6>Sin conexión a internet</h6>
+        <p>Se muestra la última cotización guardada junto con su fecha. Se indica con la etiqueta <span class="badge bg-secondary">caché</span>.</p>
+        <h6>Actualizar</h6>
+        <p>Presioná <strong>Actualizar ahora</strong> para consultar valores frescos. Si alguna fuente falla, las demás continúan funcionando.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Copias de seguridad automáticas -->
+  <div class="accordion-item">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#help10">
+        10. Copias de seguridad automáticas
+      </button>
+    </h2>
+    <div id="help10" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+      <div class="accordion-body">
+        <p>Desde <strong>Configuración → Copias de seguridad</strong> podés programar copias automáticas de tu base de datos.</p>
+        <h6>Frecuencias disponibles</h6>
+        <ul>
+          <li><strong>Diaria</strong>: al abrir la app si pasó al menos 1 día.</li>
+          <li><strong>Semanal</strong>: cada 7 días al iniciar (opción predeterminada).</li>
+          <li><strong>Mensual</strong>: cada 30 días al iniciar.</li>
+          <li><strong>Nunca</strong>: sólo copias manuales.</li>
+        </ul>
+        <h6>Copia inmediata</h6>
+        <p>Usá el botón <strong>Hacer copia de seguridad ahora</strong>. El archivo se guarda en <code>backups/</code> con nombre tipo <code>backup_20260215_143022.db</code>.</p>
+        <h6>Descargar y restaurar</h6>
+        <p>Podés descargar cualquier copia desde la lista en Configuración. Para restaurar, reemplazá <code>database.db</code> con el archivo descargado.</p>
+        <div class="alert alert-warning py-2 small">
+          ⚠️ Las copias más antiguas se eliminan automáticamente según el límite configurado.
+        </div>
+      </div>
+    </div>
+  </div>
+  <hr>
+  <br>
+  <h3 class="fw-bold mb-3"><i class="bi bi-gear"></i> Historial de versiones</h3>
+  <!-- v1.10.5 (actual) -->
 <div class="accordion-item border-success">
   <h2 class="accordion-header">
     <button class="accordion-button bg-success text-white" type="button"
@@ -685,276 +957,6 @@
         <p>Desde Configuración podés programar copias automáticas (diaria, semanal, mensual). También permite copia inmediata y descarga desde el navegador.</p>
         <h6 class="fw-bold mt-2">Botón de cierre en inicio de sesión</h6>
         <p>El botón "Cerrar aplicación" también está disponible en la pantalla de inicio de sesión.</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- Instalación -->
-  <div class="accordion-item">
-    <h2 class="accordion-header">
-      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#help1">
-        1. Instalación y primer arranque
-      </button>
-    </h2>
-    <div id="help1" class="accordion-collapse collapse show" data-bs-parent="#helpAccordion">
-      <div class="accordion-body">
-        <h6>Requisitos</h6>
-        <ul>
-          <li>Python 3.10 o superior</li>
-          <li>Sistema operativo: Windows o Linux</li>
-          <li>Conexión a internet solo para cotización USD (opcional)</li>
-        </ul>
-        <h6>Pasos de instalación</h6>
-        <ol>
-          <li>Descomprimí la carpeta <code>finanzas_app/</code> en tu equipo.</li>
-          <li>Abrí una terminal en esa carpeta.</li>
-          <li>Instalá las dependencias: <code>pip install -r requirements.txt</code></li>
-          <li>Ejecutá la app: <code>python app.py</code></li>
-          <li>La app abre automáticamente en una ventana propia (pywebview) o en el navegador.
-              Si necesitás ingresar manualmente, el puerto real se muestra en la consola:
-              <code>Puerto : 5000</code> (o el que se haya asignado automáticamente).</li>
-          <li>En la primera ejecución, creá tu usuario administrador.</li>
-        </ol>
-        <h6>En Windows (doble clic)</h6>
-        <p>Podés crear un archivo <code>iniciar.bat</code> con el contenido:</p>
-        <pre class="bg-light p-2 rounded"><code>@echo off
-cd /d "%~dp0"
-python app.py
-pause</code></pre>
-      </div>
-    </div>
-  </div>
-
-  <!-- Crear cuentas -->
-  <div class="accordion-item">
-    <h2 class="accordion-header">
-      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#help2">
-        2. Crear y gestionar cuentas bancarias / billeteras
-      </button>
-    </h2>
-    <div id="help2" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
-      <div class="accordion-body">
-        <p>Desde el menú <strong>Cuentas</strong> podés agregar:</p>
-        <ul>
-          <li><strong>Cuenta bancaria:</strong> con CBU y alias (Ej: Cuenta Nación, Galicia)</li>
-          <li><strong>Billetera virtual:</strong> con CVU y alias (Ej: Mercado Pago, Ualá)</li>
-          <li><strong>Efectivo:</strong> para el dinero en mano</li>
-        </ul>
-        <p>Al crear una cuenta, ingresá el <strong>saldo inicial</strong>. El saldo actual se calculará automáticamente conforme registrés ingresos, gastos y transferencias.</p>
-        <h6>Transferencias entre cuentas</h6>
-        <p>Usá el botón <strong>Transferir</strong> para mover dinero entre tus propias cuentas sin que afecte el balance general.</p>
-        <div class="alert alert-info py-2 small">
-          <strong>DEMO:</strong> Máximo 4 cuentas bancarias y 4 billeteras virtuales.
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Registrar movimientos -->
-  <div class="accordion-item">
-    <h2 class="accordion-header">
-      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#help3">
-        3. Registrar ingresos y gastos
-      </button>
-    </h2>
-    <div id="help3" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
-      <div class="accordion-body">
-        <h6>Registrar un gasto</h6>
-        <ol>
-          <li>Clic en <strong>Nuevo gasto</strong> en el menú o dashboard.</li>
-          <li>Elegí el tipo: Gasto o Ingreso.</li>
-          <li>Completá: monto, moneda (ARS/USD), fecha, categoría, método de pago y cuenta.</li>
-          <li>Agregá una descripción opcional y guardá.</li>
-        </ol>
-        <h6>Métodos de pago disponibles</h6>
-        <ul>
-          <li>💵 Efectivo</li>
-          <li>💳 Débito</li>
-          <li>💳 Crédito</li>
-          <li>🔄 Transferencia bancaria</li>
-          <li>📱 Billetera virtual (QR, Mercado Pago, etc.)</li>
-        </ul>
-        <h6>Categorías</h6>
-        <p>Podés agregar tus propias categorías desde el menú <strong>Categorías</strong>.</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- Presupuestos -->
-  <div class="accordion-item">
-    <h2 class="accordion-header">
-      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#help4">
-        4. Configurar presupuestos y alertas
-      </button>
-    </h2>
-    <div id="help4" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
-      <div class="accordion-body">
-        <p>En <strong>Presupuestos</strong> podés fijar un límite mensual de gasto por categoría.</p>
-        <p>El sistema muestra un semáforo automático:</p>
-        <ul>
-          <li>🟢 <strong>Normal:</strong> gastaste menos del 80% del presupuesto</li>
-          <li>🟡 <strong>Advertencia:</strong> entre 80% y 99%</li>
-          <li>🔴 <strong>Excedido:</strong> superaste el 100%</li>
-        </ul>
-        <p>Las alertas también aparecen en el <strong>Panel principal</strong>.</p>
-        <p>Podés definir presupuestos distintos para cada mes y año.</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- Reportes -->
-  <div class="accordion-item">
-    <h2 class="accordion-header">
-      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#help5">
-        5. Reportes y gráficos
-      </button>
-    </h2>
-    <div id="help5" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
-      <div class="accordion-body">
-        <p>En <strong>Reportes</strong> encontrás tres vistas:</p>
-        <ul>
-          <li><strong>Mensual:</strong> ingresos, gastos, balance y gráfico de torta por categoría.</li>
-          <li><strong>Anual:</strong> gráfico de barras mes a mes comparando ingresos vs gastos.</li>
-          <li><strong>Semanal:</strong> movimientos de los últimos 7 días.</li>
-        </ul>
-        <h6>Exportación CSV</h6>
-        <p>Desde la vista de reportes podés descargar tus transacciones en formato CSV para abrirlo en Excel u otra planilla de cálculo.</p>
-        <h6>Gráficos</h6>
-      </div>
-    </div>
-  </div>
-
-  <!-- Inversiones -->
-  <div class="accordion-item">
-    <h2 class="accordion-header">
-      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#help6">
-        6. Gestión de inversiones
-      </button>
-    </h2>
-    <div id="help6" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
-      <div class="accordion-body">
-        <p>Desde el menú <strong>Inversiones</strong> podés registrar operaciones de:</p>
-        <ul>
-          <li>Acciones, CEDEARs, Bonos</li>
-          <li>Criptomonedas</li>
-          <li>Fondos comunes de inversión</li>
-          <li>Plazos fijos</li>
-        </ul>
-        <p>El sistema calcula:</p>
-        <ul>
-          <li>Posiciones abiertas (cantidad neta y costo promedio)</li>
-          <li>Total invertido vs. total recuperado por moneda</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-
-  <!-- Activar versión FULL -->
-  <div class="accordion-item">
-    <h2 class="accordion-header">
-      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#help7">
-        7. Activar versión FULL
-      </button>
-    </h2>
-    <div id="help7" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
-      <div class="accordion-body">
-        <p>La versión DEMO tiene los siguientes límites:</p>
-        <ul>
-          <li>Máximo 30 gastos</li>
-          <li>Máximo 5 ingresos</li>
-          <li>Máximo 4 cuentas bancarias</li>
-          <li>Máximo 4 billeteras virtuales</li>
-          <li>Máximo 10 inversiones</li>
-        </ul>
-        <p>Para activar la versión FULL:</p>
-        <ol>
-          <li>Contactá al desarrollador para adquirir tu código.</li>
-          <li>Andá a <strong>Activar sistema</strong> en el menú.</li>
-          <li>Ingresá el código con formato <code>XXXX-XXXX-XXXX-XXXX</code>.</li>
-          <li>El sistema se activa offline sin necesidad de internet.</li>
-        </ol>
-        <p>
-          📱 <a href="https://wa.me/5492645858874">+54 9 264 585-8874</a> |
-          ✉️ <a href="mailto:nexarsistemas@outlook.com.ar">nexarsistemas@outlook.com.ar</a>
-        </p>
-      </div>
-    </div>
-  </div>
-
-  <!-- Copias de seguridad -->
-  <div class="accordion-item">
-    <h2 class="accordion-header">
-      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#help8">
-        8. Copia de seguridad manual y restauración
-      </button>
-    </h2>
-    <div id="help8" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
-      <div class="accordion-body">
-        <h6>Copia manual del archivo</h6>
-        <p>Todos los datos están en un único archivo: <code>database.db</code> en la carpeta de la aplicación.</p>
-        <p>Para hacer una copia: <strong>copiá ese archivo</strong> a otro lugar (pendrive, nube, etc.).</p>
-        <pre class="bg-light p-2 rounded"><code># Windows (cmd)
-copy database.db copia_finanzas_2026.db
-
-# Linux / Mac
-cp database.db copia_finanzas_2026.db</code></pre>
-        <h6>Restaurar una copia</h6>
-        <p>Para restaurar: cerrá la app y <strong>reemplazá</strong> el archivo <code>database.db</code> con tu copia de seguridad.</p>
-        <div class="alert alert-warning py-2 small">
-          ⚠️ Hacé copias regularmente. La recuperación de datos eliminados no es posible una vez borrados.
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Cotizaciones -->
-  <div class="accordion-item">
-    <h2 class="accordion-header">
-      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#help9">
-        9. Cotizaciones en tiempo real
-      </button>
-    </h2>
-    <div id="help9" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
-      <div class="accordion-body">
-        <p>La sección <strong>Cotizaciones</strong> muestra valores actualizados de múltiples fuentes gratuitas sin necesidad de registro ni clave de acceso.</p>
-        <h6>Fuentes de datos</h6>
-        <ul>
-          <li><strong>dolarapi.com</strong> — Todos los tipos de dólar en Argentina (oficial, blue, MEP, CCL, cripto, mayorista, tarjeta)</li>
-          <li><strong>frankfurter.app</strong> — Monedas internacionales (Euro, Real, Peso chileno, Peso uruguayo, Libra)</li>
-          <li><strong>CoinGecko</strong> — Criptomonedas (BTC, ETH, USDT, BNB, XRP) con variación de 24hs</li>
-        </ul>
-        <h6>Sin conexión a internet</h6>
-        <p>Se muestra la última cotización guardada junto con su fecha. Se indica con la etiqueta <span class="badge bg-secondary">caché</span>.</p>
-        <h6>Actualizar</h6>
-        <p>Presioná <strong>Actualizar ahora</strong> para consultar valores frescos. Si alguna fuente falla, las demás continúan funcionando.</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- Copias de seguridad automáticas -->
-  <div class="accordion-item">
-    <h2 class="accordion-header">
-      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#help10">
-        10. Copias de seguridad automáticas
-      </button>
-    </h2>
-    <div id="help10" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
-      <div class="accordion-body">
-        <p>Desde <strong>Configuración → Copias de seguridad</strong> podés programar copias automáticas de tu base de datos.</p>
-        <h6>Frecuencias disponibles</h6>
-        <ul>
-          <li><strong>Diaria</strong>: al abrir la app si pasó al menos 1 día.</li>
-          <li><strong>Semanal</strong>: cada 7 días al iniciar (opción predeterminada).</li>
-          <li><strong>Mensual</strong>: cada 30 días al iniciar.</li>
-          <li><strong>Nunca</strong>: sólo copias manuales.</li>
-        </ul>
-        <h6>Copia inmediata</h6>
-        <p>Usá el botón <strong>Hacer copia de seguridad ahora</strong>. El archivo se guarda en <code>backups/</code> con nombre tipo <code>backup_20260215_143022.db</code>.</p>
-        <h6>Descargar y restaurar</h6>
-        <p>Podés descargar cualquier copia desde la lista en Configuración. Para restaurar, reemplazá <code>database.db</code> con el archivo descargado.</p>
-        <div class="alert alert-warning py-2 small">
-          ⚠️ Las copias más antiguas se eliminan automáticamente según el límite configurado.
-        </div>
       </div>
     </div>
   </div>
