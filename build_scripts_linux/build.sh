@@ -6,12 +6,17 @@ APP_NAME="NexarFinanzas"
 APP_DISPLAY="Nexar Finanzas"
 
 # 🔥 VERSION DINÁMICA (FIX)
-if [ -z "${VERSION:-}" ]; then
-    if [ -z "${VERSION:-}" ]; then
-    echo -e "\033[1;33m[WARN] VERSION no definida, usando ${APP_VERSION}\033[0m"
-else
+if [ -n "${VERSION:-}" ]; then
     APP_VERSION="$VERSION"
     echo -e "\033[0;32m[OK] VERSION desde CI: ${APP_VERSION}\033[0m"
+
+elif [ -f "VERSION" ]; then
+    APP_VERSION=$(tr -d ' \n' < VERSION)
+    echo -e "\033[0;32m[OK] VERSION desde archivo VERSION: ${APP_VERSION}\033[0m"
+
+else
+    echo -e "\033[0;31m[ERROR] No se encontró VERSION\033[0m"
+    exit 1
 fi
 
 DEB_ARCH="amd64"
