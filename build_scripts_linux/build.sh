@@ -68,7 +68,7 @@ fi
 PYTHON="$VENV_DIR/bin/python"
 PIP="$VENV_DIR/bin/pip"
 
-"$PIP" install --upgrade pyinstaller --quiet
+"$PIP" install --upgrade pyinstaller 
 
 if [ -f "requirements.txt" ]; then
     "$PIP" install -r requirements.txt 
