@@ -78,3 +78,8 @@ keys/
 # variables de entorno
 # ==============================
 .env
+
+# ==============================
+# migraciones completadas
+# ==============================
+.migrated*
