@@ -7,7 +7,7 @@ APP_DISPLAY="Nexar Finanzas"
 
 # 🔥 VERSION DINÁMICA (FIX)
 if [ -z "${VERSION:-}" ]; then
-    APP_VERSION="0.0.0-local"
+    if [ -z "${VERSION:-}" ]; then
     echo -e "\033[1;33m[WARN] VERSION no definida, usando ${APP_VERSION}\033[0m"
 else
     APP_VERSION="$VERSION"
@@ -40,28 +40,16 @@ echo ""
 # ── 1. Detectar Python 3.10+ ─────────────────────────────────────────────────
 echo -e "${YELLOW}[1/5] Buscando Python 3.10+...${NC}"
 
-PYTHON=""
-for cmd in python3 python3.12 python3.11 python3.10; do
-    if [ -n "${VERSION:-}" ]; then
-    APP_VERSION="$VERSION"
-    echo -e "${GREEN}[OK] VERSION desde CI: ${APP_VERSION}${NC}"
-
-    elif [ -f "VERSION" ]; then
-        APP_VERSION=$(tr -d ' \n' < VERSION)
-        echo -e "${GREEN}[OK] VERSION desde archivo VERSION: ${APP_VERSION}${NC}"
-
+    if command -v python3 &>/dev/null; then
+        PYTHON="python3"
     else
-        echo -e "${RED}[ERROR] No se encontró VERSION ni variable de entorno.${NC}"
+        echo -e "${RED}[ERROR] python3 no encontrado${NC}"
         exit 1
     fi
-done
 
-if [ -z "$PYTHON" ]; then
-    echo -e "${RED}[ERROR] Python 3.10+ no encontrado.${NC}"
-    exit 1
-fi
+PY_VER=$($PYTHON -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
 
-echo -e "${GREEN}[OK] $("$PYTHON" --version)${NC}"
+echo -e "${GREEN}[OK] Python $PY_VER${NC}"
 
 # ── 2. Entorno virtual ────────────────────────────────────────────────────────
 echo -e "${YELLOW}[2/5] Preparando entorno virtual...${NC}"
