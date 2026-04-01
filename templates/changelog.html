@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Changelog — Nexar Finanzas{% endblock %}
+
+{% block content %}
+
+<div class="container mt-4" style="max-width:800px;">
+  <h3 class="mb-4">📋 Historial completo de versiones</h3>
+
+  {% for v in changelog %}
+  <div class="card mb-3 shadow-sm">
+    <div class="card-body">
+      <h5 class="fw-bold">v{{ v.version }}</h5>
+
+      {% for section, items in v.sections.items() %}
+        {% if items %}
+          <p class="fw-semibold mt-3 mb-1">{{ section }}</p>
+          <ul class="small">
+            {% for item in items %}
+              <li>{{ item }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      {% endfor %}
+
+    </div>
+  </div>
+  {% endfor %}
+
+</div>
+
+{% endblock %}

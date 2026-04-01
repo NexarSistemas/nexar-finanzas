@@ -6,6 +6,21 @@ Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
 
+## [1.10.5] - 2026-03-31
+
+### Added
+- Integración de SECRET_KEY mediante variables de entorno (.env y GitHub Secrets)
+- Validación de variables críticas en pipeline de build
+
+### Fixed
+- Error CSRF "token missing" al cerrar la aplicación
+- Problemas derivados de SECRET_KEY no configurada
+
+### Changed
+- Eliminación de SECRET_KEY hardcodeada en el código
+- Refactor de configuración para entornos (desarrollo / CI / producción)
+- Mejora del pipeline de releases (trazabilidad y robustez)
+
 ## [1.10.4] - 2026-03-30
 
 ### 🛠️ CI/CD

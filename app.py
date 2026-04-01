@@ -14,6 +14,8 @@ import threading
 import time
 import socket as _socket
 from flask import Flask, render_template, session, redirect, url_for
+from dotenv import load_dotenv
+load_dotenv()
 
 # ─────────────────────────────────────────────────────────────
 # SISTEMA DE LICENCIAS
@@ -206,10 +208,9 @@ app = Flask(
     static_folder=os.path.join(_INTERNAL_DIR, 'static'),
 )
 
-app.secret_key = os.environ.get(
-    'FLASK_SECRET_KEY',
-    'NexarFinanzas_2026_SessionKey_Change_In_Prod_XK9Z'
-)
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY")
+if not app.config["SECRET_KEY"]:
+    raise ValueError("SECRET_KEY no configurada. Revisá el archivo .env")
 
 app.config['DB_PATH'] = DB_PATH
 app.config['BASE_DIR'] = BASE_DIR
@@ -230,6 +231,80 @@ def get_version():
 
 APP_VERSION = get_version()
 
+def get_changelog():
+    path = os.path.join(os.path.dirname(__file__), "CHANGELOG.md")
+    versions = []
+
+    if not os.path.exists(path):
+        return versions
+
+    current_version = None
+    current_section = None
+    data = {}
+    raw_lines = []
+
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+
+            # ─── Nueva versión detectada ─────────────────────
+            if line.startswith("## ["):
+                # Guardar la anterior (si existe)
+                if current_version:
+                    summary = build_summary(data, raw_lines)
+                    if summary:  # 🔥 FILTRO: evita versiones vacías
+                        versions.append({
+                            "version": current_version,
+                            "summary": summary
+                        })
+
+                # Iniciar nueva versión
+                current_version = line.split("[")[1].split("]")[0]
+                data = {}
+                raw_lines = []
+                current_section = None
+
+            # ─── Secciones (### Added, Fixed, etc) ────────────
+            elif line.startswith("### "):
+                current_section = line.replace("### ", "").strip()
+                data[current_section] = []
+
+            # ─── Items ────────────────────────────────────────
+            elif line.startswith("- ") and current_section:
+                data[current_section].append(line[2:].strip())
+
+            # ─── Texto libre ──────────────────────────────────
+            elif line and not line.startswith("#"):
+                raw_lines.append(line)
+
+        # ─── Guardar última versión ──────────────────────────
+        if current_version:
+            summary = build_summary(data, raw_lines)
+            if summary:
+                versions.append({
+                    "version": current_version,
+                    "summary": summary
+                })
+
+    return versions
+
+def build_summary(sections, raw_lines):
+    parts = []
+
+    for key in ["Added", "Fixed", "Changed", "Mejorado", "Corregido"]:
+        if key in sections and sections[key]:
+            parts.append(", ".join(sections[key][:2]))
+
+    if not parts and raw_lines:
+        parts.append(" ".join(raw_lines[:2]))
+
+    summary = " · ".join(parts).strip()
+
+    # 🔥 filtro clave
+    if not summary or summary in ["---", "-"]:
+        return None
+
+    return summary
 
 # ─── Base de datos ────────────────────────────────────────────
 
@@ -274,9 +349,9 @@ def inject_globals():
         'demo_info': demo_info,
         'app_version': APP_VERSION,
         'app_name': 'Nexar Finanzas',
-        'license_mode': LICENSE_MODE
+        'license_mode': LICENSE_MODE,
+        'changelog': get_changelog()
     }
-
 
 # ─── Punto de entrada ─────────────────────────────────────────
 
@@ -396,3 +471,4 @@ if __name__ == '__main__':
             print("\n  Cerrando...")
 
     os._exit(0)
+    

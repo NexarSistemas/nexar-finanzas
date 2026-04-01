@@ -12,7 +12,7 @@ from datetime import date, datetime
 from functools import wraps
 from flask import (
     render_template, redirect, url_for, request, session,
-    flash, g, current_app, send_file, make_response, jsonify
+    flash, g, current_app, send_file, make_response, jsonify,
 )
 
 from models import get_db, recalculate_account_balance
@@ -43,8 +43,15 @@ def get_db_path():
     return current_app.config['DB_PATH']
 
 
+# ─── Registro principal de rutas ──────────────────────────────────────────────
+
 def register_routes(app):
     """Registra todas las rutas en la instancia Flask."""
+
+    @app.route("/changelog")
+    def changelog():
+        # 'changelog' ya lo inyecta el context_processor de app.py
+        return render_template("changelog.html")
 
     # ══════════════════════════════════════════════════════════════════════════
     # AUTH
@@ -650,7 +657,6 @@ def register_routes(app):
         year   = int(request.form.get('year',  date.today().year))
 
         if cat_id and amount > 0:
-            # Verificar límite de presupuestos según tier
             db = get_db(get_db_path())
             count = db.execute("SELECT COUNT(*) as n FROM budgets WHERE year=? AND month=?",
                                (year, month)).fetchone()['n']
@@ -695,7 +701,6 @@ def register_routes(app):
         month = int(request.args.get('month', today.month))
         mode  = request.args.get('mode', 'monthly')
 
-        # Bloquear reporte anual en BASICA
         from demo_limits import get_tier
         tier = get_tier(get_db_path())
         if mode == 'annual' and tier == 'BASICA':
@@ -763,7 +768,6 @@ def register_routes(app):
     def investment_new():
         db = get_db(get_db_path())
         if request.method == 'POST':
-            # Verificar que el tier permite escritura en inversiones
             check = check_limit(get_db_path(), 'investments', 0)
             if not check['allowed']:
                 db.close()
@@ -801,7 +805,6 @@ def register_routes(app):
     @app.route('/investments/<int:inv_id>/delete', methods=['POST'])
     @login_required
     def investment_delete(inv_id):
-        # En BASICA las inversiones son solo lectura — no se pueden eliminar
         check = check_limit(get_db_path(), 'investments', 0)
         if not check['allowed']:
             flash('Las inversiones son de solo lectura en el Plan Básico.', 'warning')
@@ -871,23 +874,15 @@ def register_routes(app):
     @app.route('/activate', methods=['GET', 'POST'])
     @login_required
     def activate():
-        db_path     = get_db_path()
+        db_path      = get_db_path()
         already_full = is_full_version(db_path)
 
-        # Permitir POST también cuando ya está activado:
-        # - BASICA puede activar token PRO (upgrade)
-        # - PRO vencido puede renovar con nuevo token
-        # activar_token_rsa() valida internamente que PRO tenga BASICA previa
         if request.method == 'POST':
             token_raw = request.form.get('code', '').strip()
 
-            # ── Sistema nuevo: Token Base64 (empieza con e o cualquier char Base64)
-            # Se detecta intentando decodificar — si contiene solo chars HMAC
-            # (guiones y mayúsculas) es legacy, si no es Base64
             is_base64_token = _es_token_base64(token_raw)
 
             if is_base64_token:
-                # Token RSA nuevo — activar_token_rsa() maneja todo
                 from activation import activar_token_rsa
                 ok, msg, tier = activar_token_rsa(token_raw, db_path)
                 if ok:
@@ -900,7 +895,6 @@ def register_routes(app):
                     flash(msg, 'danger')
 
             else:
-                # ── Sistema legacy: código HMAC (XXXX-XXXX-XXXX-XXXX) ────────
                 from activation import detect_license_type
                 code    = token_raw.upper().replace(' ', '')
                 licencia = detect_license_type(code)
@@ -913,7 +907,6 @@ def register_routes(app):
                 else:
                     flash('Código o token inválido. Verificá e intentá nuevamente.', 'danger')
 
-        # Leer datos de activación para el template
         db = get_db(db_path)
         config_rows = db.execute(
             "SELECT key, value FROM config WHERE key IN "
@@ -933,51 +926,9 @@ def register_routes(app):
                                license_expires=cfg.get('license_expires_at', ''),
                                activation_code=cfg.get('activation_code', ''),
                                hardware_id=get_hardware_id(),
-                               # Campos nuevos para el template
                                tier=tier_actual,
                                pro_expired=is_pro_expired(db_path),
                                demo_days=get_demo_days_remaining(db_path))
-
-
-    def _es_token_base64(s: str) -> bool:
-        """
-        Detecta si el string es un Token Base64 (sistema nuevo)
-        o un código HMAC (sistema legacy XXXX-XXXX-XXXX-XXXX).
-
-        Los códigos HMAC tienen exactamente el formato:
-          4chars-4chars-4chars-4chars con solo mayúsculas y dígitos
-
-        Un Token Base64 es más largo y contiene caracteres Base64.
-        """
-        import re
-        # Patrón HMAC legacy: 4-4-4-4 con mayúsculas y dígitos
-        if re.match(r'^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$',
-                    s.strip().upper()):
-            return False
-        # Todo lo demás se trata como Token Base64
-        return len(s.strip()) > 20
-
-
-    def _guardar_activacion(db_path: str, code: str, tipo: str, vencimiento: str):
-        """
-        [LEGACY] Persiste activación HMAC en la BD.
-        Graba tier=BASICA para compatibilidad con el nuevo sistema de tiers.
-        """
-        db = get_db(db_path)
-        db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('version','FULL')")
-        db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('license_activated_at', ?)",
-                   (datetime.now().isoformat(),))
-        db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('activation_code', ?)",
-                   (code,))
-        db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('license_type', ?)",
-                   (tipo,))
-        # Compatibilidad nuevo sistema: HMAC siempre es BASICA permanente
-        db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('license_tier', 'BASICA')")
-        db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('license_expires_at', ?)",
-                   (vencimiento,))
-        db.commit()
-        db.close()
-
 
     # ══════════════════════════════════════════════════════════════════════════
     # CONFIGURACIÓN Y PERFIL
@@ -1142,7 +1093,6 @@ def register_routes(app):
         import zipfile, json, shutil, tempfile
         from demo_limits import get_tier
 
-        # Solo el Plan Pro puede instalar actualizaciones
         tier = get_tier(get_db_path())
         if tier != 'PRO':
             flash('⚠ Las actualizaciones del sistema están disponibles solo en el Plan Pro.', 'warning')
@@ -1153,7 +1103,7 @@ def register_routes(app):
             flash('Seleccioná un archivo ZIP de actualización válido.', 'danger')
             return redirect(url_for('settings'))
 
-        app_dir  = current_app.config.get('APP_DIR', current_app.config['BASE_DIR'])  # FIX v1.10.2
+        app_dir  = current_app.config.get('APP_DIR', current_app.config['BASE_DIR'])
         base_dir = current_app.config['BASE_DIR']
         db_path  = get_db_path()
 
@@ -1356,3 +1306,37 @@ Sé directo. No uses frases genéricas. Basate en los números. Máximo 5 puntos
     @login_required
     def about():
         return render_template('about.html')
+
+
+# ─── Helpers privados de activación (fuera de register_routes) ────────────────
+
+def _es_token_base64(s: str) -> bool:
+    """
+    Detecta si el string es un Token Base64 (sistema nuevo)
+    o un código HMAC (sistema legacy XXXX-XXXX-XXXX-XXXX).
+    """
+    import re
+    if re.match(r'^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$',
+                s.strip().upper()):
+        return False
+    return len(s.strip()) > 20
+
+
+def _guardar_activacion(db_path: str, code: str, tipo: str, vencimiento: str):
+    """
+    [LEGACY] Persiste activación HMAC en la BD.
+    Graba tier=BASICA para compatibilidad con el nuevo sistema de tiers.
+    """
+    db = get_db(db_path)
+    db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('version','FULL')")
+    db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('license_activated_at', ?)",
+               (datetime.now().isoformat(),))
+    db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('activation_code', ?)",
+               (code,))
+    db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('license_type', ?)",
+               (tipo,))
+    db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('license_tier', 'BASICA')")
+    db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('license_expires_at', ?)",
+               (vencimiento,))
+    db.commit()
+    db.close()

@@ -6,15 +6,39 @@
 
 <div class="accordion" id="helpAccordion">
 
-<!-- v1.10.4 (actual) -->
+<!-- v1.10.5 (actual) -->
 <div class="accordion-item border-success">
   <h2 class="accordion-header">
     <button class="accordion-button bg-success text-white" type="button"
+            data-bs-toggle="collapse" data-bs-target="#help_v1105">
+      🛠️ Versión 1.10.5 — Seguridad reforzada; SECRET_KEY externa; fixes CSRF; mejoras en pipeline de release
+    </button>
+  </h2>
+  <div id="help_v1105" class="accordion-collapse collapse show"
+       data-bs-parent="#helpAccordion">
+    <div class="accordion-body">
+      <ul>
+        <li>Eliminación completa de SECRET_KEY hardcodeada en el código</li>
+        <li>Integración de SECRET_KEY mediante variables de entorno (.env y GitHub Secrets)</li>
+        <li>Corrección del error CSRF "token missing" al cerrar la aplicación</li>
+        <li>Compatibilidad total con protección CSRF de Flask en formularios</li>
+        <li>Refactor de configuración para entornos (desarrollo / build / producción)</li>
+        <li>Mejoras en el pipeline de GitHub Actions (validación de secretos y trazabilidad de releases)</li>
+        <li>Unificación del manejo de configuración sensible (SECRET_KEY, PUBLIC_KEY, GPG)</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- v1.10.4 -->
+<div class="accordion-item">
+  <h2 class="accordion-header">
+    <button class="accordion-button bg-secondary text-white" type="button"
             data-bs-toggle="collapse" data-bs-target="#help_v1104">
       🛠️ Versión 1.10.4 — Pipeline de release estabilizado; SHA256 unificado; firma GPG; uploads robustos sin duplicados
     </button>
   </h2>
-  <div id="help_v1104" class="accordion-collapse collapse show"
+  <div id="help_v1104" class="accordion-collapse collapse"
        data-bs-parent="#helpAccordion">
     <div class="accordion-body">
       <ul>
@@ -30,17 +54,17 @@
 </div>
 
   <!-- v1.10.3 -->
-  <div class="accordion-item border-success">
+  <div class="accordion-item">
     <h2 class="accordion-header">
-      <button class="accordion-button bg-success text-white" type="button"
-              data-bs-toggle="collapse" data-bs-target="#help_v1102">
+      <button class="accordion-button bg-secondary text-white" type="button"
+              data-bs-toggle="collapse" data-bs-target="#help_v1103">
         🐛 Versión 1.10.3 — Pipeline de build automatizado; firma digital GPG; release automática
       </button>
     </h2>
-    <div id="help_v1103" class="accordion-collapse collapse show"
+    <div id="help_v1103" class="accordion-collapse collapse"
          data-bs-parent="#helpAccordion">
       <div class="accordion-body">
-        <h6 class="fw-bold text-success">Fix crítico: actualización in-app en instalaciones .deb</h6>
+        <h6 class="fw-bold text-primary">Fix crítico: actualización in-app en instalaciones .deb</h6>
         <p>
           Se corrigió un error donde el sistema de actualización in-app escribía
           los archivos del update en el directorio de <strong>datos</strong>

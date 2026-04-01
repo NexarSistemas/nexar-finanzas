@@ -73,3 +73,8 @@ keys/private_key.pem
 *.pem
 *.key
 keys/
+
+# ==============================
+# variables de entorno
+# ==============================
+.env

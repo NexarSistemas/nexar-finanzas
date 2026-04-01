@@ -34,8 +34,18 @@ jobs:
     needs: check
     runs-on: ubuntu-latest
 
+    env:
+      SECRET_KEY: ${{ secrets.SECRET_KEY }}
+
     steps:
       - uses: actions/checkout@v4
+
+      - name: Verificar SECRET_KEY
+        run: |
+          if [ -z "$SECRET_KEY" ]; then
+            echo "❌ SECRET_KEY no está definida"
+            exit 1
+          fi
 
       - name: Instalar dependencias
         run: |
@@ -59,8 +69,19 @@ jobs:
     needs: check
     runs-on: windows-latest
 
+    env:
+      SECRET_KEY: ${{ secrets.SECRET_KEY }}
+
     steps:
       - uses: actions/checkout@v4
+
+      - name: Verificar SECRET_KEY
+        shell: bash
+        run: |
+          if [ -z "$SECRET_KEY" ]; then
+            echo "❌ SECRET_KEY no está definida"
+            exit 1
+          fi
 
       - uses: actions/setup-python@v5
         with:
@@ -145,29 +166,38 @@ jobs:
       - name: Instalar GitHub CLI
         run: sudo apt-get update && sudo apt-get install -y gh
 
+      # 🔍 Check release existente (PRO)
+      - name: Check release exists
+        id: release_check
+        run: |
+          TAG="v${{ needs.check.outputs.version }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Generar descripción desde CHANGELOG
         run: |
           VER="${{ needs.check.outputs.version }}"
-          # Modificamos el buscador para que encuentre la versión al principio de la línea
           awk -v ver="$VER" '
           $0 ~ "## \\["ver"\\]" {flag=1; next}
           /^## \[/ && flag {exit}
           flag
           ' CHANGELOG.md > release.md
 
-      - name: Crear release si no existe
+      - name: Crear release
+        if: steps.release_check.outputs.exists == 'false'
         run: |
           TAG="v${{ needs.check.outputs.version }}"
 
-          if ! gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Creando release..."
-            gh release create "$TAG" \
-              --title "Nexar Finanzas v${{ needs.check.outputs.version }}" \
-              --notes-file release.md \
-              --latest
-          else
-            echo "Release ya existe"
-          fi
+          gh release create "$TAG" \
+            --title "Nexar Finanzas v${{ needs.check.outputs.version }}" \
+            --notes-file release.md \
+            --latest \
+            --target $GITHUB_SHA
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
