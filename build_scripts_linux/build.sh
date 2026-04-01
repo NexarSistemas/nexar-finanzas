@@ -42,11 +42,10 @@ echo -e "${YELLOW}[1/5] Buscando Python 3.10+...${NC}"
 
 PYTHON=""
 for cmd in python3 python3.12 python3.11 python3.10; do
-    if command -v "$cmd" &>/dev/null; then
-        VER=$("$cmd" -c "import sys; print(sys.version_info.minor)")
-        if [ "$VER" -ge 10 ]; then
-            PYTHON="$cmd"
-            break
+    if [ -z "${VERSION:-}" ]; then
+        APP_VERSION="0.0.0-local"
+        else
+            APP_VERSION="$VERSION"
         fi
     fi
 done
