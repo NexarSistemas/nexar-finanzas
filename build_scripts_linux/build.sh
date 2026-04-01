@@ -5,17 +5,15 @@ set -euo pipefail
 APP_NAME="NexarFinanzas"
 APP_DISPLAY="Nexar Finanzas"
 
-# 🔥 VERSION DINÁMICA (FIX)
+# 🔥 MEJORA EN VERSIONADO: Limpieza absoluta
 if [ -n "${VERSION:-}" ]; then
-    APP_VERSION="$VERSION"
+    APP_VERSION=$(echo "$VERSION" | tr -d '[:space:]')
     echo -e "\033[0;32m[OK] VERSION desde CI: ${APP_VERSION}\033[0m"
-
 elif [ -f "VERSION" ]; then
-    APP_VERSION=$(tr -d ' \n' < VERSION)
-    echo -e "\033[0;32m[OK] VERSION desde archivo VERSION: ${APP_VERSION}\033[0m"
-
+    APP_VERSION=$(tr -d '[:space:]' < VERSION)
+    echo -e "\033[0;32m[OK] VERSION desde archivo: ${APP_VERSION}\033[0m"
 else
-    echo -e "\033[0;31m[ERROR] No se encontró VERSION\033[0m"
+    echo -e "\033[0;31m[ERROR] No se encontró el archivo VERSION\033[0m"
     exit 1
 fi
 
@@ -56,25 +54,23 @@ PY_VER=$($PYTHON -c 'import sys; print(f"{sys.version_info.major}.{sys.version_i
 
 echo -e "${GREEN}[OK] Python $PY_VER${NC}"
 
-# ── 2. Entorno virtual ────────────────────────────────────────────────────────
+# ── 2. Entorno virtual (OPTIMIZADO) ───────────────────────────────────────────
 echo -e "${YELLOW}[2/5] Preparando entorno virtual...${NC}"
-
 VENV_DIR=".venv_build"
 
 if [ ! -d "$VENV_DIR" ]; then
-    "$PYTHON" -m venv --system-site-packages "$VENV_DIR"
+    echo -e "${CYAN}Creando entorno nuevo...${NC}"
+    "$PYTHON" -m venv "$VENV_DIR"
+    # Solo instalamos si el entorno es nuevo
+    "$VENV_DIR/bin/pip" install --upgrade pip pyinstaller
+    if [ -f "requirements.txt" ]; then
+        "$VENV_DIR/bin/pip" install -r requirements.txt
+    fi
+else
+    echo -e "${GREEN}[INFO] Usando entorno existente para ahorrar tiempo.${NC}"
 fi
 
 PYTHON="$VENV_DIR/bin/python"
-PIP="$VENV_DIR/bin/pip"
-
-"$PIP" install --upgrade pyinstaller 
-
-if [ -f "requirements.txt" ]; then
-    "$PIP" install -r requirements.txt 
-fi
-
-echo -e "${GREEN}[OK] Dependencias listas${NC}"
 
 # ── 3. Build ──────────────────────────────────────────────────────────────────
 echo -e "${YELLOW}[3/5] Compilando...${NC}"
