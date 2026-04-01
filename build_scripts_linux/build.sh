@@ -42,11 +42,17 @@ echo -e "${YELLOW}[1/5] Buscando Python 3.10+...${NC}"
 
 PYTHON=""
 for cmd in python3 python3.12 python3.11 python3.10; do
-    if [ -z "${VERSION:-}" ]; then
-        APP_VERSION="0.0.0-local"
-        else
-            APP_VERSION="$VERSION"
-        fi
+    if [ -n "${VERSION:-}" ]; then
+    APP_VERSION="$VERSION"
+    echo -e "${GREEN}[OK] VERSION desde CI: ${APP_VERSION}${NC}"
+
+    elif [ -f "VERSION" ]; then
+        APP_VERSION=$(tr -d ' \n' < VERSION)
+        echo -e "${GREEN}[OK] VERSION desde archivo VERSION: ${APP_VERSION}${NC}"
+
+    else
+        echo -e "${RED}[ERROR] No se encontró VERSION ni variable de entorno.${NC}"
+        exit 1
     fi
 done
 
