@@ -71,7 +71,7 @@ PIP="$VENV_DIR/bin/pip"
 "$PIP" install --upgrade pyinstaller --quiet
 
 if [ -f "requirements.txt" ]; then
-    "$PIP" install -r requirements.txt --quiet
+    "$PIP" install -r requirements.txt 
 fi
 
 echo -e "${GREEN}[OK] Dependencias listas${NC}"
