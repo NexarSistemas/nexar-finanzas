@@ -18,7 +18,7 @@ set -euo pipefail
 # ── Variables ─────────────────────────────────────────────────────────────────
 APP_NAME="NexarFinanzas"
 APP_DISPLAY="Nexar Finanzas"
-APP_VERSION="${VERSION:-dev}"
+APP_VERSION="$VERSION"
 DEB_ARCH="amd64"
 SPEC_FILE="build_scripts_linux/nexar_finanzas.spec"
 DIST_DIR="dist/${APP_NAME}"
