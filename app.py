@@ -361,7 +361,7 @@ if __name__ == '__main__':
 
     print("=" * 55)
     print(f"  💰 Nexar Finanzas v{APP_VERSION}")
-    print("  Creado por Nexar Sistemas")
+    print("  Desarrollado por Nexar sistemas 2026")
     print("=" * 55)
 
     # ── Verificación de licencia ──────────────────────────────

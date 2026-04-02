@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ══════════════════════════════════════════════════════════════════════════════
-# iniciar_portable.sh — Nexar Finanzas v1.10.1
+# iniciar_portable.sh — Nexar Finanzas 
 # Lanzador portable para Linux / macOS
 # Autor: Nexar Sistemas · 2026
 #
@@ -12,7 +12,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_VERSION="1.10.1"
+APP_VERSION="1.10.5"
 PORT="${PORT:-5000}"
 
 echo ""

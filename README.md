@@ -4,7 +4,7 @@ Aplicación de gestión financiera personal para escritorio. Funciona completame
 offline, utilizando base de datos SQLite local, y está optimizada para equipos
 de gama media/baja.
 
-**Creado por Nexar Sistemas · Desarrollado junto a Claude.ai · 2026**
+**Desarrollado por Nexar Sistemas - (c) 2026**
 
 ---
 
@@ -36,6 +36,7 @@ finanzas_app/
 ## 🚀 Instalación
 
 ### Requisitos
+
 - Python 3.10 o superior
 - pip
 
@@ -53,6 +54,7 @@ python app.py
 ```
 
 ### Inicio
+
 La aplicación abre en una **ventana nativa** (pywebview). Si pywebview no está
 disponible en el sistema, se abre automáticamente en el navegador predeterminado.
 
@@ -62,10 +64,12 @@ sistema elige uno disponible. El puerto real se muestra en la consola al iniciar
 En la primera ejecución se te pedirá crear tu usuario administrador.
 
 ### Windows — doble clic
+
 Ejecutá `iniciar.bat`. Verifica Python, instala dependencias si hace falta y
 abre la app automáticamente.
 
 ### Linux / Mac
+
 ```bash
 chmod +x iniciar.sh
 ./iniciar.sh
@@ -73,9 +77,11 @@ chmod +x iniciar.sh
 
 > **Linux — ventana nativa:** para que pywebview funcione se necesitan las
 > librerías GTK/WebKit:
+>
 > ```bash
 > sudo apt install python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.1
 > ```
+>
 > Si no están instaladas, la app abre en el navegador del sistema igualmente.
 
 ---
@@ -118,6 +124,7 @@ firmado con RSA**, completamente offline.
 | Al vencer | Modo lectura | — | Vuelve a BÁSICA |
 
 ### DEMO
+
 Los 30 días se cuentan desde la **primera ejecución**. Al vencer, podés seguir
 viendo todos tus datos pero no agregar nuevos registros. El contador es
 resistente a reinstalaciones — se guarda fuera de la base de datos.
@@ -141,20 +148,23 @@ enviarlo directamente por WhatsApp. El desarrollador usa ese ID para generar
 tu token personalizado.
 
 - 📱 WhatsApp: [+54 9 264 585-8874](https://wa.me/5492645858874)
-- ✉️ nexarsistemas@outlook.com.ar
+- ✉️ <nexarsistemas@outlook.com.ar>
 
 ---
 
 ## 💾 Copias de seguridad
 
 ### Automáticas
+
 Desde **Configuración → Copias de seguridad** podés programar backups automáticos:
+
 - Frecuencias: diaria, semanal, mensual o nunca
 - Retención configurable (3 a 20 copias)
 - Se guardan en la carpeta `backups/` dentro de la aplicación
 - Descarga directa desde el navegador
 
 ### Manual
+
 ```bash
 # Windows
 copy database.db backup_FECHA.db
@@ -186,6 +196,7 @@ rendimiento %. Disponible en Plan Pro; en Plan Básico es solo lectura.
 ## 💱 Cotizaciones en tiempo real
 
 Sección **Cotizaciones** en el menú lateral:
+
 - Todos los tipos de dólar (oficial, blue, MEP, CCL, cripto, mayorista, tarjeta)
 - Monedas internacionales (EUR, BRL, CLP, UYU, GBP)
 - Criptomonedas principales con variación 24hs
@@ -226,15 +237,17 @@ La IA se configura en **Configuración → Inteligencia Artificial** ingresando
 una clave de API de Anthropic. Disponible en todos los planes.
 
 ### Clasificación automática de gastos
+
 Al ingresar una nueva transacción, la IA analiza la descripción en tiempo real
 y sugiere la categoría más adecuada.
 
 ### Asistente financiero (chat flotante)
+
 El ícono ✨ en la esquina inferior derecha abre un chat con acceso de lectura
 a tus datos reales — transacciones, cuentas, presupuestos e inversiones.
 
 > La clave de API se guarda localmente y nunca sale de tu equipo.
-> Obtené tu clave en: https://console.anthropic.com/
+> Obtené tu clave en: <https://console.anthropic.com/>
 > **Nota de costos:** la clave es gratuita pero cada consulta tiene un costo
 > según el uso (Anthropic API).
 
@@ -275,4 +288,4 @@ a tus datos reales — transacciones, cuentas, presupuestos e inversiones.
 
 ---
 
-*Creado por Nexar Sistemas · Desarrollado junto a Claude.ai · 2026*
+*Desarrollado por Nexar Sistemas - &copy; 2026*

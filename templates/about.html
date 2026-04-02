@@ -17,21 +17,29 @@
               <td><strong>{{ changelog[0].version if changelog else app_version }}</strong></td>
             </tr>
             <tr>
-              <td class="text-muted fw-semibold">Creado por</td>
-              <td><strong>Nexar Sistemas</strong></td>
+              <td class="text-muted fw-semibold">Desarrollado por</td>
+              <td><strong>Nexar Sistemas - &copy; 2026</strong></td>
             </tr>
             <tr>
-              <td class="text-muted fw-semibold">Desarrollado con</td>
-              <td>Claude.ai · Python / Flask · SQLite</td>
+              <td class="text-muted fw-semibold">Plan actual</td>
+              <td>
+                {% if demo_info.tier == 'PRO' %}
+                  <span class="pro-badge">PRO</span>
+                {% elif demo_info.tier == 'BASICA' %}
+                  <span class="basica-badge">BÁSICA</span>
+                {% else %}
+                  <span class="demo-badge">DEMO</span>
+                {% endif %}
+              </td>
             </tr>
             <tr>
-              <td class="text-muted fw-semibold">Año</td>
-              <td>2026</td>
+              <td class="text-muted fw-semibold">Tecnología</td>
+              <td>Python / Flask · SQLite · pywebview</td>
             </tr>
             <tr>
               <td class="text-muted fw-semibold">Contacto</td>
               <td>
-                <a href="https://wa.me/5492645858874" class="text-decoration-none">
+                <a href="https://wa.me/5492645858874" target="_blank" class="text-decoration-none">
                   📱 +54 9 264 585-8874
                 </a>
               </td>
@@ -47,15 +55,16 @@
           </tbody>
         </table>
       </div>
+      
       <hr>
-<!--    <div class="text-center">
-          <p class="text-muted small mb-2">📋 Historial de versiones</p>
-
-          <a href="{{ url_for('changelog') }}" class="btn btn-outline-primary btn-sm">
-            Ver historial completo
+<!--      <div class="text-center">
+          <p class="text-muted small mb-2">📋 Registro de cambios</p>
+          <a href="{{ url_for('changelog') }}" class="btn btn-outline-secondary btn-sm">
+            Consultar historial de versiones
           </a>
-        </div> 
+      </div>
       <hr> -->
+
       <p class="small text-muted">
         Aplicación de escritorio local · Funciona sin internet<br>
         Tus datos son privados y se guardan en tu equipo.
