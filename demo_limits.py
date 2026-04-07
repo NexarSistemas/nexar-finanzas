@@ -194,6 +194,32 @@ def get_demo_days_remaining(db_path: str) -> int | None:
     except Exception:
         return None
 
+def get_pro_days_remaining(db_path: str) -> int | None:
+    """
+    Retorna los días restantes de la suscripción PRO.
+    Retorna None si el tier no es PRO o no hay fecha de vencimiento.
+    """
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        cur  = conn.cursor()
+        tier_row    = cur.execute("SELECT value FROM config WHERE key='license_tier'").fetchone()
+        expires_row = cur.execute("SELECT value FROM config WHERE key='license_expires_at'").fetchone()
+        conn.close()
+
+        if not tier_row or tier_row[0] != 'PRO':
+            return None
+        
+        expires_at = expires_row[0] if expires_row else ''
+        if not expires_at:
+            return None
+
+        # Cálculo de diferencia de días
+        delta = (date.fromisoformat(expires_at) - date.today()).days
+        return delta
+    except Exception:
+        return None
+
 
 # ─── Verificaciones de límites ────────────────────────────────────────────────
 
@@ -397,6 +423,7 @@ def get_demo_status(db_path: str) -> dict:
 
     # ── Días restantes de demo ────────────────────────────────────────────────
     demo_days = get_demo_days_remaining(db_path)
+    pro_days  = get_pro_days_remaining(db_path)
 
     # ── Determinar versión para templates ─────────────────────────────────────
     # 'version' se usa en base.html para el badge (DEMO/FULL)
@@ -421,6 +448,9 @@ def get_demo_status(db_path: str) -> dict:
         'is_pro':         tier == 'PRO',
         'pro_expired':    is_pro_expired(db_path),
         'demo_days':      demo_days,          # int o None
+        'pro_days':       pro_days,           # int o None
+        'pro_expires_soon':     pro_days == 5,
+        'pro_expires_tomorrow': pro_days == 1,
         'can_update':     limits.get('updates', False),
         'can_investments_write': limits.get('investments_write', True),
     }
