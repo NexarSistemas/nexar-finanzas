@@ -6,6 +6,14 @@ Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
 
+## [1.10.6] - 2026-04-07
+
+### Added
+- Sistema de alertas de vencimiento para el Plan Pro: aviso preventivo (amarillo) 5 días antes y aviso crítico (rojo) 1 día antes del vencimiento.
+
+### Changed
+- Optimización de la función `get_demo_status` para calcular y exponer días restantes de suscripción Pro a todas las plantillas.
+
 ## [1.10.5] - 2026-03-31
 
 ### Added
