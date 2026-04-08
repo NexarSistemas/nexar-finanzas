@@ -14,6 +14,7 @@ from flask import (
     render_template, redirect, url_for, request, session,
     flash, g, current_app, send_file, make_response, jsonify,
 )
+from werkzeug.utils import secure_filename
 
 from models import get_db, recalculate_account_balance
 from demo_limits import check_limit, is_full_version, get_demo_status
@@ -1072,14 +1073,18 @@ def register_routes(app):
     @login_required
     def backup_descargar(nombre):
         import re
-        if not re.match(r'^backup_\d{8}_\d{6}\.db$', nombre):
+        nombre_seguro = secure_filename(nombre)
+        if nombre_seguro != nombre:
+            flash('Nombre de archivo inválido.', 'danger')
+            return redirect(url_for('settings'))
+        if not re.match(r'^backup_\d{8}_\d{6}\.db$', nombre_seguro):
             flash('Nombre de archivo inválido.', 'danger')
             return redirect(url_for('settings'))
 
         carpeta = os.path.abspath(
             os.path.join(current_app.config['BASE_DIR'], 'backups')
         )
-        ruta = os.path.abspath(os.path.join(carpeta, nombre))
+        ruta = os.path.abspath(os.path.join(carpeta, nombre_seguro))
 
         if os.path.commonpath([carpeta, ruta]) != carpeta:
             flash('Ruta de archivo inválida.', 'danger')
@@ -1088,7 +1093,7 @@ def register_routes(app):
         if not os.path.isfile(ruta):
             flash('Archivo no encontrado.', 'danger')
             return redirect(url_for('settings'))
-        return send_file(ruta, as_attachment=True, download_name=nombre)
+        return send_file(ruta, as_attachment=True, download_name=nombre_seguro)
 
     # ══════════════════════════════════════════════════════════════════════════
     # ACTUALIZACIÓN DEL SISTEMA
