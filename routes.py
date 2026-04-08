@@ -1075,10 +1075,17 @@ def register_routes(app):
         if not re.match(r'^backup_\d{8}_\d{6}\.db$', nombre):
             flash('Nombre de archivo inválido.', 'danger')
             return redirect(url_for('settings'))
-        import os as _os
-        carpeta = _os.path.join(current_app.config['BASE_DIR'], 'backups')
-        ruta    = _os.path.join(carpeta, nombre)
-        if not _os.path.isfile(ruta):
+
+        carpeta = os.path.abspath(
+            os.path.join(current_app.config['BASE_DIR'], 'backups')
+        )
+        ruta = os.path.abspath(os.path.join(carpeta, nombre))
+
+        if os.path.commonpath([carpeta, ruta]) != carpeta:
+            flash('Ruta de archivo inválida.', 'danger')
+            return redirect(url_for('settings'))
+
+        if not os.path.isfile(ruta):
             flash('Archivo no encontrado.', 'danger')
             return redirect(url_for('settings'))
         return send_file(ruta, as_attachment=True, download_name=nombre)
