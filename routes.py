@@ -1076,8 +1076,11 @@ def register_routes(app):
             flash('Nombre de archivo inválido.', 'danger')
             return redirect(url_for('settings'))
         import os as _os
-        carpeta = _os.path.join(current_app.config['BASE_DIR'], 'backups')
-        ruta    = _os.path.join(carpeta, nombre)
+        carpeta = _os.path.realpath(_os.path.join(current_app.config['BASE_DIR'], 'backups'))
+        ruta    = _os.path.realpath(_os.path.join(carpeta, nombre))
+        if _os.path.commonpath([carpeta, ruta]) != carpeta:
+            flash('Ruta de archivo inválida.', 'danger')
+            return redirect(url_for('settings'))
         if not _os.path.isfile(ruta):
             flash('Archivo no encontrado.', 'danger')
             return redirect(url_for('settings'))
