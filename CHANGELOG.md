@@ -5,6 +5,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
+## [1.10.7] - 2026-04-08
+
+### Changed
+- Actualización de versión.
 
 ## [1.10.6] - 2026-04-07
 
