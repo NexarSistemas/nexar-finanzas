@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 app.py
-Punto de entrada principal — Nexar Finanzas v1.10.1
+Punto de entrada principal — Nexar Finanzas v1.10.8
 Modo de visualización: pywebview (ventana nativa) con fallback
 al navegador SOLO si pywebview falla o no está disponible.
 """
@@ -209,10 +209,12 @@ app = Flask(
     static_folder=os.path.join(_INTERNAL_DIR, 'static'),
 )
 
-def get_secret_key():
-    return os.environ.get("SECRET_KEY") or secrets.token_hex(32)
+SECRET_KEY = os.getenv("SECRET_KEY", "").strip()
 
-app.config["SECRET_KEY"] = get_secret_key()
+if not SECRET_KEY:
+    raise RuntimeError("❌ SECRET_KEY no definida. Configurala en el entorno.")
+
+app.config["SECRET_KEY"] = SECRET_KEY
 
 app.config['DB_PATH'] = DB_PATH
 app.config['BASE_DIR'] = BASE_DIR

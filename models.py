@@ -352,8 +352,8 @@ def init_db(db_path: str):
 
     # Versión por defecto: DEMO
     cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('version', 'DEMO')")
-    cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('app_name', 'Nexar Finanzas')")
-    cur.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('app_version', '1.6.0')")
+    cur.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('app_name', 'Nexar Finanzas')") #
+    cur.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('app_version', '1.10.7')") #
     # Configuración de copias de seguridad automáticas
     cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('backup_frecuencia', 'semanal')")
     cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('backup_ultima_vez', '')")
