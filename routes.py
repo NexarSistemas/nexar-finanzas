@@ -6,7 +6,6 @@ Maneja autenticación, transacciones, cuentas, presupuestos, inversiones y repor
 
 import os
 import sys
-import hashlib
 import io
 from datetime import date, datetime
 from functools import wraps
@@ -15,6 +14,7 @@ from flask import (
     flash, g, current_app, send_file, make_response, jsonify,
 )
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
 
 from models import get_db, recalculate_account_balance
 from demo_limits import check_limit, is_full_version, get_demo_status
@@ -26,7 +26,10 @@ import services
 # ─── Utilidades ───────────────────────────────────────────────────────────────
 
 def hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode('utf-8')).hexdigest()
+    return generate_password_hash(password)
+
+def verify_password(stored_hash: str, password: str) -> bool:
+    return check_password_hash(stored_hash, password)
 
 
 def login_required(f):
@@ -92,7 +95,7 @@ def register_routes(app):
             ).fetchone()
             db.close()
 
-            if user and user['password_hash'] == hash_password(password):
+            if user and verify_password(user['password_hash'], password):
                 session['user_id'] = user['id']
                 session['username'] = user['username']
                 session.permanent = False
@@ -947,7 +950,7 @@ def register_routes(app):
                 new_pw     = request.form.get('new_password', '')
                 confirm_pw = request.form.get('confirm_password', '')
                 user = db.execute("SELECT * FROM user WHERE id=1").fetchone()
-                if user['password_hash'] != hash_password(current_pw):
+                if not verify_password(user['password_hash'], current_pw):
                     flash('Contraseña actual incorrecta.', 'danger')
                 elif len(new_pw) < 4:
                     flash('La nueva contraseña debe tener al menos 4 caracteres.', 'danger')
@@ -966,7 +969,7 @@ def register_routes(app):
                 rec_a        = request.form.get('recovery_answer', '').strip().lower()
                 current_pw   = request.form.get('current_password_recovery', '')
                 user = db.execute("SELECT * FROM user WHERE id=1").fetchone()
-                if user['password_hash'] != hash_password(current_pw):
+                if not verify_password(user['password_hash'], current_pw):
                     flash('Contraseña actual incorrecta. No se guardó la pregunta de seguridad.', 'danger')
                 elif not rec_q:
                     flash('Escribí una pregunta de seguridad.', 'danger')
