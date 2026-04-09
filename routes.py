@@ -1091,6 +1091,7 @@ def register_routes(app):
             return redirect(url_for('settings'))
 
         if not os.path.isfile(ruta):
+        main
             flash('Archivo no encontrado.', 'danger')
             return redirect(url_for('settings'))
         return send_file(ruta, as_attachment=True, download_name=nombre_seguro)
