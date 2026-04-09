@@ -1,5 +1,29 @@
-flask>=2.3.0
-requests>=2.31.0
-pywebview>=4.0.0
-cryptography>=41.0.0
-python-dotenv>=1.0.0
+# ==============================================================================
+# 🚀 NEXAR SISTEMAS - REQUERIMIENTOS UNIFICADOS (ABRIL 2026)
+# Proyectos: Tienda, Almacén y Finanzas
+# ==============================================================================
+
+# 🌐 Backend Framework
+# Se establece 3.0.3 como base estable, compatible con las 3 verticales.
+Flask>=3.0.3
+python-dotenv>=1.0.1
+
+# 🌍 Protocolos y Comunicación
+# Versión actualizada para evitar vulnerabilidades de seguridad (CVEs).
+requests>=2.32.3
+
+# 🖥️ Interfaz de Usuario (Desktop Webview)
+pywebview>=5.0.0
+
+# 🔐 Seguridad y Cifrado
+# Importante: cryptography >= 42.0.0 resuelve fallos críticos de memoria.
+cryptography>=46.0.6
+
+# 📦 Generación de Ejecutables y Documentación
+pyinstaller>=6.11.1
+markdown>=3.6
+
+# 📊 Reportes y Exportación de Datos
+# (Instalar solo si el módulo de reportes está activo en el código)
+openpyxl>=3.1.5
+reportlab>=4.2.2
