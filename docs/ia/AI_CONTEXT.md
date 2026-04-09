@@ -1,7 +1,7 @@
 # AI Context
 
 Proyecto: Nexar Finanzas  
-Versión: 1.9.0  
+Versión: 1.10.8  
 Lenguaje: Python  
 Framework: Flask  
 Base de datos: SQLite  

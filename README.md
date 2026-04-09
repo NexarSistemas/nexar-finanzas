@@ -1,4 +1,4 @@
-# 💰 Nexar Finanzas v1.10.7
+# 💰 Nexar Finanzas v1.10.8
 
 Aplicación de gestión financiera personal para escritorio. Funciona completamente
 offline, utilizando base de datos SQLite local, y está optimizada para equipos
@@ -267,6 +267,7 @@ a tus datos reales — transacciones, cuentas, presupuestos e inversiones.
 
 | Versión | Cambios principales |
 |---|---|
+| **v1.10.8** | security: actualizar dependencias y unificar requerimientos |
 | **v1.10.7** | Actualización de versión. |
 | **v1.10.6** | Avisos de vencimiento para el Plan Pro (5 días y 1 día antes) |
 | **v1.10.5** | Integración de SECRET_KEY mediante variables de entorno (.env y GitHub Secrets) |

@@ -5,6 +5,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
+## [1.10.8] - 2026-04-09
+
+### Changed
+- security: actualizar dependencias y unificar requerimientos
+
 ## [1.10.7] - 2026-04-08
 
 ### Changed
