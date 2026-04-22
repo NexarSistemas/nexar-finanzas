@@ -72,6 +72,19 @@ fi
 
 PYTHON="$VENV_DIR/bin/python"
 
+if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_ANON_KEY:-}" ]; then
+    echo -e "${RED}[ERROR] Faltan SUPABASE_URL o SUPABASE_ANON_KEY para empaquetar licencias${NC}"
+    exit 1
+fi
+
+cat > .env.finanzas <<EOF
+LICENSE_PRODUCT=nexar-finanzas
+SUPABASE_URL=${SUPABASE_URL}
+SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+EOF
+
+echo -e "${GREEN}[OK] Configuracion publica de licencias generada${NC}"
+
 # ── 3. Build ──────────────────────────────────────────────────────────────────
 echo -e "${YELLOW}[3/5] Compilando...${NC}"
 

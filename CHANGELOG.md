@@ -5,6 +5,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
+## [1.10.10] - 2026-04-22
+
+### Fixed
+- El build de GitHub Actions ahora empaqueta `SUPABASE_URL` y `SUPABASE_ANON_KEY` en `.env.finanzas` para que la app instalada pueda solicitar y activar licencias.
+- La app carga `.env.finanzas` desde la carpeta del ejecutable o desde recursos PyInstaller, evitando depender del directorio de trabajo.
+
+---
+
 ## [1.10.9] - 2026-04-22
 
 ### Added

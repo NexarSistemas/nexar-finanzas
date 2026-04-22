@@ -14,10 +14,32 @@ import threading
 import time
 import secrets
 import socket as _socket
+from pathlib import Path
 from flask import Flask, render_template, session, redirect, url_for
 from dotenv import load_dotenv
-load_dotenv()
-load_dotenv(".env.finanzas", override=True)
+
+
+def _runtime_base_dir():
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent
+
+
+def _resource_base_dir():
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS)
+    return _runtime_base_dir()
+
+
+def _load_environment():
+    bundled_env = _resource_base_dir() / ".env.finanzas"
+    runtime_dir = _runtime_base_dir()
+    load_dotenv(bundled_env, override=False)
+    load_dotenv(runtime_dir / ".env", override=True)
+    load_dotenv(runtime_dir / ".env.finanzas", override=True)
+
+
+_load_environment()
 
 # ─────────────────────────────────────────────────────────────
 # SISTEMA DE LICENCIAS

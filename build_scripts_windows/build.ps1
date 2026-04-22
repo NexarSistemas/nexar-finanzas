@@ -69,6 +69,19 @@ if (Test-Path "requirements.txt") {
 
 Write-Host "[OK] Dependencias listas" -ForegroundColor Green
 
+if (-not $env:SUPABASE_URL -or -not $env:SUPABASE_ANON_KEY) {
+    Write-Host "[ERROR] Faltan SUPABASE_URL o SUPABASE_ANON_KEY para empaquetar licencias" -ForegroundColor Red
+    exit 1
+}
+
+@"
+LICENSE_PRODUCT=nexar-finanzas
+SUPABASE_URL=$($env:SUPABASE_URL)
+SUPABASE_ANON_KEY=$($env:SUPABASE_ANON_KEY)
+"@ | Set-Content ".env.finanzas" -Encoding UTF8
+
+Write-Host "[OK] Configuracion publica de licencias generada" -ForegroundColor Green
+
 # ── 3. Build PyInstaller ─────────────────────────────────────
 
 Write-Host "[3/5] Compilando..." -ForegroundColor Yellow
