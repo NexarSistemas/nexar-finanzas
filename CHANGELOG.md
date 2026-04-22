@@ -5,6 +5,17 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
+<<<<<<< corrige-licencias-finanzas-instaladas
+## [1.10.11] - 2026-04-22
+
+### Fixed
+- La activacion de licencias en la app instalada ya no falla si PyInstaller no carga el SDK `nexar_licencias`; ahora usa validacion online directa contra Supabase como respaldo.
+- Los builds de Windows y Linux incluyen explicitamente los modulos dinamicos de licenciamiento y recolectan el SDK cuando esta disponible.
+
+---
+
+=======
+>>>>>>> main
 ## [1.10.10] - 2026-04-22
 
 ### Fixed

@@ -12,6 +12,14 @@ block_cipher = None
 
 ROOT = os.path.abspath(os.path.join(SPECPATH, '..'))
 
+
+def collect_optional_submodules(package):
+    try:
+        return collect_submodules(package)
+    except Exception:
+        return []
+
+
 # ── Archivos del proyecto ─────────────────────────────────────────────────────
 added_files = [
     (os.path.join(ROOT, 'templates'),          'templates'),
@@ -100,6 +108,8 @@ hidden_imports = [
     'licensing.crypto_verify',
     'licensing.license_storage',
     'licensing.license_api',
+    'licensing.license_sdk',
+    'licensing.supabase_license_api',
     'licensing.demo_state',
     'licensing.activation_gui',
     # Criptografia
@@ -109,7 +119,7 @@ hidden_imports = [
     'cryptography.hazmat.primitives.hashes',
     'cryptography.hazmat.primitives.serialization',
     'cryptography.hazmat.backends',
-]
+] + collect_optional_submodules('nexar_licencias')
 
 a = Analysis(
     [os.path.join(ROOT, 'app.py')],
