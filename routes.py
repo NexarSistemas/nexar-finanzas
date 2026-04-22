@@ -18,7 +18,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 from models import get_db, recalculate_account_balance
 from demo_limits import check_limit, is_full_version, get_demo_status
-from activation import validate_activation_code
 from licensing.hardware_id import get_hardware_id
 import services
 
@@ -882,54 +881,73 @@ def register_routes(app):
         already_full = is_full_version(db_path)
 
         if request.method == 'POST':
-            token_raw = request.form.get('code', '').strip()
+            action = request.form.get('action', 'activate_license')
 
-            is_base64_token = _es_token_base64(token_raw)
+            if action == 'request_license':
+                from licensing.license_sdk import get_current_hwid, get_license_product
+                from licensing.supabase_license_api import create_license_request
 
-            if is_base64_token:
-                from activation import activar_token_rsa
-                ok, msg, tier = activar_token_rsa(token_raw, db_path)
-                if ok:
-                    if tier == 'PRO':
-                        flash('🎉 Plan Pro activado. Acceso completo habilitado.', 'success')
-                    else:
-                        flash('✅ Plan Básico activado. Acceso permanente habilitado.', 'success')
-                    return redirect(url_for('dashboard'))
-                else:
-                    flash(msg, 'danger')
+                activation_id = request.form.get('activation_id', '').strip()
+                product_hwid = get_current_hwid() or get_hardware_id()
+                ok, msg, _data = create_license_request(
+                    nombre=request.form.get('nombre', ''),
+                    email=request.form.get('email', ''),
+                    whatsapp=request.form.get('whatsapp', ''),
+                    activation_id=activation_id or product_hwid,
+                    producto=get_license_product(),
+                    plan=request.form.get('plan', 'BASICA'),
+                    machine_details={
+                        "hardware_id": get_hardware_id(),
+                        "product_hwid": product_hwid,
+                        "user_id": session.get("user_id"),
+                        "username": session.get("username", ""),
+                    },
+                )
+                flash(msg, 'success' if ok else 'danger')
+                return redirect(url_for('activate'))
 
-            else:
-                from activation import detect_license_type
-                code    = token_raw.upper().replace(' ', '')
-                licencia = detect_license_type(code)
-                if licencia:
-                    _guardar_activacion(db_path, code,
-                                        licencia['tipo'],
-                                        licencia['vencimiento'] or '')
-                    flash('✅ Sistema activado. Ahora tenés acceso completo.', 'success')
-                    return redirect(url_for('dashboard'))
-                else:
-                    flash('Código o token inválido. Verificá e intentá nuevamente.', 'danger')
+            if action == 'activate_license':
+                from licensing.license_sdk import validate_license_key
+
+                license_key = request.form.get('license_key', '').strip()
+                ok, msg = validate_license_key(license_key, db_path=db_path, debug=True)
+                flash(msg, 'success' if ok else 'danger')
+                return redirect(url_for('dashboard' if ok else 'activate'))
+
+            flash('Acción de licencia no reconocida.', 'danger')
+            return redirect(url_for('activate'))
 
         db = get_db(db_path)
         config_rows = db.execute(
             "SELECT key, value FROM config WHERE key IN "
             "('license_activated_at','license_type','license_expires_at',"
-            "'activation_code','license_tier')"
+            "'license_tier','license_key','license_plan')"
         ).fetchall()
         db.close()
         cfg = {r['key']: r['value'] for r in config_rows}
 
         from demo_limits import get_tier, is_pro_expired, get_demo_days_remaining
+        from licensing.license_sdk import get_current_hwid, get_license_product
+        from licensing.supabase_license_api import generate_activation_id, is_configured
+
         tier_actual = get_tier(db_path)
+        request_id, machine_details = generate_activation_id(session.get("username", ""))
+        product_hwid = get_current_hwid() or get_hardware_id()
+        machine_details["request_id"] = request_id
+        machine_details["product_hwid"] = product_hwid
 
         return render_template('activate.html',
                                already_full=already_full,
                                activated_at=cfg.get('license_activated_at'),
                                license_type=cfg.get('license_type', 'permanente'),
                                license_expires=cfg.get('license_expires_at', ''),
-                               activation_code=cfg.get('activation_code', ''),
-                               hardware_id=get_hardware_id(),
+                               hardware_id=product_hwid,
+                               activation_id=product_hwid,
+                               machine_details=machine_details,
+                               producto=get_license_product(),
+                               supabase_ok=is_configured(),
+                               license_key_local=cfg.get('license_key', ''),
+                               license_plan=cfg.get('license_plan', ''),
                                tier=tier_actual,
                                pro_expired=is_pro_expired(db_path),
                                demo_days=get_demo_days_remaining(db_path))
@@ -1322,37 +1340,3 @@ Sé directo. No uses frases genéricas. Basate en los números. Máximo 5 puntos
     @login_required
     def about():
         return render_template('about.html')
-
-
-# ─── Helpers privados de activación (fuera de register_routes) ────────────────
-
-def _es_token_base64(s: str) -> bool:
-    """
-    Detecta si el string es un Token Base64 (sistema nuevo)
-    o un código HMAC (sistema legacy XXXX-XXXX-XXXX-XXXX).
-    """
-    import re
-    if re.match(r'^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$',
-                s.strip().upper()):
-        return False
-    return len(s.strip()) > 20
-
-
-def _guardar_activacion(db_path: str, code: str, tipo: str, vencimiento: str):
-    """
-    [LEGACY] Persiste activación HMAC en la BD.
-    Graba tier=BASICA para compatibilidad con el nuevo sistema de tiers.
-    """
-    db = get_db(db_path)
-    db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('version','FULL')")
-    db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('license_activated_at', ?)",
-               (datetime.now().isoformat(),))
-    db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('activation_code', ?)",
-               (code,))
-    db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('license_type', ?)",
-               (tipo,))
-    db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('license_tier', 'BASICA')")
-    db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('license_expires_at', ?)",
-               (vencimiento,))
-    db.commit()
-    db.close()

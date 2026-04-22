@@ -4,6 +4,7 @@ Inicialización y esquema de la base de datos SQLite.
 Crea todas las tablas necesarias si no existen.
 """
 
+import json
 import sqlite3
 import platform
 import uuid
@@ -113,6 +114,77 @@ def get_db(db_path: str) -> sqlite3.Connection:
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA journal_mode = WAL")  # Mejor rendimiento
     return conn
+
+
+def get_config(db_path: str) -> dict:
+    """Devuelve la tabla config como diccionario."""
+    conn = get_db(db_path)
+    rows = conn.execute("SELECT key, value FROM config").fetchall()
+    conn.close()
+    return {row["key"]: row["value"] for row in rows}
+
+
+def set_config(db_path: str, values: dict) -> None:
+    """Inserta o actualiza claves de configuracion."""
+    conn = get_db(db_path)
+    for key, value in values.items():
+        conn.execute(
+            "INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)",
+            (key, "" if value is None else str(value)),
+        )
+    conn.commit()
+    conn.close()
+
+
+def normalize_license_plan(plan: str | None) -> str:
+    raw = (plan or "BASICA").strip().upper().replace("-", "_").replace(" ", "_")
+    aliases = {
+        "BASIC": "BASICA",
+        "BASICO": "BASICA",
+        "BASICA": "BASICA",
+        "DEMO": "DEMO",
+        "FULL": "MENSUAL_FULL",
+        "MENSUAL": "MENSUAL_FULL",
+        "MENSUAL_FULL": "MENSUAL_FULL",
+        "PRO": "MENSUAL_FULL",
+    }
+    return aliases.get(raw, "BASICA")
+
+
+def _local_tier_from_plan(plan: str | None) -> str:
+    normalized = normalize_license_plan(plan)
+    if normalized == "MENSUAL_FULL":
+        return "PRO"
+    return normalized
+
+
+def sync_license_from_remote(db_path: str, license_data: dict) -> None:
+    """Guarda en SQLite la licencia normalizada que devuelve Supabase/SDK."""
+    data = dict(license_data or {})
+    plan = normalize_license_plan(data.get("plan") or data.get("tier") or data.get("license_plan"))
+    tier = _local_tier_from_plan(plan)
+    expires_at = data.get("expira") or data.get("expires_at") or ""
+    license_key = data.get("license_key") or ""
+    max_devices = data.get("max_devices") or data.get("max_machines") or 1
+
+    cfg = get_config(db_path)
+    basica_activada = cfg.get("basica_activada", "0") == "1" or tier == "BASICA"
+
+    values = {
+        "version": "DEMO" if tier == "DEMO" else "FULL",
+        "license_tier": tier,
+        "license_plan": plan,
+        "license_expires_at": "" if tier == "BASICA" else expires_at,
+        "license_key": license_key,
+        "license_signature": data.get("public_signature") or data.get("signature") or "",
+        "license_type": "supabase",
+        "license_activated_at": data.get("activated_at") or data.get("created_at") or date.today().isoformat(),
+        "license_last_check": date.today().isoformat(),
+        "license_max_devices": max_devices,
+        "license_data_full": json.dumps(data, ensure_ascii=False, sort_keys=True),
+        "basica_activada": "1" if basica_activada else "0",
+    }
+    set_config(db_path, values)
 
 
 def init_db(db_path: str):
@@ -366,7 +438,14 @@ def init_db(db_path: str):
     # demo_install_date:  fecha ISO de primera instalación (gestionada por anti-reinstall)
     # machine_id:         hardware ID del equipo (gestionado más abajo)
     cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('license_tier', 'DEMO')")
+    cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('license_plan', 'DEMO')")
     cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('license_expires_at', '')")
+    cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('license_key', '')")
+    cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('license_signature', '')")
+    cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('license_data_full', '{}')")
+    cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('license_last_check', '')")
+    cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('license_max_devices', '1')")
+    cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('basica_activada', '0')")
     cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('demo_install_date', '')")
 
     # Categorías de gastos predeterminadas: (nombre, es_necesario)

@@ -1,87 +1,42 @@
-import requests
+"""
+Compatibilidad para integraciones que todavia importan license_api.py.
 
-# ─────────────────────────────────────────────────────────────────────────────
-# CONFIGURACIÓN — completar una sola vez
-# ─────────────────────────────────────────────────────────────────────────────
-# Pegá aquí el ID del index.json que aparece en el Generador de Licencias
-# la primera vez que creás una licencia para un cliente.
-#
-# Pasos:
-#   1. Abrí el Generador de Licencias y generá la primera licencia.
-#   2. Copiá el valor del campo "ID del index.json en Drive".
-#   3. Pegalo como valor de DRIVE_INDEX_FILE_ID abajo.
-#   4. Asegurate de que index.json en Drive tenga acceso
-#      "Cualquiera con el enlace puede ver".
-# ─────────────────────────────────────────────────────────────────────────────
-DRIVE_INDEX_FILE_ID = "193pJF5ly7Xpkk2J8-fIMRvf7XdagAugN"
+El flujo nuevo usa licensing.license_sdk y licensing.supabase_license_api,
+igual que Nexar Tienda/Almacen.
+"""
 
-_TIMEOUT = 10   # segundos de espera máxima por request
+from __future__ import annotations
+
+import sqlite3
+
+from .license_sdk import validate_saved_license
 
 
-def get_license_file_id(license_key):
-    """
-    Descarga el index.json de Drive y retorna el file_id
-    correspondiente a la license_key dada, o None si no existe.
-    """
+def verificar_licencia_finanzas(db_path, public_key=None):
+    ok, _msg = validate_saved_license(db_path, debug=True)
+    if not ok:
+        _revocar_finanzas(db_path)
+    return ok
 
-    if DRIVE_INDEX_FILE_ID == "REEMPLAZAR_POR_ID_DEL_INDEX":
-        raise RuntimeError(
-            "El sistema de licencias RSA no está configurado.\n"
-            "Completá DRIVE_INDEX_FILE_ID en licensing/license_api.py"
-        )
 
-    url = f"https://drive.google.com/uc?id={DRIVE_INDEX_FILE_ID}&export=download"
-
+def _revocar_finanzas(db_path):
+    """Degrada a DEMO, salvo que exista Basica activada previamente."""
     try:
-        r = requests.get(url, timeout=_TIMEOUT)
-        r.raise_for_status()
-        data = r.json()
-        return data.get(license_key)
-
-    except requests.exceptions.ConnectionError:
-        raise ConnectionError(
-            "Sin conexion a internet. La activacion con este tipo de codigo "
-            "requiere conexion para verificar la licencia."
-        )
-    except requests.exceptions.Timeout:
-        raise TimeoutError(
-            "El servidor tardo demasiado en responder. "
-            "Verifica tu conexion e intenta nuevamente."
-        )
-    except requests.exceptions.HTTPError as e:
-        raise RuntimeError(f"Error al consultar el indice de licencias: {e}")
-    except ValueError:
-        raise RuntimeError(
-            "El indice de licencias tiene un formato inesperado. "
-            "Contacta al desarrollador."
-        )
-
-
-def download_license(file_id):
-    """
-    Descarga el JSON de la licencia pública desde Drive.
-    """
-
-    url = f"https://drive.google.com/uc?id={file_id}&export=download"
-
-    try:
-        r = requests.get(url, timeout=_TIMEOUT)
-        if r.status_code != 200:
-            raise RuntimeError(
-                f"No se pudo descargar la licencia (HTTP {r.status_code})."
-            )
-        return r.json()
-
-    except requests.exceptions.ConnectionError:
-        raise ConnectionError(
-            "Sin conexion a internet. Verifica tu red e intenta nuevamente."
-        )
-    except requests.exceptions.Timeout:
-        raise TimeoutError(
-            "El servidor tardo demasiado. Intenta nuevamente."
-        )
-    except ValueError:
-        raise RuntimeError(
-            "La licencia descargada tiene un formato inesperado. "
-            "Contacta al desarrollador."
-        )
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        row = cur.execute("SELECT value FROM config WHERE key='basica_activada'").fetchone()
+        basica_activada = row is not None and row[0] == "1"
+        if basica_activada:
+            cur.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('version', 'FULL')")
+            cur.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('license_tier', 'BASICA')")
+            cur.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('license_plan', 'BASICA')")
+        else:
+            cur.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('version', 'DEMO')")
+            cur.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('license_tier', 'DEMO')")
+            cur.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('license_plan', 'DEMO')")
+        cur.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('license_expires_at', '')")
+        conn.commit()
+        conn.close()
+        print("[LICENSE] Licencia revocada. Volviendo al plan disponible.")
+    except Exception as e:
+        print(f"[LICENSE-ERR] Error al revocar: {e}")

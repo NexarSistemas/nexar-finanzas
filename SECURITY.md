@@ -45,7 +45,7 @@ Nexar Finanzas es una aplicación de gestión financiera personal que incluye:
 - Cuentas y transferencias  
 - Presupuestos  
 - Inversiones  
-- Sistema de licencias offline  
+- Sistema de licencias Supabase + SDK con cache offline  
 - Integración opcional con IA (API externa)  
 
 ---
@@ -90,9 +90,9 @@ Nexar Finanzas es una aplicación de gestión financiera personal que incluye:
 
 ### 🧾 Sistema de licencias
 
-- Tokens Base64 firmados con RSA  
+- Claves de licencia validadas con Supabase + SDK `nexar_licencias`  
 - Anti-reinstall (`telemetry.bin`)  
-- Hardware ID  
+- ID de activación/HWID por producto  
 
 ---
 

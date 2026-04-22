@@ -61,6 +61,19 @@ def _is_full_in_db():
 
 # ── Función principal ─────────────────────────────────────────────────────────
 
+def _get_config_value(key: str) -> str:
+    try:
+        db_path = _get_db_path()
+        if not os.path.exists(db_path):
+            return ""
+        conn = sqlite3.connect(db_path)
+        row = conn.execute("SELECT value FROM config WHERE key=?", (key,)).fetchone()
+        conn.close()
+        return row[0] if row else ""
+    except Exception:
+        return ""
+
+
 def check_license():
     """
     Verifica el estado de la licencia y retorna "FULL" o "DEMO".
@@ -70,6 +83,26 @@ def check_license():
 
     # ── Caso 1: ya activado por la interfaz web → FULL ────────────────────────
     if _is_full_in_db():
+        if _get_config_value("license_key"):
+            try:
+                from .license_sdk import validate_saved_license
+
+                ok, msg = validate_saved_license(_get_db_path(), debug=True)
+                if not ok:
+                    print(f"[LICENSE] {msg}")
+                    try:
+                        from .license_api import _revocar_finanzas
+
+                        _revocar_finanzas(_get_db_path())
+                    except Exception:
+                        pass
+                    if _get_config_value("basica_activada") == "1":
+                        set_full({})
+                        return "FULL"
+                    set_demo()
+                    return "DEMO"
+            except Exception as e:
+                print(f"[AVISO] No se pudo validar licencia guardada: {e}")
         set_full({})
         return "FULL"
 

@@ -57,7 +57,7 @@
         <div class="alert alert-warning py-2 small mx-auto" style="max-width:420px;">
           <i class="bi bi-exclamation-triangle-fill"></i>
           Tu Plan Pro venció. Estás usando el <strong>Plan Básico</strong>.
-          Activá un nuevo token PRO para recuperar el acceso completo.
+          Activá una nueva clave Mensual Full para recuperar el acceso completo.
         </div>
         {% else %}
         <div class="badge py-2 px-4 fs-6 mb-3" style="background:#6f42c1;">
@@ -107,20 +107,19 @@
       </div>
     </div>
 
-    {# Formulario para activar token PRO sobre BASICA #}
+    {# Formulario para activar Mensual Full sobre BASICA #}
     <div class="card mt-3" style="border:2px solid #6f42c1;">
       <div class="card-header py-2 fw-semibold" style="color:#6f42c1;">
         <i class="bi bi-stars"></i> Activar Plan Pro
       </div>
       <div class="card-body">
         <p class="small text-muted mb-2">
-          Si ya tenés tu token Pro, pegalo acá para activarlo sobre tu Plan Básico.
+          Si ya tenés tu clave Mensual Full, pegala acá para activarla sobre tu Plan Básico.
         </p>
         <form method="POST">
-          <textarea name="code" class="form-control font-monospace mb-2"
-                    rows="4" placeholder="Pegá el token Pro aquí..."
-                    style="font-size:.75rem; resize:vertical;"
-                    required></textarea>
+          <input type="hidden" name="action" value="activate_license">
+          <input name="license_key" class="form-control font-monospace mb-2"
+                 placeholder="Ej: NXR-FIN-..." style="font-size:.9rem" required>
           <button type="submit" class="btn w-100"
                   style="background:#6f42c1;color:white;">
             <i class="bi bi-stars"></i> Activar Plan Pro
@@ -128,7 +127,7 @@
         </form>
         <hr class="my-2">
         <p class="small text-muted mb-0 text-center">
-          ¿No tenés el token todavía? Solicitalo por WhatsApp usando el botón de abajo.
+          ¿No tenés la clave todavía? Solicitala por WhatsApp usando el botón de abajo.
         </p>
       </div>
     </div>
@@ -156,10 +155,10 @@
               {% else %}Básico permanente{% endif %}
             </td>
           </tr>
-          {% if activation_code %}
+          {% if license_key_local %}
           <tr>
-            <td class="text-muted">Código</td>
-            <td class="font-monospace small text-muted" style="font-size:.72rem;">{{ activation_code[:16] }}…</td>
+            <td class="text-muted">Clave</td>
+            <td class="font-monospace small text-muted" style="font-size:.72rem;">{{ license_key_local[:16] }}...</td>
           </tr>
           {% endif %}
         </table>
@@ -172,23 +171,23 @@
       </div>
     </div>
 
-    {# ── ID de máquina — siempre visible para solicitar upgrade ── #}
+    {# ── ID de activación — siempre visible para solicitar upgrade ── #}
     <div class="card border-secondary mt-3">
       <div class="card-header py-2 fw-semibold small">
-        <i class="bi bi-pc-display"></i> ID de tu equipo
+        <i class="bi bi-pc-display"></i> ID de activación
       </div>
       <div class="card-body small">
         <p class="text-muted mb-2">
           {% if tier == 'BASICA' %}
             Necesitás este código para solicitar el <strong>Plan Pro</strong>.
           {% else %}
-            Código único que identifica tu computadora.
+            Código específico para activar Nexar Finanzas.
           {% endif %}
         </p>
         <div class="input-group mb-2">
           <input type="text" id="hwid-field"
                  class="form-control form-control-sm font-monospace"
-                 value="{{ hardware_id }}"
+                 value="{{ activation_id }}"
                  readonly>
           <button class="btn btn-outline-secondary btn-sm" type="button"
                   onclick="copyHWID()" title="Copiar ID">
@@ -197,10 +196,32 @@
         </div>
         {% if tier == 'BASICA' %}
         {# Botón WhatsApp con el ID pre-cargado en el mensaje #}
-        <a href="https://wa.me/5492645858874?text=Hola%2C%20quiero%20el%20Plan%20Pro.%20Mi%20ID%20de%20equipo%20es%3A%20{{ hardware_id | urlencode }}"
+        <a href="https://wa.me/5492645858874?text=Hola%2C%20quiero%20el%20Plan%20Pro.%20Mi%20ID%20de%20activaci%C3%B3n%20es%3A%20{{ activation_id | urlencode }}"
            target="_blank" class="btn btn-success btn-sm w-100">
           <i class="bi bi-whatsapp"></i> Solicitar Plan Pro por WhatsApp
         </a>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-header py-2 fw-semibold small">
+        <i class="bi bi-key"></i> Activar / renovar con clave
+      </div>
+      <div class="card-body small">
+        <form method="POST">
+          <input type="hidden" name="action" value="activate_license">
+          <label class="form-label fw-semibold">Clave de licencia</label>
+          <input name="license_key" class="form-control form-control-sm font-monospace mb-2"
+                 placeholder="Ej: NXR-FIN-..." required>
+          <button type="submit" class="btn btn-success btn-sm w-100">
+            <i class="bi bi-unlock-fill"></i> Validar en este equipo
+          </button>
+        </form>
+        {% if license_key_local %}
+        <div class="form-text mt-2">
+          Guardada: <span class="font-monospace">{{ license_key_local[:18] }}...</span>
+        </div>
         {% endif %}
       </div>
     </div>
@@ -219,18 +240,18 @@
         {% if pro_expired %}
         <div class="alert alert-warning py-1 px-2 small mb-2">
           <i class="bi bi-exclamation-triangle-fill"></i>
-          Tu Pro venció — estás en Plan Básico. Activá el nuevo token para recuperar el acceso completo.
+          Tu Pro venció. Activá una nueva clave Mensual Full para recuperar el acceso completo.
         </div>
         {% else %}
         <p class="small text-muted mb-2">
-          Cuando recibas el token del próximo mes, pegalo acá para renovar
+          Cuando recibas la clave del próximo mes, pegala acá para renovar
           sin interrupciones.
         </p>
         {% endif %}
         <form method="POST">
-          <textarea name="code" class="form-control font-monospace mb-2"
-                    rows="3" placeholder="Pegá el token de renovación aquí..."
-                    required style="font-size:.75rem;"></textarea>
+          <input type="hidden" name="action" value="activate_license">
+          <input name="license_key" class="form-control form-control-sm font-monospace mb-2"
+                 placeholder="Ej: NXR-FIN-..." required>
           <button type="submit" class="btn w-100 btn-sm
                   {% if pro_expired %}btn-warning{% endif %}"
                   style="{% if not pro_expired %}background:#6f42c1;color:white;{% endif %}">
@@ -239,7 +260,7 @@
           </button>
         </form>
         <hr class="my-2">
-        <a href="https://wa.me/5492645858874?text=Hola%2C%20quiero%20renovar%20el%20Plan%20Pro.%20Mi%20ID%20de%20equipo%20es%3A%20{{ hardware_id | urlencode }}"
+        <a href="https://wa.me/5492645858874?text=Hola%2C%20quiero%20renovar%20el%20Plan%20Pro.%20Mi%20ID%20de%20activaci%C3%B3n%20es%3A%20{{ activation_id | urlencode }}"
            target="_blank" class="btn btn-outline-success btn-sm w-100">
           <i class="bi bi-whatsapp"></i> Solicitar renovación por WhatsApp
         </a>
@@ -305,27 +326,24 @@
       </div>
     </div>
 
-    {# Formulario de activación con Token Base64 #}
-    <div class="card">
+    <div class="card mb-3">
       <div class="card-header py-2 fw-semibold">
-        <i class="bi bi-unlock"></i> Ingresar token de activación
+        <i class="bi bi-unlock"></i> Activar licencia online
       </div>
       <div class="card-body">
         <p class="text-muted small mb-3">
-          Pegá el token que recibiste por WhatsApp. La activación es
-          <strong>completamente offline</strong>, no requiere internet.
+          Pegá la clave aprobada desde Nexar Admin. Se valida con Supabase/SDK
+          y queda guardada para validación offline.
         </p>
         <form method="POST">
+          <input type="hidden" name="action" value="activate_license">
           <div class="mb-3">
-            <label class="form-label fw-semibold">Token de activación</label>
-            <textarea name="code" class="form-control font-monospace"
-                      rows="4"
-                      placeholder="Pegá aquí el token completo que recibiste..."
-                      style="font-size:.78rem; resize:vertical;"
-                      required></textarea>
+            <label class="form-label fw-semibold">Clave de licencia</label>
+            <input name="license_key" class="form-control font-monospace"
+                   placeholder="Ej: NXR-FIN-..." style="font-size:.9rem" required>
             <div class="form-text">
-              El token es un texto largo en Base64.
-              Si tenés dos tokens (Básico + Pro), activá primero el Básico.
+              Producto: {{ producto }}. Si tenés Básica y Mensual Full,
+              activá primero Básica.
             </div>
           </div>
           <button type="submit" class="btn btn-success w-100 py-2">
@@ -372,26 +390,76 @@
       </div>
     </div>
 
-    {# ID de máquina #}
+    {# ID de activación #}
     <div class="card border-secondary mb-3">
       <div class="card-header py-2 fw-semibold">
-        <i class="bi bi-pc-display"></i> ID de tu equipo
+        <i class="bi bi-pc-display"></i> ID de activación
       </div>
       <div class="card-body small">
         <p class="text-muted mb-2">
-          Enviá este código al solicitar tu licencia.
-          Identifica de forma única tu computadora.
+          Este ID es específico para Nexar Finanzas, aunque uses otros
+          productos Nexar en la misma computadora.
         </p>
         <div class="input-group">
           <input type="text" id="hwid-field"
                  class="form-control form-control-sm font-monospace"
-                 value="{{ hardware_id }}"
+                 value="{{ activation_id }}"
                  readonly>
           <button class="btn btn-outline-secondary btn-sm" type="button"
                   onclick="copyHWID()" title="Copiar ID">
             <i class="bi bi-clipboard" id="hwid-icon"></i>
           </button>
         </div>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-header py-2 fw-semibold">
+        <i class="bi bi-send"></i> Solicitar licencia
+      </div>
+      <div class="card-body small">
+        {% if supabase_ok %}
+        <div class="alert alert-info py-2">
+          La solicitud llega a Nexar Admin para aprobarla y emitir la clave.
+        </div>
+        {% else %}
+        <div class="alert alert-warning py-2">
+          Falta configurar SUPABASE_URL y SUPABASE_ANON_KEY. Podés copiar el ID y enviarlo manualmente.
+        </div>
+        {% endif %}
+        <form method="POST" class="row g-2">
+          <input type="hidden" name="action" value="request_license">
+          <input type="hidden" name="activation_id" value="{{ activation_id }}">
+          <div class="col-12">
+            <label class="form-label fw-semibold">Producto</label>
+            <input class="form-control form-control-sm bg-light" value="{{ producto }}" readonly>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">Nombre del titular</label>
+            <input name="nombre" class="form-control form-control-sm" required>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">Email</label>
+            <input name="email" type="email" class="form-control form-control-sm" required>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">WhatsApp <span class="text-muted">(opcional)</span></label>
+            <input name="whatsapp" class="form-control form-control-sm">
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">Plan solicitado</label>
+            <select name="plan" class="form-select form-select-sm">
+              <option value="BASICA" selected>Básica permanente</option>
+              <option value="MENSUAL_FULL">Mensual Full</option>
+              <option value="DEMO">Demo 30 días</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <button class="btn btn-primary btn-sm w-100" type="submit" {% if not supabase_ok %}disabled{% endif %}>
+              <i class="bi bi-send"></i> Enviar solicitud
+            </button>
+          </div>
+        </form>
       </div>
     </div>
 
