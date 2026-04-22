@@ -5,6 +5,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
+<<<<<<< corrige-licencias-finanzas-instaladas
 ## [1.10.11] - 2026-04-22
 
 ### Fixed
@@ -13,6 +14,8 @@ Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
 
+=======
+>>>>>>> main
 ## [1.10.10] - 2026-04-22
 
 ### Fixed
