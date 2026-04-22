@@ -21,6 +21,7 @@ env/
 
 *.log
 finanzas_error.log
+license_cache.json
 
 # ==============================
 # Base de datos local

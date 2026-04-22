@@ -23,8 +23,8 @@ models.py
 ai_service.py
     integración futura con servicios de IA
 
-activation.py
-    control de licencias
+licensing/
+    control de licencias con Supabase + SDK nexar_licencias
 
 ## Frontend
 

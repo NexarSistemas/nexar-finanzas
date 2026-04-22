@@ -5,6 +5,25 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
+## [1.10.9] - 2026-04-22
+
+### Added
+- Integracion del sistema unificado de licencias Supabase + SDK `nexar_licencias` para Nexar Finanzas.
+- Pantalla de activacion con solicitud de licencia, seleccion de plan y validacion online por clave.
+- Ejemplo de entorno `.env.finanzas.example` para configurar validacion de licencias.
+
+### Changed
+- El identificador enviado a Nexar Admin ahora es el HWID real del producto, permitiendo activar Finanzas independientemente de Tienda o Almacen en la misma maquina.
+- La persistencia local sincroniza plan, licencia y estado remoto devuelto por Supabase.
+
+### Removed
+- Flujo legacy de token/generador local de activaciones.
+
+### Fixed
+- Evita que un `NXID` de solicitud consuma el cupo de dispositivos de una licencia nueva.
+
+---
+
 ## [1.10.8] - 2026-04-09
 
 ### Changed

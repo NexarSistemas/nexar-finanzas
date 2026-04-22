@@ -16,7 +16,6 @@ finanzas_app/
 ├── models.py             → Schema de base de datos SQLite
 ├── routes.py             → Rutas y controladores HTTP
 ├── services.py           → Lógica de negocio y reportes
-├── activation.py         → Validación de licencias (Token RSA + HMAC legacy)
 ├── demo_limits.py        → Control de tiers DEMO / BÁSICA / PRO
 ├── ai_service.py         → Módulo de inteligencia artificial
 ├── requirements.txt      → Dependencias Python
@@ -26,8 +25,8 @@ finanzas_app/
 ├── nexar_finanzas.png    → Ícono de la aplicación (Linux)
 ├── database.db           → Base de datos (se crea al iniciar)
 ├── keys/
-│   └── public_key.pem   → Clave pública RSA para verificación de licencias
-├── licensing/            → Módulo de hardware ID y estado de licencia
+│   └── public_key.pem   → Clave pública opcional para el SDK
+├── licensing/            → SDK, Supabase, hardware ID y estado de licencia
 └── templates/            → Plantillas HTML Jinja2
 ```
 
@@ -105,8 +104,9 @@ actualización.
 
 ## 🔐 Sistema de licencias
 
-La aplicación usa un sistema de **3 planes** con activación por **Token Base64
-firmado con RSA**, completamente offline.
+La aplicación usa el sistema unificado de licencias de Nexar, igual que
+Nexar Tienda y Nexar Almacén: solicitud manual, aprobación en Nexar Admin,
+clave de licencia y validación con Supabase + SDK `nexar_licencias`.
 
 ### Planes disponibles
 
@@ -131,21 +131,22 @@ resistente a reinstalaciones — se guarda fuera de la base de datos.
 
 ### Activar un plan
 
-1. Contactar al desarrollador para adquirir el token de activación
+1. Contactar al desarrollador o enviar una solicitud desde **Activar sistema**
 2. Ir a **Activar sistema** en el menú lateral
-3. Pegar el token completo en el campo de activación
+3. Pegar la clave de licencia aprobada
 4. Hacer clic en **Activar plan**
 
-El proceso es completamente offline. No requiere internet.
+La activación inicial requiere conexión para validar la clave y vincular el
+equipo. Después queda cache local para continuidad offline.
 
 > Para activar el **Plan Pro** primero debe estar activo el **Plan Básico**.
-> Si adquirís ambos, recibirás dos tokens — activar primero el Básico y luego el Pro.
+> Si adquirís ambos, activá primero la clave Básica y luego la clave Mensual Full.
 
 ### Solicitar licencia
 
-La pantalla de activación muestra el **ID de tu equipo** con un botón para
-enviarlo directamente por WhatsApp. El desarrollador usa ese ID para generar
-tu token personalizado.
+La pantalla de activación muestra el **ID de activación** específico de
+Nexar Finanzas y permite enviar una solicitud a Supabase. El desarrollador la
+aprueba desde Nexar Admin y emite la clave de licencia.
 
 - 📱 WhatsApp: [+54 9 264 585-8874](https://wa.me/5492645858874)
 - ✉️ <nexarsistemas@outlook.com.ar>
@@ -275,7 +276,7 @@ a tus datos reales — transacciones, cuentas, presupuestos e inversiones.
 | **v1.10.3** | Pipeline de build automatizado; firma digital GPG; release automática basada en CHANGELOG |
 | **v1.10.2** | Fix crítico: sistema de actualización in-app escribe en el directorio correcto en instalaciones .deb |
 | **v1.10.1** | Corrección: formulario de renovación Pro visible antes del vencimiento |
-| **v1.10.0** | Sistema de licencias por tiers (DEMO/BÁSICA/PRO); activación por Token RSA; anti-reinstall; badge de plan; upgrade BÁSICA→PRO |
+| **v1.10.0** | Sistema de licencias por tiers (DEMO/BÁSICA/PRO); anti-reinstall; badge de plan; upgrade BÁSICA→PRO |
 | **v1.9.2** | ID de máquina visible en pantalla de activación con botón copiar |
 | **v1.9.1** | Licencia MIT visible en Acerca de como sección colapsable |
 | **v1.9.0** | Corrección de cierre sin sesión activa; avisos de costo del asistente de IA |
