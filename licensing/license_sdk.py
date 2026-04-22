@@ -4,6 +4,7 @@ import importlib
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -96,6 +97,38 @@ def _save_sdk_cache(license_data: dict) -> None:
         pass
 
 
+def _activate_license_without_sdk(license_key: str) -> tuple[bool, str, dict[str, Any] | None]:
+    try:
+        from licensing.supabase_license_api import activate_license
+
+        return activate_license(
+            license_key,
+            get_current_hwid(),
+            get_license_product(),
+        )
+    except Exception as ex:
+        return False, f"No se pudo validar online: {ex}", None
+
+
+def _sync_license_data(db_path: str | None, license_data: dict) -> tuple[bool, str]:
+    if not db_path:
+        return True, ""
+
+    try:
+        import models
+
+        plan = models.normalize_license_plan(
+            license_data.get("plan") or license_data.get("tier") or license_data.get("license_plan")
+        )
+        cfg = models.get_config(db_path)
+        if plan == "MENSUAL_FULL" and cfg.get("basica_activada", "0") != "1":
+            return False, "Para activar Mensual Full primero tenes que activar una licencia Basica en esta instalacion."
+        models.sync_license_from_remote(db_path, license_data)
+        return True, ""
+    except Exception as ex:
+        return False, f"Licencia valida, pero no se pudo guardar la activacion: {ex}"
+
+
 def validate_license_key(license_key: str, db_path: str | None = None, debug: bool = False) -> tuple[bool, str]:
     license_key = (license_key or "").strip()
     if not license_key:
@@ -104,7 +137,13 @@ def validate_license_key(license_key: str, db_path: str | None = None, debug: bo
     validar_detalle = import_validar_licencia_detalle()
     validar_licencia = import_validar_licencia()
     if validar_detalle is None and validar_licencia is None:
-        return False, "No se pudo cargar el SDK nexar_licencias."
+        fallback_ok, fallback_msg, fallback_data = _activate_license_without_sdk(license_key)
+        if fallback_ok and fallback_data:
+            ok_sync, sync_msg = _sync_license_data(db_path, fallback_data)
+            if not ok_sync:
+                return False, sync_msg
+            return True, fallback_msg
+        return False, fallback_msg or "No se pudo cargar el SDK nexar_licencias."
 
     result = {}
     try:
@@ -131,22 +170,13 @@ def validate_license_key(license_key: str, db_path: str | None = None, debug: bo
     if not ok:
         reason = result.get("reason") if validar_detalle is not None else ""
         if reason == "sin_cache":
-            try:
-                from licensing.supabase_license_api import activate_license
-
-                fallback_ok, fallback_msg, fallback_data = activate_license(
-                    license_key,
-                    get_current_hwid(),
-                    get_license_product(),
-                )
-                if fallback_ok and fallback_data:
-                    ok = True
-                    license_data = fallback_data
-                    _save_sdk_cache(license_data)
-                else:
-                    return False, fallback_msg
-            except Exception as ex:
-                return False, f"No se pudo validar online: {ex}"
+            fallback_ok, fallback_msg, fallback_data = _activate_license_without_sdk(license_key)
+            if fallback_ok and fallback_data:
+                ok = True
+                license_data = fallback_data
+                _save_sdk_cache(license_data)
+            else:
+                return False, fallback_msg
 
     if not ok:
         reason = result.get("reason") if validar_detalle is not None else ""
@@ -162,19 +192,9 @@ def validate_license_key(license_key: str, db_path: str | None = None, debug: bo
 
     _save_sdk_cache(license_data)
 
-    if db_path:
-        try:
-            import models
-
-            plan = models.normalize_license_plan(
-                license_data.get("plan") or license_data.get("tier") or license_data.get("license_plan")
-            )
-            cfg = models.get_config(db_path)
-            if plan == "MENSUAL_FULL" and cfg.get("basica_activada", "0") != "1":
-                return False, "Para activar Mensual Full primero tenes que activar una licencia Basica en esta instalacion."
-            models.sync_license_from_remote(db_path, license_data)
-        except Exception as ex:
-            return False, f"Licencia valida, pero no se pudo guardar la activacion: {ex}"
+    ok_sync, sync_msg = _sync_license_data(db_path, license_data)
+    if not ok_sync:
+        return False, sync_msg
 
     return True, "Licencia validada correctamente."
 
