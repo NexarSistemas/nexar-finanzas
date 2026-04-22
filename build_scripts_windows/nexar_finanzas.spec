@@ -22,6 +22,10 @@ added_files = [
     (os.path.join(ROOT, 'nexar_finanzas.png'), '.'),
 ]
 
+env_file = os.path.join(ROOT, '.env.finanzas')
+if os.path.exists(env_file):
+    added_files.append((env_file, '.'))
+
 # pywebview necesita sus archivos JS/HTML internos para renderizar la ventana
 try:
     added_files += collect_data_files('webview')

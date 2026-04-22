@@ -20,6 +20,10 @@ added_files = [
     # En Linux no se incluye el .ico (es de Windows)
 ]
 
+env_file = os.path.join(ROOT, '.env.finanzas')
+if os.path.exists(env_file):
+    added_files.append((env_file, '.'))
+
 hidden_imports = [
     'flask',
     'flask.templating',
