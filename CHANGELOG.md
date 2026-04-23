@@ -5,6 +5,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
+## [1.10.14] - 2026-04-22
+
+### Fixed
+- El build Linux ahora incluye PyGObject/GTK en el entorno de PyInstaller para que pywebview abra en ventana nativa.
+- El paquete `.deb` declara las dependencias GTK/WebKit necesarias para ejecutar pywebview en Linux.
+
+---
+
 ## [1.10.13] - 2026-04-22
 
 ### Fixed
