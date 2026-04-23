@@ -469,6 +469,7 @@ if __name__ == '__main__':
             url=URL,
             width=1280,
             height=800,
+            maximized=True,
             min_size=(900, 600),
             resizable=True,
             text_select=False,

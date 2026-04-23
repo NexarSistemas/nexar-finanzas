@@ -5,6 +5,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
+## [1.10.16] - 2026-04-23
+
+### Changed
+- La app ya no muestra la ventana inicial para elegir entre demo o activacion cuando no hay licencia activa.
+- La ventana nativa de Nexar Finanzas ahora inicia maximizada, alineada con Nexar Tienda y Nexar Almacen.
+
+---
+
 ## [1.10.15] - 2026-04-23
 
 ### Changed

@@ -1,10 +1,10 @@
 @echo off
 setlocal EnableDelayedExpansion
-title Nexar Finanzas v1.10.8
+title Nexar Finanzas v1.10.16
 
 echo.
 echo ================================================================
-echo   Nexar Finanzas v1.10.8 - Nexar Sistemas
+echo   Nexar Finanzas v1.10.16 - Nexar Sistemas
 echo   Modo Portable
 echo ================================================================
 echo.
