@@ -17,6 +17,7 @@ import socket as _socket
 from pathlib import Path
 from flask import Flask, render_template, session, redirect, url_for
 from dotenv import load_dotenv
+from update_checker import get_cached_update_info
 
 
 def _runtime_base_dir():
@@ -257,6 +258,7 @@ def get_version():
 
 
 APP_VERSION = get_version()
+app.config['APP_VERSION'] = APP_VERSION
 
 def get_changelog():
     path = os.path.join(os.path.dirname(__file__), "CHANGELOG.md")
@@ -371,9 +373,15 @@ def server_error(e):
 def inject_globals():
     from demo_limits import get_demo_status
     demo_info = get_demo_status(DB_PATH) if 'user_id' in session else {}
+    update_info = (
+        get_cached_update_info(app, APP_VERSION)
+        if demo_info.get('tier') == 'PRO' and demo_info.get('can_update')
+        else {'available': False}
+    )
 
     return {
         'demo_info': demo_info,
+        'update_info': update_info,
         'app_version': APP_VERSION,
         'app_name': 'Nexar Finanzas',
         'license_mode': LICENSE_MODE,

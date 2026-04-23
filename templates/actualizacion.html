@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}Actualización del sistema{% endblock %}
+
+{% block content %}
+<style>
+.update-card { background:#fff; border:1px solid #e9ecef; border-radius:8px; padding:20px; margin-bottom:16px; }
+.version-badge { background:#0d6efd; color:#fff; border-radius:20px; padding:4px 14px; font-size:.9rem; font-weight:700; }
+.update-row { border-bottom:1px solid #eef1f4; padding:12px 0; }
+.update-row:last-child { border-bottom:0; }
+.state-box { border-radius:8px; padding:12px 14px; font-size:.9rem; }
+</style>
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="update-card">
+      <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap mb-3">
+        <div>
+          <div class="fw-bold">Versión instalada</div>
+          <span class="version-badge">v{{ app_version }}</span>
+        </div>
+        <form method="post" action="{{ url_for('actualizacion_abrir_carpeta') }}">
+          <button class="btn btn-outline-secondary btn-sm" type="submit">
+            <i class="bi bi-folder2-open"></i> Carpeta
+          </button>
+        </form>
+      </div>
+      <div class="alert alert-success small mb-0">
+        <i class="bi bi-shield-check"></i>
+        Antes de descargar o instalar se crea un respaldo. La base de datos, la licencia y la configuración del usuario quedan fuera del instalador.
+      </div>
+    </div>
+
+    <div class="update-card">
+      <h6 class="fw-bold mb-3">
+        <i class="bi bi-cloud-download text-primary"></i> Buscar y descargar actualización
+      </h6>
+
+      {% if update_state and update_state.status == 'installed' %}
+        <div class="state-box bg-success-subtle text-success mb-3">
+          <strong>Actualización instalada.</strong><br>
+          Nexar Finanzas ya está en la versión v{{ update_state.current_version }}.
+        </div>
+        <form method="post" action="{{ url_for('actualizacion_limpiar_estado') }}">
+          <button class="btn btn-outline-success btn-sm"><i class="bi bi-check2"></i> Entendido</button>
+        </form>
+      {% elif update_state and update_state.status == 'ready_restart' %}
+        <div class="state-box bg-warning-subtle text-warning-emphasis mb-3">
+          <strong>Actualización v{{ update_state.target_version }} lista.</strong><br>
+          Cerrá Nexar Finanzas y volvelo a abrir desde el acceso directo para terminar.
+        </div>
+        <form method="post" action="{{ url_for('actualizacion_reiniciar') }}">
+          <button class="btn btn-warning"><i class="bi bi-power"></i> Cerrar app</button>
+        </form>
+      {% elif update_state and update_state.status == 'in_progress' %}
+        <div class="state-box bg-info-subtle text-info-emphasis" id="update-progress-alert">
+          <strong>Instalando v{{ update_state.target_version }}...</strong><br>
+          Cuando el instalador termine, esta pantalla se actualizará sola.
+        </div>
+      {% elif update_state and update_state.status == 'install_failed' %}
+        <div class="state-box bg-danger-subtle text-danger mb-3">
+          <strong>No se pudo completar la instalación.</strong><br>
+          {{ update_state.error or 'Revisá el instalador y volvé a intentar.' }}
+        </div>
+        <form method="post" action="{{ url_for('actualizacion_limpiar_estado') }}">
+          <button class="btn btn-outline-danger btn-sm"><i class="bi bi-x-lg"></i> Descartar aviso</button>
+        </form>
+      {% elif update_info and update_info.available %}
+        <p class="mb-2"><strong>Disponible v{{ update_info.latest }}</strong></p>
+        <p class="text-muted small mb-3">Se descargará el instalador compatible con este sistema y se creará un respaldo antes de hacerlo.</p>
+        <div class="d-flex gap-2 flex-wrap">
+          <form method="post" action="{{ url_for('actualizacion_descargar') }}">
+            <button class="btn btn-success"><i class="bi bi-download"></i> Descargar actualización</button>
+          </form>
+          <a class="btn btn-outline-secondary" href="{{ update_info.url }}" target="_blank" rel="noopener">
+            <i class="bi bi-box-arrow-up-right"></i> Ver release
+          </a>
+        </div>
+      {% else %}
+        <div class="state-box bg-light text-muted">
+          <strong>No hay actualizaciones nuevas.</strong><br>
+          Tenés instalada la última versión disponible para este equipo.
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="update-card">
+      <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-2">
+        <h6 class="fw-bold mb-0"><i class="bi bi-box-seam text-success"></i> Instaladores descargados</h6>
+        <small class="text-muted">{{ update_dir }}</small>
+      </div>
+
+      {% for u in actualizaciones %}
+        <div class="update-row">
+          <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+            <div>
+              <code>{{ u.nombre }}</code>
+              <div class="small text-muted">{{ u.tipo }} · {{ u.fecha }} · {{ u.tamanio_mb }} MB</div>
+              {% if u.version %}<span class="badge bg-light text-dark border">v{{ u.version }}</span>{% endif %}
+            </div>
+            <form method="post" action="{{ url_for('actualizacion_instalar', nombre=u.nombre) }}"
+                  onsubmit="return confirm('Se creará un respaldo y se abrirá el instalador del sistema. Al terminar, Nexar Finanzas te va a pedir cerrar la app.')">
+              <button class="btn btn-sm btn-success" {% if update_state and update_state.status in ['in_progress', 'ready_restart'] %}disabled{% endif %}>
+                <i class="bi bi-play-fill"></i> Instalar
+              </button>
+            </form>
+          </div>
+          <div class="mt-1"><code class="small">{{ u.comando }}</code></div>
+        </div>
+      {% else %}
+        <div class="text-muted small py-3">Todavía no hay instaladores descargados.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="update-card">
+      <h6 class="fw-bold mb-3"><i class="bi bi-list-ol text-primary"></i> Flujo recomendado</h6>
+      {% set steps = [
+        ('Buscar', 'La app consulta la última release publicada en GitHub.'),
+        ('Descargar', 'Antes de guardar el instalador crea un respaldo local.'),
+        ('Instalar', 'Windows abre el setup; Linux intenta usar pkexec apt install.'),
+        ('Cerrar', 'Al finalizar, cerrá la app y volvé a abrirla para cargar la versión nueva.')
+      ] %}
+      {% for title, desc in steps %}
+        <div class="d-flex gap-3 mb-3">
+          <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold" style="width:28px;height:28px;font-size:.8rem">{{ loop.index }}</div>
+          <div>
+            <div class="fw-bold" style="font-size:.88rem">{{ title }}</div>
+            <div class="text-muted" style="font-size:.82rem">{{ desc }}</div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="update-card">
+      <h6 class="fw-bold mb-3"><i class="bi bi-shield-check text-success"></i> Qué queda protegido</h6>
+      <ul class="small mb-0" style="line-height:1.8">
+        <li>Base de datos y respaldos.</li>
+        <li>Licencia activa y caché local.</li>
+        <li>Usuario, recuperación y configuración.</li>
+        <li>Cuentas, movimientos, presupuestos e inversiones.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {% if update_state and update_state.status == 'in_progress' %}
+    <script>
+      (function pollUpdateStatus() {
+        fetch("{{ url_for('actualizacion_estado') }}")
+          .then(response => response.ok ? response.json() : null)
+          .then(data => {
+            if (!data) return;
+            if (data.status && data.status !== 'in_progress') {
+              window.location.reload();
+            }
+          })
+          .catch(() => {});
+        setTimeout(pollUpdateStatus, 5000);
+      })();
+    </script>
+  {% endif %}
+{% endblock %}

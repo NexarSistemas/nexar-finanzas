@@ -12,8 +12,8 @@
 <body class="d-flex align-items-center justify-content-center" style="min-height:100vh;">
   <div class="text-center">
     <div style="font-size:4rem;">💰</div>
-    <h4 class="mt-3 fw-bold">Nexar Finanzas</h4>
-    <p class="text-secondary">El servidor se detuvo correctamente.</p>
+    <h4 class="mt-3 fw-bold">{{ titulo or 'Nexar Finanzas' }}</h4>
+    <p class="text-secondary">{{ mensaje or 'El servidor se detuvo correctamente.' }}</p>
 
     <div id="countdown" class="mt-3 text-secondary small">
       Cerrando esta ventana en <span id="secs">3</span>…

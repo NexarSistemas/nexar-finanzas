@@ -334,36 +334,32 @@ function toggleApiKey() {
   <div class="col-12">
     <div class="card border-info">
       <div class="card-header py-2 fw-semibold text-info">
-        <i class="bi bi-cloud-upload"></i> Actualización del sistema
+        <i class="bi bi-cloud-download"></i> Actualización del sistema
       </div>
       <div class="card-body">
         <div class="row g-3 align-items-start">
           <div class="col-md-6">
-            <h6 class="fw-semibold">Instalar actualización</h6>
+            <h6 class="fw-semibold">Actualizaciones por release</h6>
             <p class="small text-muted mb-2">
-              Subí el archivo <code>update_vX.Y.Z.zip</code> que recibiste.
+              Las actualizaciones se descargan desde la última release oficial de GitHub.
               La actualización <strong>no modifica tu base de datos ni tus copias de seguridad</strong>.
-              Se hace una copia de seguridad automática antes de aplicar cualquier cambio.
+              Se hace una copia de seguridad automática antes de descargar o instalar.
             </p>
-            <form method="POST" action="{{ url_for('sistema_actualizar') }}"
-                  enctype="multipart/form-data">
-              <div class="mb-3">
-                <label class="form-label fw-semibold">Archivo de actualización (.zip)</label>
-                <input type="file" name="archivo_update" class="form-control"
-                       accept=".zip" required>
-                <div class="form-text">Solo archivos ZIP de actualización oficiales.</div>
+            {% if can_use_updates %}
+              <a href="{{ url_for('actualizacion') }}" class="btn btn-info text-white">
+                <i class="bi bi-cloud-download"></i> Buscar actualizaciones
+              </a>
+            {% else %}
+              <div class="alert alert-warning small mb-0">
+                Las actualizaciones están disponibles solo para el Plan Pro.
               </div>
-              <button type="submit" class="btn btn-info text-white"
-                      onclick="return confirm('¿Confirmás la instalación de la actualización? Se hará una copia de seguridad automática antes de proceder.')">
-                <i class="bi bi-cloud-upload"></i> Instalar actualización
-              </button>
-            </form>
+            {% endif %}
           </div>
           <div class="col-md-5 offset-md-1">
             <div class="alert alert-light border small mb-0">
               <h6 class="fw-semibold"><i class="bi bi-shield-check text-success"></i> Qué hace la actualización</h6>
               <ul class="mb-0 ps-3">
-                <li>Reemplaza los archivos del sistema (código y plantillas)</li>
+                <li>Descarga el instalador compatible con tu sistema</li>
                 <li>Conserva tu base de datos intacta</li>
                 <li>Conserva tus copias de seguridad</li>
                 <li>Conserva tu licencia de activación</li>
@@ -372,7 +368,7 @@ function toggleApiKey() {
               <hr class="my-2">
               <p class="mb-0 text-muted">
                 Versión actual: <strong>v{{ app_version }}</strong><br>
-                Tras instalar, <strong>reiniciá la aplicación</strong> para que los cambios surtan efecto.
+                Tras instalar, <strong>cerrá y volvé a abrir la aplicación</strong> para que los cambios surtan efecto.
               </p>
             </div>
           </div>
