@@ -5,6 +5,15 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
+## [1.10.15] - 2026-04-23
+
+### Changed
+- La configuracion inicial, cambio y recuperacion de contrasena ahora comparten la politica uniforme de 6 a 12 caracteres, con mayuscula, minuscula, numero y simbolo.
+- La doble verificacion de contrasena queda aplicada en todos los flujos sensibles.
+- La respuesta secreta se valida y verifica con hash seguro normalizado, alineada con Nexar Tienda y Nexar Almacen.
+
+---
+
 ## [1.10.14] - 2026-04-22
 
 ### Fixed

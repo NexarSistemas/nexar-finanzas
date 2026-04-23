@@ -36,6 +36,40 @@ def hash_password(password: str) -> str:
 def verify_password(stored_hash: str, password: str) -> bool:
     return check_password_hash(stored_hash, password)
 
+def normalize_recovery_answer(answer: str) -> str:
+    return (answer or '').strip().lower()
+
+def hash_recovery_answer(answer: str) -> str:
+    return hash_password(normalize_recovery_answer(answer))
+
+def verify_recovery_answer(stored_hash: str, answer: str) -> bool:
+    return verify_password(stored_hash or '', normalize_recovery_answer(answer))
+
+def password_error(password: str) -> str:
+    if len(password or '') < 6 or len(password or '') > 12:
+        return 'La contraseña debe tener entre 6 y 12 caracteres.'
+    if not re.search(r'[A-Z]', password or ''):
+        return 'La contraseña debe incluir al menos una mayúscula.'
+    if not re.search(r'[a-z]', password or ''):
+        return 'La contraseña debe incluir al menos una minúscula.'
+    if not re.search(r'[0-9]', password or ''):
+        return 'La contraseña debe incluir al menos un número.'
+    if not re.search(r'[^A-Za-z0-9]', password or ''):
+        return 'La contraseña debe incluir al menos un carácter especial.'
+    return ''
+
+def password_confirmation_error(password: str, confirmation: str) -> str:
+    if password != confirmation:
+        return 'Las contraseñas no coinciden.'
+    return password_error(password)
+
+def recovery_error(question: str, answer: str) -> str:
+    if not (question or '').strip():
+        return 'Escribí una pregunta de seguridad.'
+    if len((answer or '').strip()) < 2:
+        return 'La respuesta de seguridad debe tener al menos 2 caracteres.'
+    return ''
+
 
 def login_required(f):
     """Decorador: redirige al login si no hay sesión activa."""
@@ -293,21 +327,19 @@ def register_routes(app):
             password  = request.form.get('password', '')
             confirm   = request.form.get('confirm', '')
             rec_q     = request.form.get('recovery_question', '').strip()
-            rec_a     = request.form.get('recovery_answer', '').strip().lower()
+            rec_a     = request.form.get('recovery_answer', '')
+            pw_error  = password_confirmation_error(password, confirm)
+            rec_error = recovery_error(rec_q, rec_a)
 
-            if len(password) < 4:
-                flash('La contraseña debe tener al menos 4 caracteres.', 'danger')
-            elif password != confirm:
-                flash('Las contraseñas no coinciden.', 'danger')
-            elif not rec_q:
-                flash('Escribí una pregunta de seguridad.', 'danger')
-            elif len(rec_a) < 2:
-                flash('La respuesta de seguridad debe tener al menos 2 caracteres.', 'danger')
+            if pw_error:
+                flash(pw_error, 'danger')
+            elif rec_error:
+                flash(rec_error, 'danger')
             else:
                 db = get_db(get_db_path())
                 db.execute(
                     "INSERT INTO user (id, username, password_hash, recovery_question, recovery_answer_hash) VALUES (1, ?, ?, ?, ?)",
-                    (username, hash_password(password), rec_q, hash_password(rec_a))
+                    (username, hash_password(password), rec_q, hash_recovery_answer(rec_a))
                 )
                 db.commit()
                 db.close()
@@ -337,8 +369,8 @@ def register_routes(app):
             action = request.form.get('action')
 
             if action == 'verify_answer':
-                answer = request.form.get('recovery_answer', '').strip().lower()
-                if user['recovery_answer_hash'] == hash_password(answer):
+                answer = request.form.get('recovery_answer', '')
+                if verify_recovery_answer(user['recovery_answer_hash'], answer):
                     session['recovery_verified'] = True
                     session['recovery_user_id']  = user['id']
                     return redirect(url_for('forgot_password', step='2'))
@@ -355,12 +387,10 @@ def register_routes(app):
 
                 new_pw  = request.form.get('new_password', '')
                 confirm = request.form.get('confirm_password', '')
+                pw_error = password_confirmation_error(new_pw, confirm)
 
-                if len(new_pw) < 4:
-                    flash('La contraseña debe tener al menos 4 caracteres.', 'danger')
-                    return render_template('forgot_password.html', step='2')
-                if new_pw != confirm:
-                    flash('Las contraseñas no coinciden.', 'danger')
+                if pw_error:
+                    flash(pw_error, 'danger')
                     return render_template('forgot_password.html', step='2')
 
                 db = get_db(get_db_path())
@@ -1147,12 +1177,11 @@ def register_routes(app):
                 new_pw     = request.form.get('new_password', '')
                 confirm_pw = request.form.get('confirm_password', '')
                 user = db.execute("SELECT * FROM user WHERE id=1").fetchone()
+                pw_error = password_confirmation_error(new_pw, confirm_pw)
                 if not verify_password(user['password_hash'], current_pw):
                     flash('Contraseña actual incorrecta.', 'danger')
-                elif len(new_pw) < 4:
-                    flash('La nueva contraseña debe tener al menos 4 caracteres.', 'danger')
-                elif new_pw != confirm_pw:
-                    flash('Las contraseñas no coinciden.', 'danger')
+                elif pw_error:
+                    flash(pw_error, 'danger')
                 else:
                     db.execute(
                         "UPDATE user SET password_hash=? WHERE id=1",
@@ -1163,19 +1192,18 @@ def register_routes(app):
 
             elif action == 'save_recovery':
                 rec_q        = request.form.get('recovery_question', '').strip()
-                rec_a        = request.form.get('recovery_answer', '').strip().lower()
+                rec_a        = request.form.get('recovery_answer', '')
                 current_pw   = request.form.get('current_password_recovery', '')
                 user = db.execute("SELECT * FROM user WHERE id=1").fetchone()
+                rec_error = recovery_error(rec_q, rec_a)
                 if not verify_password(user['password_hash'], current_pw):
                     flash('Contraseña actual incorrecta. No se guardó la pregunta de seguridad.', 'danger')
-                elif not rec_q:
-                    flash('Escribí una pregunta de seguridad.', 'danger')
-                elif len(rec_a) < 2:
-                    flash('La respuesta debe tener al menos 2 caracteres.', 'danger')
+                elif rec_error:
+                    flash(rec_error, 'danger')
                 else:
                     db.execute(
                         "UPDATE user SET recovery_question=?, recovery_answer_hash=? WHERE id=1",
-                        (rec_q, hash_password(rec_a))
+                        (rec_q, hash_recovery_answer(rec_a))
                     )
                     db.commit()
                     flash('✅ Pregunta de seguridad guardada correctamente.', 'success')
