@@ -21,11 +21,12 @@
         </div>
         <div class="mb-3">
           <label class="form-label fw-semibold">Contraseña</label>
-          <input type="password" name="password" class="form-control" required minlength="4">
+          <input type="password" name="password" class="form-control" required minlength="6" maxlength="12" autocomplete="new-password">
+          <div class="form-text">6 a 12 caracteres, con mayúscula, minúscula, número y carácter especial.</div>
         </div>
         <div class="mb-3">
           <label class="form-label fw-semibold">Confirmar contraseña</label>
-          <input type="password" name="confirm" class="form-control" required>
+          <input type="password" name="confirm" class="form-control" required minlength="6" maxlength="12" autocomplete="new-password">
         </div>
 
         <hr class="my-3">
@@ -52,8 +53,9 @@
                  placeholder="Tu respuesta..."
                  autocomplete="off"
                  maxlength="200"
+                 minlength="2"
                  required>
-          <div class="form-text">La respuesta no distingue mayúsculas/minúsculas. Guardala en un lugar seguro.</div>
+          <div class="form-text">Se guarda protegida, no distingue mayúsculas/minúsculas. Guardala en un lugar seguro.</div>
         </div>
 
         <button type="submit" class="btn btn-success w-100">

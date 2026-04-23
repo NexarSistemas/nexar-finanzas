@@ -35,11 +35,12 @@ function toggleApiKey() {
           </div>
           <div class="mb-3">
             <label class="form-label fw-semibold">Nueva contraseña</label>
-            <input type="password" name="new_password" class="form-control" required minlength="4">
+            <input type="password" name="new_password" class="form-control" required minlength="6" maxlength="12" autocomplete="new-password">
+            <div class="form-text">6 a 12 caracteres, con mayúscula, minúscula, número y carácter especial.</div>
           </div>
           <div class="mb-3">
             <label class="form-label fw-semibold">Confirmar nueva contraseña</label>
-            <input type="password" name="confirm_password" class="form-control" required>
+            <input type="password" name="confirm_password" class="form-control" required minlength="6" maxlength="12" autocomplete="new-password">
           </div>
           <button type="submit" class="btn btn-primary w-100">
             <i class="bi bi-shield-check"></i> Cambiar contraseña
@@ -85,8 +86,9 @@ function toggleApiKey() {
                    placeholder="Tu respuesta secreta..."
                    autocomplete="off"
                    maxlength="200"
+                   minlength="2"
                    required>
-            <div class="form-text">No distingue mayúsculas/minúsculas.</div>
+            <div class="form-text">Se guarda protegida y no distingue mayúsculas/minúsculas.</div>
           </div>
           <div class="mb-3">
             <label class="form-label fw-semibold">Contraseña actual (para confirmar)</label>
