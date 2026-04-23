@@ -58,19 +58,38 @@ echo -e "${GREEN}[OK] Python $PY_VER${NC}"
 echo -e "${YELLOW}[2/5] Preparando entorno virtual...${NC}"
 VENV_DIR=".venv_build"
 
-if [ ! -d "$VENV_DIR" ]; then
-    echo -e "${CYAN}Creando entorno nuevo...${NC}"
-    "$PYTHON" -m venv "$VENV_DIR"
-    # Solo instalamos si el entorno es nuevo
+create_build_venv() {
+    "$PYTHON" -m venv --system-site-packages "$VENV_DIR"
     "$VENV_DIR/bin/pip" install --upgrade pip pyinstaller
     if [ -f "requirements.txt" ]; then
         "$VENV_DIR/bin/pip" install -r requirements.txt
     fi
+}
+
+if [ ! -d "$VENV_DIR" ]; then
+    echo -e "${CYAN}Creando entorno nuevo...${NC}"
+    create_build_venv
+elif ! "$VENV_DIR/bin/python" -c 'import gi' >/dev/null 2>&1; then
+    echo -e "${YELLOW}[INFO] El entorno existente no ve PyGObject; se recrea con paquetes del sistema.${NC}"
+    rm -rf "$VENV_DIR"
+    create_build_venv
 else
     echo -e "${GREEN}[INFO] Usando entorno existente para ahorrar tiempo.${NC}"
 fi
 
 PYTHON="$VENV_DIR/bin/python"
+
+if ! "$PYTHON" - <<'PY'
+import gi
+gi.require_version("Gtk", "3.0")
+gi.require_version("WebKit2", "4.1")
+from gi.repository import Gtk, WebKit2  # noqa: F401
+PY
+then
+    echo -e "${RED}[ERROR] Faltan dependencias GTK/WebKit para pywebview nativo.${NC}"
+    echo -e "${RED}        Instalar: python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.1${NC}"
+    exit 1
+fi
 
 if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_ANON_KEY:-}" ] || [ -z "${SECRET_KEY:-}" ]; then
     echo -e "${RED}[ERROR] Faltan SUPABASE_URL, SUPABASE_ANON_KEY o SECRET_KEY para empaquetar licencias${NC}"
@@ -171,7 +190,7 @@ Version: ${APP_VERSION}
 Architecture: ${DEB_ARCH}
 Maintainer: Nexar Sistemas
 Installed-Size: ${INSTALLED_KB}
-Depends: libegl1, libgl1, libxcb-cursor0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-render-util0, libxcb-shape0, libxcb-xinerama0, libxkbcommon-x11-0
+Depends: python3-gi, python3-gi-cairo, gir1.2-gtk-3.0, gir1.2-webkit2-4.1, libegl1, libgl1, libxcb-cursor0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-render-util0, libxcb-shape0, libxcb-xinerama0, libxkbcommon-x11-0
 Section: misc
 Priority: optional
 Description: Nexar Finanzas
