@@ -106,13 +106,6 @@ def check_license():
         set_full({})
         return "FULL"
 
-    # ── Caso 2: primera vez, sin ningún registro → bienvenida ─────────────────
-    try:
-        from .activation_gui import WelcomeWindow
-        win = WelcomeWindow()
-        win.run()
-    except Exception as e:
-        print(f"[AVISO] No se pudo mostrar la pantalla de bienvenida: {e}")
-
+    # Sin licencia activa: iniciar en DEMO sin mostrar ventanas previas.
     set_demo()
     return "DEMO"
