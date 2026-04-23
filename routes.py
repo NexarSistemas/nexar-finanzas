@@ -7,8 +7,13 @@ Maneja autenticación, transacciones, cuentas, presupuestos, inversiones y repor
 import os
 import sys
 import io
+import re
+import shutil
+import subprocess
+import threading
 from datetime import date, datetime
 from functools import wraps
+from pathlib import Path
 from flask import (
     render_template, redirect, url_for, request, session,
     flash, g, current_app, send_file, make_response, jsonify,
@@ -19,6 +24,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from models import get_db, recalculate_account_balance
 from demo_limits import check_limit, is_full_version, get_demo_status
 from licensing.hardware_id import get_hardware_id
+from update_checker import download_release_asset, get_cached_update_info
 import services
 
 
@@ -44,6 +50,179 @@ def login_required(f):
 
 def get_db_path():
     return current_app.config['DB_PATH']
+
+
+def _update_dir() -> Path:
+    return Path(current_app.config['BASE_DIR']) / "updates"
+
+
+def _version_tuple(version: str) -> tuple[int, int, int]:
+    parts = []
+    for chunk in (version or "0.0.0").strip().lstrip("vV").split(".")[:3]:
+        parts.append(int("".join(ch for ch in chunk if ch.isdigit()) or 0))
+    while len(parts) < 3:
+        parts.append(0)
+    return tuple(parts)
+
+
+def _installer_version(filename: str) -> str:
+    patterns = (
+        r"^NexarFinanzas_v(?P<version>[0-9]+(?:\.[0-9]+){1,2})_linux_amd64\.deb$",
+        r"^NexarFinanzas_v(?P<version>[0-9]+(?:\.[0-9]+){1,2})_setup\.exe$",
+        r"^NexarFinanzas_v(?P<version>[0-9]+(?:\.[0-9]+){1,2})_Setup\.exe$",
+    )
+    for pattern in patterns:
+        match = re.match(pattern, filename or "")
+        if match:
+            return match.group("version")
+    return ""
+
+
+def _update_list() -> list[dict]:
+    current_version = current_app.config.get("APP_VERSION", "0.0.0")
+    update_dir = _update_dir()
+    update_dir.mkdir(parents=True, exist_ok=True)
+    items = []
+    candidates = [
+        *update_dir.glob("NexarFinanzas_v*_linux_amd64.deb"),
+        *update_dir.glob("NexarFinanzas_v*_setup.exe"),
+        *update_dir.glob("NexarFinanzas_v*_Setup.exe"),
+    ]
+    for path in sorted(candidates, key=lambda p: p.stat().st_mtime, reverse=True):
+        installer_version = _installer_version(path.name)
+        if installer_version and _version_tuple(installer_version) <= _version_tuple(current_version):
+            continue
+        stat = path.stat()
+        is_windows_installer = path.suffix.lower() == ".exe"
+        items.append({
+            "nombre": path.name,
+            "version": installer_version,
+            "fecha": datetime.fromtimestamp(stat.st_mtime).strftime("%d/%m/%Y %H:%M"),
+            "tamanio_mb": round(stat.st_size / 1024 / 1024, 1),
+            "comando": str(path) if is_windows_installer else f"sudo apt install {path}",
+            "tipo": "Windows" if is_windows_installer else "Linux",
+        })
+    return items
+
+
+def _update_file(nombre: str) -> Path:
+    safe_name = Path(nombre or "").name
+    valid = bool(_installer_version(safe_name))
+    if safe_name != nombre or not valid:
+        raise FileNotFoundError("Instalador invalido.")
+    update_dir = _update_dir()
+    path = (update_dir / safe_name).resolve()
+    if path.parent != update_dir.resolve() or not path.exists():
+        raise FileNotFoundError("Instalador no encontrado.")
+    return path
+
+
+def _requires_manual_reopen(installer_name: str) -> bool:
+    return sys.platform.startswith("win") and (installer_name or "").lower().endswith(".exe")
+
+
+def _get_config_values(keys: tuple[str, ...] | None = None, db_path: str | None = None) -> dict[str, str]:
+    db = get_db(db_path or get_db_path())
+    if keys:
+        placeholders = ",".join("?" for _ in keys)
+        rows = db.execute(f"SELECT key, value FROM config WHERE key IN ({placeholders})", keys).fetchall()
+    else:
+        rows = db.execute("SELECT key, value FROM config").fetchall()
+    db.close()
+    return {row["key"]: row["value"] for row in rows}
+
+
+def _set_config_values(values: dict[str, str], db_path: str | None = None) -> None:
+    db = get_db(db_path or get_db_path())
+    for key, value in values.items():
+        db.execute("INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)", (key, value))
+    db.commit()
+    db.close()
+
+
+def _update_install_state(current_version: str | None = None) -> dict:
+    cfg = _get_config_values((
+        "update_target_version",
+        "update_install_status",
+        "update_installer_name",
+        "update_started_at",
+        "update_finished_at",
+        "update_installed_at",
+        "update_install_error",
+    ))
+    target_version = cfg.get("update_target_version", "")
+    status = cfg.get("update_install_status", "")
+    if not target_version or not status:
+        return {"status": ""}
+
+    current_version = current_version or current_app.config.get("APP_VERSION", "0.0.0")
+    installer_name = cfg.get("update_installer_name", "")
+    manual_reopen = _requires_manual_reopen(installer_name)
+    if _version_tuple(current_version) >= _version_tuple(target_version):
+        if status != "installed":
+            _set_config_values({
+                "update_install_status": "installed",
+                "update_installed_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            })
+            status = "installed"
+        return {
+            "status": status,
+            "target_version": target_version,
+            "current_version": current_version,
+            "installer": installer_name,
+            "installed_at": cfg.get("update_installed_at", ""),
+            "manual_reopen": manual_reopen,
+        }
+
+    return {
+        "status": status,
+        "target_version": target_version,
+        "current_version": current_version,
+        "installer": installer_name,
+        "started_at": cfg.get("update_started_at", ""),
+        "finished_at": cfg.get("update_finished_at", ""),
+        "error": cfg.get("update_install_error", ""),
+        "manual_reopen": manual_reopen,
+    }
+
+
+def _mark_update_process_finished(target_version: str, process: subprocess.Popen, db_path: str) -> None:
+    try:
+        return_code = process.wait()
+        data = {
+            "update_install_status": "ready_restart" if return_code == 0 else "install_failed",
+            "update_finished_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        }
+        if return_code != 0:
+            data["update_install_error"] = f"El instalador termino con codigo {return_code}."
+        _set_config_values(data, db_path=db_path)
+    except Exception as exc:
+        _set_config_values({
+            "update_install_status": "install_failed",
+            "update_finished_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "update_install_error": str(exc),
+        }, db_path=db_path)
+
+
+def _track_update_process(target_version: str, process: subprocess.Popen) -> None:
+    thread = threading.Thread(
+        target=_mark_update_process_finished,
+        args=(target_version, process, get_db_path()),
+        daemon=True,
+    )
+    thread.start()
+
+
+def _apt_readable_copy(installer: Path) -> Path:
+    temp_dir = Path("/tmp") / "nexar-finanzas-updates"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    if os.name != "nt":
+        temp_dir.chmod(0o755)
+    target = temp_dir / installer.name
+    shutil.copy2(installer, target)
+    if os.name != "nt":
+        target.chmod(0o644)
+    return target
 
 
 # ─── Registro principal de rutas ──────────────────────────────────────────────
@@ -1042,6 +1221,7 @@ def register_routes(app):
         db.close()
         demo_status = get_demo_status(get_db_path())
         backups = services.listar_backups(current_app.config['BASE_DIR'])
+        can_use_updates = demo_status.get('tier') == 'PRO' and demo_status.get('can_update')
         return render_template('settings.html',
                                user=dict(user) if user else {},
                                user_recovery_question=user_recovery_question,
@@ -1049,7 +1229,8 @@ def register_routes(app):
                                backup_cfg=backup_cfg,
                                backups=backups,
                                ai_api_key=ai_api_key,
-                               ai_enabled=ai_enabled)
+                               ai_enabled=ai_enabled,
+                               can_use_updates=can_use_updates)
 
     # ══════════════════════════════════════════════════════════════════════════
     # COTIZACIONES
@@ -1121,100 +1302,225 @@ def register_routes(app):
     # ACTUALIZACIÓN DEL SISTEMA
     # ══════════════════════════════════════════════════════════════════════════
 
+    @app.route('/actualizacion')
+    @login_required
+    def actualizacion():
+        demo_status = get_demo_status(get_db_path())
+        can_use_updates = demo_status.get('tier') == 'PRO' and demo_status.get('can_update')
+        if not can_use_updates:
+            flash('Las actualizaciones del sistema estan disponibles solo en el Plan Pro.', 'warning')
+            return redirect(url_for('dashboard'))
+
+        app_version = current_app.config.get("APP_VERSION", "0.0.0")
+        update_state = _update_install_state(app_version)
+        update_info = (
+            get_cached_update_info(current_app, app_version)
+            if update_state.get("status") not in {"in_progress", "ready_restart"}
+            else {"available": False}
+        )
+        return render_template(
+            'actualizacion.html',
+            app_version=app_version,
+            update_info=update_info,
+            update_state=update_state,
+            actualizaciones=_update_list(),
+            update_dir=_update_dir(),
+        )
+
+    @app.route('/actualizacion/descargar', methods=['POST'])
+    @login_required
+    def actualizacion_descargar():
+        demo_status = get_demo_status(get_db_path())
+        if demo_status.get('tier') != 'PRO' or not demo_status.get('can_update'):
+            flash("Las actualizaciones estan disponibles solo para el Plan Pro.", "warning")
+            return redirect(url_for("actualizacion"))
+
+        update_info = get_cached_update_info(current_app, current_app.config.get("APP_VERSION", "0.0.0"))
+        if not update_info.get("available"):
+            flash("No hay una actualizacion nueva disponible.", "info")
+            return redirect(url_for("actualizacion"))
+        if not update_info.get("asset_url"):
+            flash("La release existe, pero no tiene instalador compatible para este sistema. Abrila en GitHub.", "warning")
+            return redirect(url_for("actualizacion"))
+
+        backup = services.realizar_backup(get_db_path(), current_app.config['BASE_DIR'])
+        if not backup.get('ok'):
+            flash(f"No se pudo crear el respaldo previo: {backup.get('mensaje', '')}", "danger")
+            return redirect(url_for("actualizacion"))
+
+        try:
+            target = download_release_asset(update_info["asset_url"], _update_dir())
+        except Exception as exc:
+            flash(f"No se pudo descargar la actualizacion: {exc}", "danger")
+            return redirect(url_for("actualizacion"))
+
+        flash(
+            f"Actualizacion descargada: {target.name}. Respaldo previo: {backup.get('archivo')}.",
+            "success",
+        )
+        return redirect(url_for("actualizacion"))
+
+    @app.route('/actualizacion/abrir-carpeta', methods=['POST'])
+    @login_required
+    def actualizacion_abrir_carpeta():
+        update_dir = _update_dir()
+        update_dir.mkdir(parents=True, exist_ok=True)
+        if sys.platform.startswith("linux"):
+            try:
+                subprocess.Popen(["xdg-open", str(update_dir)])
+                flash("Carpeta de actualizaciones abierta.", "success")
+            except Exception as exc:
+                flash(f"No se pudo abrir la carpeta: {exc}", "warning")
+        elif sys.platform.startswith("win"):
+            try:
+                os.startfile(str(update_dir))  # type: ignore[attr-defined]
+                flash("Carpeta de actualizaciones abierta.", "success")
+            except Exception as exc:
+                flash(f"No se pudo abrir la carpeta: {exc}", "warning")
+        else:
+            flash(f"Carpeta de actualizaciones: {update_dir}", "info")
+        return redirect(url_for("actualizacion"))
+
+    @app.route('/actualizacion/instalar/<nombre>', methods=['POST'])
+    @login_required
+    def actualizacion_instalar(nombre):
+        demo_status = get_demo_status(get_db_path())
+        if demo_status.get('tier') != 'PRO' or not demo_status.get('can_update'):
+            flash("Las actualizaciones estan disponibles solo para el Plan Pro.", "warning")
+            return redirect(url_for("actualizacion"))
+
+        try:
+            installer = _update_file(nombre)
+        except FileNotFoundError as exc:
+            flash(str(exc), "danger")
+            return redirect(url_for("actualizacion"))
+
+        target_version = _installer_version(installer.name)
+        if not target_version:
+            flash("No se pudo identificar la version del instalador.", "warning")
+            return redirect(url_for("actualizacion"))
+
+        _set_config_values({
+            "update_install_status": "in_progress",
+            "update_target_version": target_version,
+            "update_installer_name": installer.name,
+            "update_started_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "update_finished_at": "",
+            "update_installed_at": "",
+            "update_install_error": "",
+        })
+
+        backup = services.realizar_backup(get_db_path(), current_app.config['BASE_DIR'])
+        if not backup.get('ok'):
+            _set_config_values({"update_install_status": "install_failed", "update_install_error": backup.get('mensaje', '')})
+            flash(f"No se pudo crear el respaldo previo: {backup.get('mensaje', '')}", "danger")
+            return redirect(url_for("actualizacion"))
+
+        is_windows_installer = installer.suffix.lower() == ".exe"
+        command = str(installer) if is_windows_installer else f"sudo apt install /tmp/nexar-finanzas-updates/{installer.name}"
+
+        if sys.platform.startswith("win") and is_windows_installer:
+            try:
+                process = subprocess.Popen([str(installer)])
+                _track_update_process(target_version, process)
+                flash(
+                    f"Instalador de Windows iniciado. Respaldo previo: {backup.get('archivo')}. "
+                    "Cuando termine, Nexar Finanzas te va a pedir cerrar la app.",
+                    "success",
+                )
+            except Exception as exc:
+                _set_config_values({"update_install_status": "install_failed", "update_install_error": str(exc)})
+                flash(f"No se pudo iniciar el instalador: {exc}. Ejecuta manualmente: {command}", "warning")
+            return redirect(url_for("actualizacion"))
+
+        if not sys.platform.startswith("linux"):
+            _set_config_values({
+                "update_install_status": "ready_restart",
+                "update_finished_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            })
+            flash(f"Respaldo creado ({backup.get('archivo')}). Instala manualmente: {command}", "info")
+            return redirect(url_for("actualizacion"))
+
+        try:
+            apt_installer = _apt_readable_copy(installer)
+            process = subprocess.Popen(["pkexec", "apt", "install", "-y", str(apt_installer)])
+            _track_update_process(target_version, process)
+            flash(
+                f"Instalador iniciado con permisos de administrador. Respaldo previo: {backup.get('archivo')}. "
+                "Cuando termine, Nexar Finanzas te va a pedir cerrar la app.",
+                "success",
+            )
+        except FileNotFoundError:
+            _set_config_values({
+                "update_install_status": "ready_restart",
+                "update_finished_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            })
+            flash(f"Respaldo creado ({backup.get('archivo')}). pkexec no esta disponible; ejecuta: {command}", "warning")
+        except Exception as exc:
+            _set_config_values({"update_install_status": "install_failed", "update_install_error": str(exc)})
+            flash(f"No se pudo iniciar el instalador: {exc}. Ejecuta: {command}", "warning")
+        return redirect(url_for("actualizacion"))
+
+    @app.route('/actualizacion/estado')
+    @login_required
+    def actualizacion_estado():
+        return jsonify(_update_install_state(current_app.config.get("APP_VERSION", "0.0.0")))
+
+    @app.route('/actualizacion/reiniciar', methods=['POST'])
+    @login_required
+    def actualizacion_reiniciar():
+        session.clear()
+        installer_name = _get_config_values(("update_installer_name",)).get("update_installer_name", "")
+        manual_reopen = _requires_manual_reopen(installer_name)
+
+        response = make_response(render_template(
+            'shutdown_done.html',
+            sistema='Windows' if sys.platform.startswith('win') else 'Linux',
+            titulo="Cerrando Nexar Finanzas",
+            mensaje=(
+                "La actualizacion ya se instalo. Volve a abrir Nexar Finanzas desde el acceso directo."
+                if manual_reopen
+                else "La app se cerrara para que puedas volver a abrirla con la version nueva."
+            ),
+        ))
+
+        def stop():
+            import time
+            time.sleep(1.5)
+            try:
+                webview_window = current_app.config.get('WEBVIEW_WINDOW')
+                if webview_window is not None:
+                    webview_window.destroy()
+            except Exception:
+                pass
+            os._exit(0)
+
+        threading.Thread(target=stop, daemon=True).start()
+        return response
+
+    @app.route('/actualizacion/limpiar-estado', methods=['POST'])
+    @login_required
+    def actualizacion_limpiar_estado():
+        _set_config_values({
+            "update_install_status": "",
+            "update_target_version": "",
+            "update_installer_name": "",
+            "update_started_at": "",
+            "update_finished_at": "",
+            "update_installed_at": "",
+            "update_install_error": "",
+        })
+        return redirect(url_for("actualizacion"))
+
     @app.route('/sistema/actualizar', methods=['POST'])
     @login_required
     def sistema_actualizar():
-        import zipfile, json, shutil, tempfile
-        from demo_limits import get_tier
-
-        tier = get_tier(get_db_path())
-        if tier != 'PRO':
+        demo_status = get_demo_status(get_db_path())
+        if demo_status.get('tier') != 'PRO' or not demo_status.get('can_update'):
             flash('⚠ Las actualizaciones del sistema están disponibles solo en el Plan Pro.', 'warning')
             return redirect(url_for('settings'))
-
-        archivo = request.files.get('archivo_update')
-        if not archivo or not archivo.filename.endswith('.zip'):
-            flash('Seleccioná un archivo ZIP de actualización válido.', 'danger')
-            return redirect(url_for('settings'))
-
-        app_dir  = current_app.config.get('APP_DIR', current_app.config['BASE_DIR'])
-        base_dir = current_app.config['BASE_DIR']
-        db_path  = get_db_path()
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            zip_path = os.path.join(tmpdir, 'update.zip')
-            archivo.save(zip_path)
-
-            if not zipfile.is_zipfile(zip_path):
-                flash('El archivo no es un ZIP válido.', 'danger')
-                return redirect(url_for('settings'))
-
-            with zipfile.ZipFile(zip_path, 'r') as zf:
-                nombres = zf.namelist()
-
-                meta_file = None
-                for posible in ('update_manifest.json', 'UPDATE_META.json'):
-                    matches = [n for n in nombres if n == posible or n.endswith('/' + posible)]
-                    if matches:
-                        meta_file = matches[0]
-                        break
-
-                if not meta_file:
-                    flash('El archivo no es un paquete de actualización válido '
-                          '(falta update_manifest.json).', 'danger')
-                    return redirect(url_for('settings'))
-
-                meta_raw = zf.read(meta_file).decode('utf-8')
-                try:
-                    meta = json.loads(meta_raw)
-                except Exception:
-                    flash('Metadatos de actualización corruptos.', 'danger')
-                    return redirect(url_for('settings'))
-
-                version_nueva = meta.get('version', '?')
-
-                PROTEGIDOS = {
-                    'database.db', 'backups/', 'backups',
-                    'UPDATE_META.json', 'update_manifest.json',
-                }
-
-                services.realizar_backup(db_path, base_dir)
-
-                extraidos = 0
-                for nombre in nombres:
-                    nombre_base = nombre.split('/')[0] if '/' in nombre else nombre
-                    if nombre_base in PROTEGIDOS or nombre.startswith('backups/'):
-                        continue
-                    if '__pycache__' in nombre:
-                        continue
-
-                    destino = os.path.join(app_dir, nombre)
-                    destino_real = os.path.realpath(destino)
-                    base_real    = os.path.realpath(app_dir)
-                    if not destino_real.startswith(base_real):
-                        continue
-
-                    if nombre.endswith('/'):
-                        os.makedirs(destino, exist_ok=True)
-                        continue
-
-                    os.makedirs(os.path.dirname(destino), exist_ok=True)
-                    with zf.open(nombre) as src, open(destino, 'wb') as dst:
-                        shutil.copyfileobj(src, dst)
-                    extraidos += 1
-
-        import sys as _sys
-        for mod in ['routes', 'services', 'models', 'activation', 'demo_limits']:
-            if mod in _sys.modules:
-                del _sys.modules[mod]
-
-        flash(
-            f'✅ Actualización a v{version_nueva} aplicada correctamente. '
-            f'{extraidos} archivos actualizados. '
-            'Reiniciá la aplicación para que los cambios surtan efecto.',
-            'success'
-        )
-        return redirect(url_for('settings'))
+        flash('El flujo por ZIP fue reemplazado por actualizaciones desde releases oficiales.', 'info')
+        return redirect(url_for('actualizacion'))
 
     # ══════════════════════════════════════════════════════════════════════════
     # INTELIGENCIA ARTIFICIAL

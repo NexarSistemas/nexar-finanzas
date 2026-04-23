@@ -5,7 +5,16 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
-<<<<<<< corrige-licencias-finanzas-instaladas
+## [1.10.12] - 2026-04-22
+
+### Added
+- Actualizaciones automáticas para Plan Pro desde la última release de GitHub, con descarga de instaladores por plataforma, respaldo previo y estado de instalación.
+
+### Changed
+- La sección de actualización deja de usar paquetes ZIP manuales y dirige al flujo de releases, manteniendo el bloqueo para Plan Básico.
+
+---
+
 ## [1.10.11] - 2026-04-22
 
 ### Fixed
@@ -14,8 +23,6 @@ Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
 
-=======
->>>>>>> main
 ## [1.10.10] - 2026-04-22
 
 ### Fixed
