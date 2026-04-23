@@ -5,6 +5,15 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
+## [1.10.13] - 2026-04-22
+
+### Fixed
+- El paquete `.deb` de Linux ahora instala el comando `nexarfinanzas`, el lanzador de escritorio y el icono de la aplicacion.
+- El lanzador de escritorio usa el wrapper instalado para iniciar la app desde `/opt/NexarFinanzas`.
+- El build Linux empaqueta `SECRET_KEY` en `.env.finanzas` para evitar fallos de arranque en la app instalada.
+
+---
+
 ## [1.10.12] - 2026-04-22
 
 ### Added
