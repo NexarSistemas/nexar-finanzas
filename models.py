@@ -143,19 +143,17 @@ def normalize_license_plan(plan: str | None) -> str:
         "BASICO": "BASICA",
         "BASICA": "BASICA",
         "DEMO": "DEMO",
-        "FULL": "MENSUAL_FULL",
-        "MENSUAL": "MENSUAL_FULL",
-        "MENSUAL_FULL": "MENSUAL_FULL",
-        "PRO": "MENSUAL_FULL",
+        "PRO": "PRO",
+        "MENSUAL_PRO": "PRO",
+        "FULL": "FULL",
+        "MENSUAL": "FULL",
+        "MENSUAL_FULL": "FULL",
     }
     return aliases.get(raw, "BASICA")
 
 
 def _local_tier_from_plan(plan: str | None) -> str:
-    normalized = normalize_license_plan(plan)
-    if normalized == "MENSUAL_FULL":
-        return "PRO"
-    return normalized
+    return normalize_license_plan(plan)
 
 
 def sync_license_from_remote(db_path: str, license_data: dict) -> None:
@@ -259,332 +257,93 @@ def init_db(db_path: str):
             cur.execute("UPDATE categories SET es_necesario=0 WHERE name=? AND type='expense'", (nombre,))
         conn.commit()
 
-    # ── Migración segura: agregar UNIQUE si la tabla ya existe sin él ───────────
-    # Verificar si ya tiene la restricción unique comprobando si existe el índice
+    # Cuentas por cobrar / pagar
     cur.execute("""
-        SELECT COUNT(*) as n FROM sqlite_master
-        WHERE type='index' AND tbl_name='categories'
-        AND sql LIKE '%UNIQUE%'
-    """)
-    tiene_unique = cur.fetchone()[0] > 0
-
-    if not tiene_unique:
-        # 1. Limpiar duplicados: conservar el de menor id por cada (name, type)
-        cur.execute("""
-            DELETE FROM categories
-            WHERE id NOT IN (
-                SELECT MIN(id) FROM categories GROUP BY name, type
-            )
-        """)
-        # 2. Recrear la tabla con la restricción UNIQUE y migrar los datos limpios.
-        #    Deshabilitamos foreign keys temporalmente para poder hacer DROP TABLE
-        #    sin que falle por las referencias desde transactions/budgets.
-        #    PRAGMA foreign_keys debe ejecutarse fuera de una transacción activa.
-        conn.commit()                            # cerrar transacción activa
-        conn.execute("PRAGMA foreign_keys = OFF")  # desactivar en la conexión
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS categories_new (
-                id           INTEGER PRIMARY KEY AUTOINCREMENT,
-                name         TEXT NOT NULL,
-                type         TEXT NOT NULL CHECK (type IN ('income','expense')),
-                active       INTEGER NOT NULL DEFAULT 1,
-                es_necesario INTEGER NOT NULL DEFAULT 1,
-                UNIQUE(name, type)
-            )
-        """)
-        cur.execute("""
-            INSERT OR IGNORE INTO categories_new (id, name, type, active, es_necesario)
-            SELECT id, name, type, active, COALESCE(es_necesario, 1) FROM categories
-        """)
-        cur.execute("DROP TABLE categories")
-        cur.execute("ALTER TABLE categories_new RENAME TO categories")
-        conn.commit()
-        conn.execute("PRAGMA foreign_keys = ON")  # reactivar
-
-    # Transacciones: ingresos y gastos
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS transactions (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            type        TEXT NOT NULL CHECK (type IN ('income','expense')),
-            amount      REAL NOT NULL CHECK (amount > 0),
-            currency    TEXT NOT NULL DEFAULT 'ARS',
-            category_id INTEGER REFERENCES categories(id),
-            account_id  INTEGER REFERENCES accounts(id),
-            method      TEXT CHECK (method IN ('cash','debit','credit','transfer','virtual')),
-            date        TEXT NOT NULL,
-            description TEXT,
-            created_at  TEXT DEFAULT CURRENT_TIMESTAMP
+        CREATE TABLE IF NOT EXISTS receivables_payables (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            type          TEXT NOT NULL CHECK (type IN ('receivable','payable')),
+            description   TEXT NOT NULL,
+            person        TEXT,
+            amount        REAL NOT NULL,
+            due_date      TEXT,
+            status        TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','paid','cancelled')),
+            account_id    INTEGER,
+            created_at    TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(account_id) REFERENCES accounts(id)
         )
     """)
 
-    # Transferencias entre cuentas propias
+    # Transacciones: ingresos, egresos, transferencias
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS transfers (
+        CREATE TABLE IF NOT EXISTS transactions (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            type           TEXT NOT NULL CHECK (type IN ('income','expense','transfer')),
+            date           TEXT NOT NULL,
+            description    TEXT,
+            amount         REAL NOT NULL,
+            account_id     INTEGER,
+            to_account_id  INTEGER,
+            category_id    INTEGER,
+            notes          TEXT,
+            created_at     TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(account_id)    REFERENCES accounts(id),
+            FOREIGN KEY(to_account_id) REFERENCES accounts(id),
+            FOREIGN KEY(category_id)   REFERENCES categories(id)
+        )
+    """)
+
+    # Inversiones
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS investments (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            from_account_id INTEGER REFERENCES accounts(id),
-            to_account_id   INTEGER REFERENCES accounts(id),
-            amount          REAL NOT NULL CHECK (amount > 0),
-            currency        TEXT NOT NULL DEFAULT 'ARS',
-            date            TEXT NOT NULL,
-            description     TEXT,
+            name            TEXT NOT NULL,
+            type            TEXT NOT NULL,
+            currency        TEXT NOT NULL DEFAULT 'ARS' CHECK (currency IN ('ARS','USD')),
+            initial_amount  REAL NOT NULL,
+            current_amount  REAL NOT NULL,
+            start_date      TEXT,
+            notes           TEXT,
+            active          INTEGER NOT NULL DEFAULT 1,
             created_at      TEXT DEFAULT CURRENT_TIMESTAMP
         )
     """)
 
-    # Presupuestos mensuales por categoría
+    # Presupuestos mensuales
     cur.execute("""
         CREATE TABLE IF NOT EXISTS budgets (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            category_id INTEGER REFERENCES categories(id),
-            amount      REAL NOT NULL CHECK (amount > 0),
-            month       INTEGER NOT NULL,
-            year        INTEGER NOT NULL,
-            UNIQUE (category_id, month, year)
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            category_id  INTEGER NOT NULL,
+            month        TEXT NOT NULL,  -- YYYY-MM
+            limit_amount REAL NOT NULL,
+            created_at   TEXT DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(category_id, month),
+            FOREIGN KEY(category_id) REFERENCES categories(id)
         )
     """)
 
-    # Inversiones: acciones, cripto, bonos, FCI, etc.
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS investments (
-            id               INTEGER PRIMARY KEY AUTOINCREMENT,
-            asset_type       TEXT NOT NULL,
-            asset_name       TEXT NOT NULL,
-            ticker           TEXT,
-            transaction_type TEXT NOT NULL CHECK (transaction_type IN ('buy','sell')),
-            quantity         REAL NOT NULL CHECK (quantity > 0),
-            price            REAL NOT NULL CHECK (price > 0),
-            currency         TEXT NOT NULL DEFAULT 'ARS',
-            date             TEXT NOT NULL,
-            notes            TEXT,
-            created_at       TEXT DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+    # Config inicial por defecto
+    machine_id = _generate_machine_id()
+    today = date.today().isoformat()
 
-    # Caché de precios de mercado actualizados por activo
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS precios_mercado (
-            id            INTEGER PRIMARY KEY AUTOINCREMENT,
-            asset_name    TEXT NOT NULL,
-            ticker        TEXT,
-            precio_actual REAL,
-            variacion_dia REAL,
-            moneda        TEXT NOT NULL DEFAULT 'ARS',
-            fuente        TEXT,
-            updated_at    TEXT,
-            UNIQUE(asset_name)
-        )
-    """)
+    existing = {row[0]: row[1] for row in cur.execute("SELECT key, value FROM config").fetchall()}
+    if 'demo_install_date' not in existing:
+        telemetry_date = _read_telemetry(machine_id)
+        install_date = telemetry_date or today
+        cur.execute("INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)", ('demo_install_date', install_date))
+        if not telemetry_date:
+            _write_telemetry(install_date, machine_id)
 
-    # Última cotización del dólar (cache heredado — se mantiene para compatibilidad)
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS usd_rate (
-            id         INTEGER PRIMARY KEY CHECK (id = 1),
-            oficial    REAL,
-            blue       REAL,
-            updated_at TEXT
-        )
-    """)
-
-    # Caché de cotizaciones completas (dólar, euro, cripto) en formato JSON
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS cotizaciones_cache (
-            id         INTEGER PRIMARY KEY CHECK (id = 1),
-            datos_json TEXT,
-            updated_at TEXT
-        )
-    """)
-
-    # Precios de mercado actualizados automáticamente para inversiones
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS precios_mercado (
-            asset_name   TEXT PRIMARY KEY,
-            ticker       TEXT,
-            precio_actual REAL,
-            variacion_dia REAL,
-            moneda       TEXT DEFAULT 'ARS',
-            fuente       TEXT,
-            updated_at   TEXT
-        )
-    """)
-
-    # Agregar columna ticker a investments si no existe (migración segura)
-    try:
-        cur.execute("ALTER TABLE investments ADD COLUMN ticker TEXT")
-    except Exception:
-        pass  # Ya existe, ignorar
-
-    # Índices para mejorar performance en consultas frecuentes
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_tx_date      ON transactions(date)")
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_tx_type      ON transactions(type)")
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_tx_category  ON transactions(category_id)")
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_tx_account   ON transactions(account_id)")
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_budget_month ON budgets(year, month)")
-
-    # ── Datos iniciales ────────────────────────────────────────────────────────
-
-    # Versión por defecto: DEMO
-    cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('version', 'DEMO')")
-    cur.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('app_name', 'Nexar Finanzas')") #
-    cur.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('app_version', '1.10.7')") #
-    # Configuración de copias de seguridad automáticas
-    cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('backup_frecuencia', 'semanal')")
-    cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('backup_ultima_vez', '')")
-    cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('backup_cantidad_max', '5')")
-    cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('ai_api_key', '')")
-    cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('ai_enabled', '1')")
-    # ── Sistema de licencias por tiers ────────────────────────────────────────
-    # license_tier:       'DEMO' | 'BASICA' | 'PRO'
-    # license_expires_at: fecha ISO de vencimiento PRO (vacío = no vence)
-    # demo_install_date:  fecha ISO de primera instalación (gestionada por anti-reinstall)
-    # machine_id:         hardware ID del equipo (gestionado más abajo)
-    cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('license_tier', 'DEMO')")
-    cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('license_plan', 'DEMO')")
-    cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('license_expires_at', '')")
-    cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('license_key', '')")
-    cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('license_signature', '')")
-    cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('license_data_full', '{}')")
-    cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('license_last_check', '')")
-    cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('license_max_devices', '1')")
-    cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('basica_activada', '0')")
-    cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('demo_install_date', '')")
-
-    # Categorías de gastos predeterminadas: (nombre, es_necesario)
-    # 1 = necesario (básico para vivir), 0 = prescindible (opcional)
-    default_expense_cats = [
-        ('Alimentación',       1),
-        ('Transporte',         1),
-        ('Servicios',          1),
-        ('Alquiler/Hipoteca',  1),
-        ('Salud',              1),
-        ('Educación',          1),
-        ('Entretenimiento',    0),
-        ('Ropa',               0),
-        ('Tecnología',         0),
-        ('Otros gastos',       1),
-    ]
-    for cat_name, es_nec in default_expense_cats:
-        cur.execute(
-            "INSERT OR IGNORE INTO categories (name, type, es_necesario) VALUES (?, 'expense', ?)",
-            (cat_name, es_nec)
-        )
-        # Actualizar el flag en bases existentes que ya tienen la categoría sin clasificar
-        cur.execute(
-            """UPDATE categories SET es_necesario=?
-               WHERE name=? AND type='expense'
-               AND es_necesario=1
-               AND ? = 0""",
-            (es_nec, cat_name, es_nec)
-        )
-
-    # Categorías de ingresos predeterminadas
-    default_income_cats = [
-        'Sueldo', 'Freelance', 'Alquiler cobrado', 'Inversiones', 'Otros ingresos'
-    ]
-    for cat in default_income_cats:
-        cur.execute(
-            "INSERT OR IGNORE INTO categories (name, type) VALUES (?, 'income')",
-            (cat,)
-        )
-
-    # ── Machine ID — generar si no existe ─────────────────────────────────────
-    # Se genera una sola vez y se persiste. Identifica este equipo de forma única.
-    _mid_row = cur.execute("SELECT value FROM config WHERE key='machine_id'").fetchone()
-    if not _mid_row or not _mid_row[0]:
-        _new_mid = _generate_machine_id()
-        cur.execute(
-            "INSERT OR REPLACE INTO config (key, value) VALUES ('machine_id', ?)",
-            (_new_mid,)
-        )
-        _mid = _new_mid
-    else:
-        _mid = _mid_row[0]
-
-    # ── Anti-reinstall: demo_install_date ─────────────────────────────────────
-    # Lógica de 3 casos:
-    #   1. telemetry.bin existe y es válido → es la fuente de verdad
-    #      Si la DB fue borrada y la fecha difiere, se restaura la original
-    #   2. Solo la DB tiene fecha (post-update o primer arranque post-v1.9.x)
-    #      → crear el archivo externo con esa fecha
-    #   3. Ninguno tiene fecha → primera instalación real
-    #      → guardar hoy en DB y en archivo externo
-    _telem_date = _read_telemetry(_mid)
-    _inst_row   = cur.execute(
-        "SELECT value FROM config WHERE key='demo_install_date'"
-    ).fetchone()
-    _db_date = _inst_row[0] if _inst_row and _inst_row[0] else None
-
-    if _telem_date:
-        # Archivo externo es fuente de verdad: restaurar BD si fue borrada
-        if _db_date != _telem_date:
-            cur.execute(
-                "INSERT OR REPLACE INTO config (key, value) VALUES ('demo_install_date', ?)",
-                (_telem_date,)
-            )
-    elif _db_date:
-        # BD tiene fecha pero archivo no existe → crear archivo
-        _write_telemetry(_db_date, _mid)
-    else:
-        # Primera instalación real
-        _today = date.today().isoformat()
-        cur.execute(
-            "INSERT OR REPLACE INTO config (key, value) VALUES ('demo_install_date', ?)",
-            (_today,)
-        )
-        _write_telemetry(_today, _mid)
-
-    # ── Migración silenciosa: usuarios con código HMAC viejo ──────────────────
-    # Si version='FULL' pero license_tier es 'DEMO' o no existe, el usuario activó
-    # con el sistema HMAC anterior (XXXX-XXXX-XXXX-XXXX). Se los migra a BASICA
-    # permanente sin pedirles nada. Sus datos y activación siguen funcionando.
-    _ver_row  = cur.execute("SELECT value FROM config WHERE key='version'").fetchone()
-    _tier_row = cur.execute("SELECT value FROM config WHERE key='license_tier'").fetchone()
-    if (_ver_row and _ver_row[0] == 'FULL' and
-            (_tier_row is None or _tier_row[0] == 'DEMO')):
-        cur.execute(
-            "INSERT OR REPLACE INTO config (key, value) VALUES ('license_tier', 'BASICA')"
-        )
+    defaults = {
+        'version': 'DEMO',
+        'license_tier': 'DEMO',
+        'license_plan': 'DEMO',
+        'license_key': '',
+        'license_expires_at': '',
+        'basica_activada': '0',
+    }
+    for key, value in defaults.items():
+        if key not in existing:
+            cur.execute("INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)", (key, value))
 
     conn.commit()
     conn.close()
-
-
-def recalculate_account_balance(conn: sqlite3.Connection, account_id: int):
-    """Recalcula el saldo actual de una cuenta basado en transacciones y transferencias."""
-    cur = conn.cursor()
-
-    # Saldo inicial
-    cur.execute("SELECT initial_balance FROM accounts WHERE id = ?", (account_id,))
-    row = cur.fetchone()
-    if not row:
-        return
-    balance = row['initial_balance']
-
-    # Sumar ingresos a esta cuenta
-    cur.execute(
-        "SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE account_id=? AND type='income'",
-        (account_id,)
-    )
-    balance += cur.fetchone()[0]
-
-    # Restar gastos de esta cuenta
-    cur.execute(
-        "SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE account_id=? AND type='expense'",
-        (account_id,)
-    )
-    balance -= cur.fetchone()[0]
-
-    # Restar transferencias salientes
-    cur.execute(
-        "SELECT COALESCE(SUM(amount), 0) FROM transfers WHERE from_account_id=?",
-        (account_id,)
-    )
-    balance -= cur.fetchone()[0]
-
-    # Sumar transferencias entrantes
-    cur.execute(
-        "SELECT COALESCE(SUM(amount), 0) FROM transfers WHERE to_account_id=?",
-        (account_id,)
-    )
-    balance += cur.fetchone()[0]
-
-    cur.execute("UPDATE accounts SET current_balance=? WHERE id=?", (balance, account_id))
