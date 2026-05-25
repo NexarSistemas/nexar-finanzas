@@ -117,12 +117,6 @@ def _sync_license_data(db_path: str | None, license_data: dict) -> tuple[bool, s
     try:
         import models
 
-        plan = models.normalize_license_plan(
-            license_data.get("plan") or license_data.get("tier") or license_data.get("license_plan")
-        )
-        cfg = models.get_config(db_path)
-        if plan == "MENSUAL_FULL" and cfg.get("basica_activada", "0") != "1":
-            return False, "Para activar Mensual Full primero tenes que activar una licencia Basica en esta instalacion."
         models.sync_license_from_remote(db_path, license_data)
         return True, ""
     except Exception as ex:
