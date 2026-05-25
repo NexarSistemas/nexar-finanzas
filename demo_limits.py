@@ -3,9 +3,10 @@ demo_limits.py
 Sistema de tiers y límites por plan para Nexar Finanzas.
 
 Planes:
-  DEMO   — 30 días desde primera instalación, casi full con límites suaves
+  DEMO   — 30 días desde primera instalación
   BASICA — Pago único permanente, funciones limitadas
-  PRO    — Suscripción mensual, acceso completo
+  PRO    — Suscripción mensual, acceso completo normal
+  FULL   — Suscripción mensual premium, por ahora igual a PRO pero con capacidades futuras activadas
 
 Compatibilidad: check_limit(), is_full_version() y get_demo_status()
 mantienen sus firmas originales para no romper routes.py ni templates.
@@ -45,6 +46,12 @@ TIER_LIMITS = {
         'investments_write': True,
         # Actualizaciones
         'updates':         False,
+        # Capacidades
+        'advanced_reports': True,
+        'cashflow_analysis': True,
+        'ai_insights':    False,
+        'export_excel':   False,
+        'export_pdf':     False,
     },
     'BASICA': {
         # Movimientos ilimitados
@@ -66,6 +73,12 @@ TIER_LIMITS = {
         'reports_weekly':  True,
         # Actualizaciones
         'updates':         False,
+        # Capacidades
+        'advanced_reports': False,
+        'cashflow_analysis': False,
+        'ai_insights':    False,
+        'export_excel':   False,
+        'export_pdf':     False,
     },
     'PRO': {
         # Todo ilimitado
@@ -82,6 +95,34 @@ TIER_LIMITS = {
         'reports_monthly': True,
         'reports_weekly':  True,
         'updates':         True,
+        # Capacidades
+        'advanced_reports': False,
+        'cashflow_analysis': True,
+        'ai_insights':    False,
+        'export_excel':   True,
+        'export_pdf':     True,
+    },
+    'FULL': {
+        # Todo ilimitado
+        'expenses':        None,
+        'incomes':         None,
+        'bank_accounts':   None,
+        'virtual_wallets': None,
+        'cash_accounts':   None,
+        'accounts_total':  None,
+        'investments':     None,
+        'investments_write': True,
+        'budgets':         None,
+        'reports_annual':  True,
+        'reports_monthly': True,
+        'reports_weekly':  True,
+        'updates':         True,
+        # Capacidades
+        'advanced_reports': True,
+        'cashflow_analysis': True,
+        'ai_insights':    True,
+        'export_excel':   True,
+        'export_pdf':     True,
     },
 }
 
@@ -102,11 +143,12 @@ _MSG_LIMITE = (
 
 def get_tier(db_path: str) -> str:
     """
-    Retorna el tier activo: 'DEMO' | 'BASICA' | 'PRO'
+    Retorna el tier activo: 'DEMO' | 'BASICA' | 'PRO' | 'FULL'
 
     Lógica:
-      - Si license_tier = 'PRO' y expires_at venció → retorna 'BASICA'
-        (no cae a DEMO, preserva todos los datos)
+      - Si license_tier = 'PRO' o 'FULL' y expires_at venció:
+        - retorna 'BASICA' si basica_activada = '1'
+        - si no, retorna 'DEMO_EXPIRED'
       - Si demo_install_date tiene más de 30 días → DEMO vencida
         (retorna 'DEMO_EXPIRED', que los checks tratan como bloqueado)
       - Resto: retorna el tier guardado en la BD
@@ -116,20 +158,22 @@ def get_tier(db_path: str) -> str:
         conn.row_factory = sqlite3.Row
         cur  = conn.cursor()
 
-        tier_row    = cur.execute("SELECT value FROM config WHERE key='license_tier'").fetchone()
+        tier_row = cur.execute("SELECT value FROM config WHERE key='license_tier'").fetchone()
         expires_row = cur.execute("SELECT value FROM config WHERE key='license_expires_at'").fetchone()
         install_row = cur.execute("SELECT value FROM config WHERE key='demo_install_date'").fetchone()
+        basica_row = cur.execute("SELECT value FROM config WHERE key='basica_activada'").fetchone()
         conn.close()
 
-        tier       = tier_row[0]    if tier_row    else 'DEMO'
+        tier = tier_row[0] if tier_row else 'DEMO'
         expires_at = expires_row[0] if expires_row else ''
         install_dt = install_row[0] if install_row else ''
+        basica_activada = basica_row[0] if basica_row else ''
 
-        # PRO vencido → baja a BASICA (nunca a DEMO)
-        if tier == 'PRO' and expires_at:
+        # PRO/FULL vencido → BASICA si está activada; si no, DEMO_EXPIRED
+        if tier in ('PRO', 'FULL') and expires_at:
             try:
                 if date.today() > date.fromisoformat(expires_at):
-                    return 'BASICA'
+                    return 'BASICA' if basica_activada == '1' else 'DEMO_EXPIRED'
             except Exception:
                 pass
 
@@ -150,18 +194,18 @@ def get_tier(db_path: str) -> str:
 
 def is_pro_expired(db_path: str) -> bool:
     """
-    True si tenía PRO pero venció y bajó a BASICA.
+    True si tenía PRO o FULL, tiene vencimiento y ya venció.
     Útil para mostrar el aviso de renovación en los templates.
     """
     try:
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
         cur  = conn.cursor()
-        tier_row    = cur.execute("SELECT value FROM config WHERE key='license_tier'").fetchone()
+        tier_row = cur.execute("SELECT value FROM config WHERE key='license_tier'").fetchone()
         expires_row = cur.execute("SELECT value FROM config WHERE key='license_expires_at'").fetchone()
         conn.close()
 
-        if not tier_row or tier_row[0] != 'PRO':
+        if not tier_row or tier_row[0] not in ('PRO', 'FULL'):
             return False
         expires_at = expires_row[0] if expires_row else ''
         if not expires_at:
@@ -196,18 +240,18 @@ def get_demo_days_remaining(db_path: str) -> int | None:
 
 def get_pro_days_remaining(db_path: str) -> int | None:
     """
-    Retorna los días restantes de la suscripción PRO.
-    Retorna None si el tier no es PRO o no hay fecha de vencimiento.
+    Retorna los días restantes de la suscripción PRO/FULL.
+    Retorna None si el tier no es PRO/FULL o no hay fecha de vencimiento.
     """
     try:
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
         cur  = conn.cursor()
-        tier_row    = cur.execute("SELECT value FROM config WHERE key='license_tier'").fetchone()
+        tier_row = cur.execute("SELECT value FROM config WHERE key='license_tier'").fetchone()
         expires_row = cur.execute("SELECT value FROM config WHERE key='license_expires_at'").fetchone()
         conn.close()
 
-        if not tier_row or tier_row[0] != 'PRO':
+        if not tier_row or tier_row[0] not in ('PRO', 'FULL'):
             return None
         
         expires_at = expires_row[0] if expires_row else ''
@@ -325,13 +369,13 @@ def check_limit(db_path: str, resource: str, current_count: int) -> dict:
 
 def is_full_version(db_path: str) -> bool:
     """
-    Retorna True si el sistema está activado (BASICA o PRO).
+    Retorna True si el sistema está activado (BASICA, PRO o FULL).
 
     Firma idéntica al original para compatibilidad con routes.py.
-    PRO vencido retorna True porque el usuario sigue en BASICA, no en DEMO.
+    PRO/FULL vencido con BASICA activa retorna True porque el usuario sigue pago.
     """
     tier = get_tier(db_path)
-    return tier in ('BASICA', 'PRO')
+    return tier in ('BASICA', 'PRO', 'FULL')
 
 
 def get_demo_status(db_path: str) -> dict:
@@ -341,7 +385,7 @@ def get_demo_status(db_path: str) -> dict:
     Firma idéntica al original para compatibilidad con routes.py y templates.
     Campos garantizados: is_demo, version, limits, counts.
 
-    Nuevo campo: tier (DEMO/DEMO_EXPIRED/BASICA/PRO)
+    Nuevo campo: tier (DEMO/DEMO_EXPIRED/BASICA/PRO/FULL)
     """
     tier = get_tier(db_path)
 
@@ -426,14 +470,22 @@ def get_demo_status(db_path: str) -> dict:
     pro_days  = get_pro_days_remaining(db_path)
 
     # ── Determinar versión para templates ─────────────────────────────────────
-    # 'version' se usa en base.html para el badge (DEMO/FULL)
+    # 'version' se usa en base.html para el badge
     # Mantenemos compatibilidad: DEMO/DEMO_EXPIRED → 'DEMO', resto → tier real
     if tier in ('DEMO', 'DEMO_EXPIRED'):
         version_label = 'DEMO'
         is_demo_flag  = True
     else:
-        version_label = tier   # 'BASICA' o 'PRO'
+        version_label = tier
         is_demo_flag  = False
+
+    plan_capabilities = {
+        'advanced_reports': limits.get('advanced_reports', False),
+        'cashflow_analysis': limits.get('cashflow_analysis', False),
+        'ai_insights': limits.get('ai_insights', False),
+        'export_excel': limits.get('export_excel', False),
+        'export_pdf': limits.get('export_pdf', False),
+    }
 
     return {
         # Campos originales — compatibilidad garantizada
@@ -442,10 +494,12 @@ def get_demo_status(db_path: str) -> dict:
         'limits':    limits_info,
         'counts':    counts,
         # Campos nuevos para templates actualizados
-        'tier':           tier,               # DEMO/DEMO_EXPIRED/BASICA/PRO
+        'tier':           tier,               # DEMO/DEMO_EXPIRED/BASICA/PRO/FULL
         'is_expired':     tier == 'DEMO_EXPIRED',
         'is_basica':      tier == 'BASICA',
         'is_pro':         tier == 'PRO',
+        'is_full':        tier == 'FULL',
+        'is_paid':        tier in ('BASICA', 'PRO', 'FULL'),
         'pro_expired':    is_pro_expired(db_path),
         'demo_days':      demo_days,          # int o None
         'pro_days':       pro_days,           # int o None
@@ -453,4 +507,10 @@ def get_demo_status(db_path: str) -> dict:
         'pro_expires_tomorrow': pro_days == 1,
         'can_update':     limits.get('updates', False),
         'can_investments_write': limits.get('investments_write', True),
+        'plan_capabilities': plan_capabilities,
+        'can_advanced_reports': plan_capabilities['advanced_reports'],
+        'can_cashflow_analysis': plan_capabilities['cashflow_analysis'],
+        'can_ai_insights': plan_capabilities['ai_insights'],
+        'can_export_excel': plan_capabilities['export_excel'],
+        'can_export_pdf': plan_capabilities['export_pdf'],
     }
