@@ -115,11 +115,20 @@ function toggleApiKey() {
             <tr>
               <td class="text-muted">Versión del sistema</td>
               <td>
-                {% if demo_status.is_demo %}
+                {% if demo_status.is_expired %}
+                  <span class="badge bg-danger">DEMO VENCIDA</span>
+                  <a href="{{ url_for('activate') }}" class="btn btn-outline-danger btn-sm py-0 ms-2">Activar</a>
+                {% elif demo_status.is_demo %}
                   <span class="badge bg-warning text-dark">DEMO</span>
                   <a href="{{ url_for('activate') }}" class="btn btn-outline-success btn-sm py-0 ms-2">Activar</a>
+                {% elif demo_status.is_full %}
+                  <span class="badge bg-success">FULL</span>
+                {% elif demo_status.is_pro %}
+                  <span class="badge" style="background:#6f42c1;color:white;">PRO</span>
+                {% elif demo_status.is_basica %}
+                  <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle">BÁSICA</span>
                 {% else %}
-                  <span class="badge bg-success">FULL — Sin restricciones</span>
+                  <span class="badge bg-secondary">ACTIVA</span>
                 {% endif %}
               </td>
             </tr>
@@ -353,7 +362,7 @@ function toggleApiKey() {
               </a>
             {% else %}
               <div class="alert alert-warning small mb-0">
-                Las actualizaciones están disponibles solo para el Plan Pro.
+                Las actualizaciones están disponibles para los planes Pro y Full.
               </div>
             {% endif %}
           </div>

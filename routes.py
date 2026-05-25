@@ -916,7 +916,7 @@ def register_routes(app):
         from demo_limits import get_tier
         tier = get_tier(get_db_path())
         if mode == 'annual' and tier == 'BASICA':
-            flash('El reporte anual está disponible en el Plan Pro.', 'warning')
+            flash('El reporte anual está disponible en los planes Pro y Full.', 'warning')
             return redirect(url_for('reports', mode='monthly', year=year, month=month))
 
         if mode == 'annual':
@@ -1249,7 +1249,7 @@ def register_routes(app):
         db.close()
         demo_status = get_demo_status(get_db_path())
         backups = services.listar_backups(current_app.config['BASE_DIR'])
-        can_use_updates = demo_status.get('tier') == 'PRO' and demo_status.get('can_update')
+        can_use_updates = bool(demo_status.get('can_update'))
         return render_template('settings.html',
                                user=dict(user) if user else {},
                                user_recovery_question=user_recovery_question,
@@ -1334,9 +1334,9 @@ def register_routes(app):
     @login_required
     def actualizacion():
         demo_status = get_demo_status(get_db_path())
-        can_use_updates = demo_status.get('tier') == 'PRO' and demo_status.get('can_update')
+        can_use_updates = bool(demo_status.get('can_update'))
         if not can_use_updates:
-            flash('Las actualizaciones del sistema estan disponibles solo en el Plan Pro.', 'warning')
+            flash('Las actualizaciones del sistema estan disponibles solo para los planes Pro y Full.', 'warning')
             return redirect(url_for('dashboard'))
 
         app_version = current_app.config.get("APP_VERSION", "0.0.0")
@@ -1359,8 +1359,8 @@ def register_routes(app):
     @login_required
     def actualizacion_descargar():
         demo_status = get_demo_status(get_db_path())
-        if demo_status.get('tier') != 'PRO' or not demo_status.get('can_update'):
-            flash("Las actualizaciones estan disponibles solo para el Plan Pro.", "warning")
+        if not demo_status.get('can_update'):
+            flash("Las actualizaciones estan disponibles solo para los planes Pro y Full.", "warning")
             return redirect(url_for("actualizacion"))
 
         update_info = get_cached_update_info(current_app, current_app.config.get("APP_VERSION", "0.0.0"))
@@ -1413,8 +1413,8 @@ def register_routes(app):
     @login_required
     def actualizacion_instalar(nombre):
         demo_status = get_demo_status(get_db_path())
-        if demo_status.get('tier') != 'PRO' or not demo_status.get('can_update'):
-            flash("Las actualizaciones estan disponibles solo para el Plan Pro.", "warning")
+        if not demo_status.get('can_update'):
+            flash("Las actualizaciones estan disponibles solo para los planes Pro y Full.", "warning")
             return redirect(url_for("actualizacion"))
 
         try:
@@ -1544,8 +1544,8 @@ def register_routes(app):
     @login_required
     def sistema_actualizar():
         demo_status = get_demo_status(get_db_path())
-        if demo_status.get('tier') != 'PRO' or not demo_status.get('can_update'):
-            flash('⚠ Las actualizaciones del sistema están disponibles solo en el Plan Pro.', 'warning')
+        if not demo_status.get('can_update'):
+            flash('⚠ Las actualizaciones del sistema están disponibles solo para los planes Pro y Full.', 'warning')
             return redirect(url_for('settings'))
         flash('El flujo por ZIP fue reemplazado por actualizaciones desde releases oficiales.', 'info')
         return redirect(url_for('actualizacion'))
