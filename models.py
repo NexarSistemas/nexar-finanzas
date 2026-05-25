@@ -143,19 +143,17 @@ def normalize_license_plan(plan: str | None) -> str:
         "BASICO": "BASICA",
         "BASICA": "BASICA",
         "DEMO": "DEMO",
-        "FULL": "MENSUAL_FULL",
-        "MENSUAL": "MENSUAL_FULL",
-        "MENSUAL_FULL": "MENSUAL_FULL",
-        "PRO": "MENSUAL_FULL",
+        "PRO": "PRO",
+        "MENSUAL_PRO": "PRO",
+        "FULL": "FULL",
+        "MENSUAL": "FULL",
+        "MENSUAL_FULL": "FULL",
     }
     return aliases.get(raw, "BASICA")
 
 
 def _local_tier_from_plan(plan: str | None) -> str:
-    normalized = normalize_license_plan(plan)
-    if normalized == "MENSUAL_FULL":
-        return "PRO"
-    return normalized
+    return normalize_license_plan(plan)
 
 
 def sync_license_from_remote(db_path: str, license_data: dict) -> None:
