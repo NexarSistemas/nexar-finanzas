@@ -375,7 +375,7 @@ def inject_globals():
     demo_info = get_demo_status(DB_PATH) if 'user_id' in session else {}
     update_info = (
         get_cached_update_info(app, APP_VERSION)
-        if demo_info.get('tier') == 'PRO' and demo_info.get('can_update')
+        if demo_info.get('can_update')
         else {'available': False}
     )
 

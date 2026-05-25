@@ -28,7 +28,49 @@
 <div class="row g-3 justify-content-center">
   <div class="col-md-7">
 
-    {% if tier == 'PRO' %}
+    {% if tier == 'FULL' %}
+    {# ── FULL activo ── #}
+    <div class="card shadow-sm" style="border:2px solid #198754;">
+      <div class="card-body text-center py-5">
+        <span style="font-size:4rem;">👑</span>
+        <h4 class="fw-bold mt-2 text-success">Plan Full activo</h4>
+        <p class="text-muted mb-4">Acceso premium, funciones avanzadas e IA habilitada.</p>
+
+        <div class="row g-2 justify-content-center mb-4">
+          <div class="col-auto">
+            <div class="card px-4 py-3 text-center" style="border-color:#198754;border:1px solid;">
+              <div class="small text-muted mb-1">Activado el</div>
+              <div class="fw-bold">{{ activated_at[:10]|replace('-','/') if activated_at else '—' }}</div>
+            </div>
+          </div>
+          <div class="col-auto">
+            <div class="card px-4 py-3 text-center" style="border-color:#198754;border:1px solid;">
+              <div class="small text-muted mb-1">Vence el</div>
+              <div class="fw-bold {% if pro_expired %}text-danger{% else %}text-success{% endif %}">
+                {{ license_expires|replace('-','/') if license_expires else '—' }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="badge py-2 px-4 fs-6 mb-3" style="background:#198754;">
+          <i class="bi bi-stars"></i> Acceso premium activo
+        </div>
+
+        <div class="row g-2 justify-content-center mb-3 small">
+          <div class="col-auto"><span class="badge text-bg-light border">IA</span></div>
+          <div class="col-auto"><span class="badge text-bg-light border">Reportes avanzados</span></div>
+          <div class="col-auto"><span class="badge text-bg-light border">Excel/PDF</span></div>
+        </div>
+
+        <br>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-success mt-2">
+          <i class="bi bi-speedometer2"></i> Ir al panel principal
+        </a>
+      </div>
+    </div>
+
+    {% elif tier == 'PRO' %}
     {# ── PRO activo ── #}
     <div class="card shadow-sm" style="border:2px solid #6f42c1;">
       <div class="card-body text-center py-5">
@@ -57,7 +99,7 @@
         <div class="alert alert-warning py-2 small mx-auto" style="max-width:420px;">
           <i class="bi bi-exclamation-triangle-fill"></i>
           Tu Plan Pro venció. Estás usando el <strong>Plan Básico</strong>.
-          Activá una nueva clave Mensual Full para recuperar el acceso completo.
+          Activá una nueva clave premium para recuperar el acceso completo.
         </div>
         {% else %}
         <div class="badge py-2 px-4 fs-6 mb-3" style="background:#6f42c1;">
@@ -110,7 +152,7 @@
     {# Formulario para activar Mensual Full sobre BASICA #}
     <div class="card mt-3" style="border:2px solid #6f42c1;">
       <div class="card-header py-2 fw-semibold" style="color:#6f42c1;">
-        <i class="bi bi-stars"></i> Activar Plan Pro
+        <i class="bi bi-stars"></i> Activar Plan Full
       </div>
       <div class="card-body">
         <p class="small text-muted mb-2">
@@ -122,7 +164,7 @@
                  placeholder="Ej: NXR-FIN-..." style="font-size:.9rem" required>
           <button type="submit" class="btn w-100"
                   style="background:#6f42c1;color:white;">
-            <i class="bi bi-stars"></i> Activar Plan Pro
+            <i class="bi bi-stars"></i> Activar Plan Full
           </button>
         </form>
         <hr class="my-2">
@@ -151,8 +193,10 @@
           <tr>
             <td class="text-muted">Plan</td>
             <td class="fw-semibold">
-              {% if tier == 'PRO' %}Pro mensual
-              {% else %}Básico permanente{% endif %}
+              {% if tier == 'FULL' %}Full mensual premium
+              {% elif tier == 'PRO' %}Pro mensual
+              {% elif tier == 'BASICA' %}Básico permanente
+              {% else %}Demo{% endif %}
             </td>
           </tr>
           {% if license_key_local %}
@@ -179,7 +223,7 @@
       <div class="card-body small">
         <p class="text-muted mb-2">
           {% if tier == 'BASICA' %}
-            Necesitás este código para solicitar el <strong>Plan Pro</strong>.
+            Necesitás este código para solicitar un <strong>Plan Full</strong>.
           {% else %}
             Código específico para activar Nexar Finanzas.
           {% endif %}
@@ -196,9 +240,9 @@
         </div>
         {% if tier == 'BASICA' %}
         {# Botón WhatsApp con el ID pre-cargado en el mensaje #}
-        <a href="https://wa.me/5492645858874?text=Hola%2C%20quiero%20el%20Plan%20Pro.%20Mi%20ID%20de%20activaci%C3%B3n%20es%3A%20{{ activation_id | urlencode }}"
+        <a href="https://wa.me/5492645858874?text=Hola%2C%20quiero%20el%20Plan%20Full.%20Mi%20ID%20de%20activaci%C3%B3n%20es%3A%20{{ activation_id | urlencode }}"
            target="_blank" class="btn btn-success btn-sm w-100">
-          <i class="bi bi-whatsapp"></i> Solicitar Plan Pro por WhatsApp
+          <i class="bi bi-whatsapp"></i> Solicitar Plan Full por WhatsApp
         </a>
         {% endif %}
       </div>
@@ -226,21 +270,21 @@
       </div>
     </div>
 
-    {# Renovar Pro — visible siempre que el tier sea PRO (activo o vencido) #}
-    {% if tier == 'PRO' or pro_expired %}
+    {# Renovar suscripción mensual — visible para PRO/FULL activos o vencidos #}
+    {% if tier in ('PRO', 'FULL') or pro_expired %}
     <div class="card mt-3 {% if pro_expired %}border-warning{% else %}border-0{% endif %}"
          style="{% if not pro_expired %}background:#f3f0ff;{% endif %}">
       <div class="card-header py-2 fw-semibold
                   {% if pro_expired %}text-warning{% endif %}"
            style="{% if not pro_expired %}color:#6f42c1;background:transparent;{% endif %}">
         <i class="bi bi-arrow-repeat"></i>
-        {% if pro_expired %}Renovar Plan Pro (vencido){% else %}Renovar Plan Pro{% endif %}
+        {% if pro_expired %}Renovar suscripción mensual{% elif tier == 'FULL' %}Renovar Plan Full{% else %}Renovar Plan Pro{% endif %}
       </div>
       <div class="card-body">
         {% if pro_expired %}
         <div class="alert alert-warning py-1 px-2 small mb-2">
           <i class="bi bi-exclamation-triangle-fill"></i>
-          Tu Pro venció. Activá una nueva clave Mensual Full para recuperar el acceso completo.
+          Tu suscripción mensual venció. Activá una nueva clave premium para recuperar el acceso completo.
         </div>
         {% else %}
         <p class="small text-muted mb-2">
@@ -256,11 +300,11 @@
                   {% if pro_expired %}btn-warning{% endif %}"
                   style="{% if not pro_expired %}background:#6f42c1;color:white;{% endif %}">
             <i class="bi bi-arrow-repeat"></i>
-            {% if pro_expired %}Reactivar Pro{% else %}Renovar Pro{% endif %}
+            {% if pro_expired %}Reactivar suscripción{% elif tier == 'FULL' %}Renovar Full{% else %}Renovar Pro{% endif %}
           </button>
         </form>
         <hr class="my-2">
-        <a href="https://wa.me/5492645858874?text=Hola%2C%20quiero%20renovar%20el%20Plan%20Pro.%20Mi%20ID%20de%20activaci%C3%B3n%20es%3A%20{{ activation_id | urlencode }}"
+        <a href="https://wa.me/5492645858874?text=Hola%2C%20quiero%20renovar%20mi%20plan%20premium.%20Mi%20ID%20de%20activaci%C3%B3n%20es%3A%20{{ activation_id | urlencode }}"
            target="_blank" class="btn btn-outline-success btn-sm w-100">
           <i class="bi bi-whatsapp"></i> Solicitar renovación por WhatsApp
         </a>
@@ -342,8 +386,8 @@
             <input name="license_key" class="form-control font-monospace"
                    placeholder="Ej: NXR-FIN-..." style="font-size:.9rem" required>
             <div class="form-text">
-              Producto: {{ producto }}. Si tenés Básica y Mensual Full,
-              activá primero Básica.
+              Producto: {{ producto }}. Si tenés Básica y luego activás Mensual Full,
+              primero debe quedar activa la licencia Básica.
             </div>
           </div>
           <button type="submit" class="btn btn-success w-100 py-2">
@@ -367,23 +411,29 @@
           <thead class="table-light">
             <tr>
               <th>Función</th>
+              <th class="text-center">Demo</th>
               <th class="text-center">Básico</th>
               <th class="text-center" style="color:#6f42c1;">Pro</th>
+              <th class="text-center text-success">Full</th>
             </tr>
           </thead>
           <tbody style="font-size:.82rem;">
-            <tr><td>Movimientos</td><td class="text-center text-success">✓ Ilimitados</td><td class="text-center text-success">✓ Ilimitados</td></tr>
-            <tr><td>Cuentas</td><td class="text-center text-muted">1 por tipo</td><td class="text-center text-success">✓ Ilimitadas</td></tr>
-            <tr><td>Inversiones</td><td class="text-center text-muted">Solo ver</td><td class="text-center text-success">✓ Completo</td></tr>
-            <tr><td>Presupuestos</td><td class="text-center text-muted">Hasta 3</td><td class="text-center text-success">✓ Ilimitados</td></tr>
-            <tr><td>Reportes</td><td class="text-center text-muted">Sem. + Mens.</td><td class="text-center text-success">✓ Completos</td></tr>
-            <tr><td>IA (API key)</td><td class="text-center text-success">✓</td><td class="text-center text-success">✓</td></tr>
-            <tr><td>Actualizaciones</td><td class="text-center text-muted">✗</td><td class="text-center text-success">✓ Incluidas</td></tr>
-            <tr><td>Soporte WhatsApp</td><td class="text-center text-muted">✗</td><td class="text-center text-success">✓</td></tr>
+            <tr><td>Movimientos</td><td class="text-center text-success">✓ Ilimitados</td><td class="text-center text-success">✓ Ilimitados</td><td class="text-center text-success">✓ Ilimitados</td><td class="text-center text-success">✓ Ilimitados</td></tr>
+            <tr><td>Cuentas</td><td class="text-center text-muted">Hasta 3 total</td><td class="text-center text-muted">1 por tipo</td><td class="text-center text-success">✓ Ilimitadas</td><td class="text-center text-success">✓ Ilimitadas</td></tr>
+            <tr><td>Inversiones</td><td class="text-center text-success">✓ Completo</td><td class="text-center text-muted">Solo ver</td><td class="text-center text-success">✓ Completo</td><td class="text-center text-success">✓ Completo</td></tr>
+            <tr><td>Presupuestos</td><td class="text-center text-success">✓ Ilimitados</td><td class="text-center text-muted">Hasta 3</td><td class="text-center text-success">✓ Ilimitados</td><td class="text-center text-success">✓ Ilimitados</td></tr>
+            <tr><td>Reportes</td><td class="text-center text-success">✓ Avanzados</td><td class="text-center text-muted">Sem. + Mens.</td><td class="text-center text-success">✓ Completos</td><td class="text-center text-success">✓ Avanzados</td></tr>
+            <tr><td>Flujo de caja</td><td class="text-center text-success">✓</td><td class="text-center text-muted">✗</td><td class="text-center text-success">✓</td><td class="text-center text-success">✓</td></tr>
+            <tr><td>IA / insights</td><td class="text-center text-muted">Sin insights</td><td class="text-center text-muted">✗</td><td class="text-center text-muted">Sin insights</td><td class="text-center text-success">✓ Incluidos</td></tr>
+            <tr><td>Exportar Excel / PDF</td><td class="text-center text-muted">✗</td><td class="text-center text-muted">✗</td><td class="text-center text-success">✓</td><td class="text-center text-success">✓</td></tr>
+            <tr><td>Actualizaciones</td><td class="text-center text-muted">✗</td><td class="text-center text-muted">✗</td><td class="text-center text-success">✓ Incluidas</td><td class="text-center text-success">✓ Incluidas</td></tr>
+            <tr><td>Soporte WhatsApp</td><td class="text-center text-muted">✗</td><td class="text-center text-muted">✗</td><td class="text-center text-success">✓</td><td class="text-center text-success">✓ Prioritario</td></tr>
             <tr>
               <td class="fw-semibold">Precio</td>
+              <td class="text-center fw-semibold">Prueba 30 días</td>
               <td class="text-center fw-semibold">Pago único</td>
               <td class="text-center fw-semibold" style="color:#6f42c1;">Mensual</td>
+              <td class="text-center fw-semibold text-success">Mensual premium</td>
             </tr>
           </tbody>
         </table>

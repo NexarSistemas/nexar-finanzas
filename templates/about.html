@@ -23,10 +23,14 @@
             <tr>
               <td class="text-muted fw-semibold">Plan actual</td>
               <td>
-                {% if demo_info.tier == 'PRO' %}
+                {% if demo_info.is_full %}
+                  <span class="full-badge">FULL</span>
+                {% elif demo_info.tier == 'PRO' %}
                   <span class="pro-badge">PRO</span>
                 {% elif demo_info.tier == 'BASICA' %}
                   <span class="basica-badge">BÁSICA</span>
+                {% elif demo_info.is_expired %}
+                  <span class="demo-badge" style="background:#dc3545;">DEMO VENCIDA</span>
                 {% else %}
                   <span class="demo-badge">DEMO</span>
                 {% endif %}
