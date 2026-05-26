@@ -86,6 +86,31 @@ def get_db_path():
     return current_app.config['DB_PATH']
 
 
+EXPORT_UPGRADE_MESSAGE = 'La exportación está disponible en los planes Pro y Full.'
+
+
+def _reports_redirect():
+    today = date.today()
+    mode = request.args.get('mode', 'monthly')
+    year = request.args.get('year', today.year)
+    month = request.args.get('month', today.month)
+
+    if mode == 'weekly':
+        return redirect(url_for('reports', mode='weekly'))
+    if mode == 'annual':
+        return redirect(url_for('reports', mode='annual', year=year))
+    return redirect(url_for('reports', mode='monthly', year=year, month=month))
+
+
+def _require_export_capability(capability_key: str):
+    demo_status = get_demo_status(get_db_path())
+    if demo_status.get(capability_key):
+        return None
+
+    flash(EXPORT_UPGRADE_MESSAGE, 'warning')
+    return _reports_redirect()
+
+
 def _update_dir() -> Path:
     return Path(current_app.config['BASE_DIR']) / "updates"
 
@@ -441,6 +466,7 @@ def register_routes(app):
 
         threading.Thread(target=stop, daemon=True).start()
         return response
+
 
     # ══════════════════════════════════════════════════════════════════════════
     # DASHBOARD
@@ -964,6 +990,48 @@ def register_routes(app):
         response.headers['Content-Type']        = 'text/csv; charset=utf-8'
         response.headers['Content-Disposition'] = f'attachment; filename={filename}'
         return response
+
+    @app.route('/reports/export/excel')
+    @login_required
+    def export_excel():
+        blocked_response = _require_export_capability('can_export_excel')
+        if blocked_response is not None:
+            return blocked_response
+
+        year = request.args.get('year')
+        month = request.args.get('month')
+        year = int(year) if year else None
+        month = int(month) if month else None
+
+        content = services.export_transactions_excel(get_db_path(), year, month)
+        filename = f"finanzas_{year or 'todo'}_{month or 'todo'}.xlsx"
+        return send_file(
+            content,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+
+    @app.route('/reports/export/pdf')
+    @login_required
+    def export_pdf():
+        blocked_response = _require_export_capability('can_export_pdf')
+        if blocked_response is not None:
+            return blocked_response
+
+        year = request.args.get('year')
+        month = request.args.get('month')
+        year = int(year) if year else None
+        month = int(month) if month else None
+
+        content = services.export_transactions_pdf(get_db_path(), year, month)
+        filename = f"finanzas_{year or 'todo'}_{month or 'todo'}.pdf"
+        return send_file(
+            content,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/pdf',
+        )
 
     # ══════════════════════════════════════════════════════════════════════════
     # INVERSIONES

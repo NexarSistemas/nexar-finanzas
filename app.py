@@ -8,6 +8,7 @@ al navegador SOLO si pywebview falla o no está disponible.
 
 import os
 import sys
+import base64
 import logging
 import traceback
 import threading
@@ -260,6 +261,58 @@ def get_version():
 APP_VERSION = get_version()
 app.config['APP_VERSION'] = APP_VERSION
 
+
+class DesktopBridge:
+    """Puente nativo para operaciones que pywebview no maneja como descarga web."""
+
+    def __init__(self, flask_app):
+        self.app = flask_app
+
+    def save_export(self, filename: str, mime_type: str, payload_base64: str) -> dict:
+        window = self.app.config.get('WEBVIEW_WINDOW')
+        if window is None:
+            return {'ok': False, 'error': 'Ventana nativa no disponible.'}
+
+        try:
+            import webview
+
+            dialog_type = getattr(webview, 'SAVE_DIALOG', None)
+            if dialog_type is None and hasattr(webview, 'FileDialog'):
+                dialog_type = getattr(webview.FileDialog, 'SAVE', None)
+
+            if dialog_type is None:
+                return {'ok': False, 'error': 'Diálogo de guardado no disponible.'}
+
+            suggested_name = os.path.basename(filename or 'exportacion.bin')
+            initial_dir = self.app.config.get('BASE_DIR', _APP_DIR)
+            file_types = ()
+            if mime_type == 'application/pdf':
+                file_types = ('PDF (*.pdf)', 'Todos los archivos (*.*)')
+            elif mime_type == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
+                file_types = ('Excel (*.xlsx)', 'Todos los archivos (*.*)')
+
+            selected_path = window.create_file_dialog(
+                dialog_type,
+                directory=initial_dir,
+                save_filename=suggested_name,
+                file_types=file_types,
+            )
+            if not selected_path:
+                return {'ok': False, 'cancelled': True}
+
+            if isinstance(selected_path, (list, tuple)):
+                selected_path = selected_path[0]
+
+            data = base64.b64decode(payload_base64.encode('utf-8'))
+            with open(selected_path, 'wb') as fh:
+                fh.write(data)
+
+            logging.info("Exportación guardada desde pywebview en %s", selected_path)
+            return {'ok': True, 'path': selected_path}
+        except Exception as exc:
+            logging.error("Error guardando exportación desde pywebview: %s", exc, exc_info=True)
+            return {'ok': False, 'error': str(exc)}
+
 def get_changelog():
     path = os.path.join(os.path.dirname(__file__), "CHANGELOG.md")
     versions = []
@@ -467,6 +520,7 @@ if __name__ == '__main__':
         window = webview.create_window(
             title=f'Nexar Finanzas v{APP_VERSION}',
             url=URL,
+            js_api=DesktopBridge(app),
             width=1280,
             height=800,
             maximized=True,

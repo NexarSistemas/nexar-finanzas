@@ -234,6 +234,92 @@
 {% endif %}
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  (function () {
+    function parseFilename(contentDisposition) {
+      if (!contentDisposition) return null;
+      const utf8Match = contentDisposition.match(/filename\*\s*=\s*UTF-8''([^;]+)/i);
+      if (utf8Match && utf8Match[1]) {
+        try {
+          return decodeURIComponent(utf8Match[1].trim());
+        } catch (_) {
+          return utf8Match[1].trim();
+        }
+      }
+      const filenameMatch = contentDisposition.match(/filename\s*=\s*\"?([^\";]+)\"?/i);
+      return filenameMatch && filenameMatch[1] ? filenameMatch[1].trim() : null;
+    }
+
+    async function savePywebviewExport(event) {
+      const link = event.currentTarget;
+      if (!window.pywebview || !window.pywebview.api || !window.pywebview.api.save_export) {
+        return;
+      }
+
+      event.preventDefault();
+      link.classList.add('disabled');
+      link.setAttribute('aria-disabled', 'true');
+
+      try {
+        const response = await fetch(link.href, {
+          credentials: 'same-origin',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+
+        if (!response.ok) {
+          window.location.href = link.href;
+          return;
+        }
+
+        const blob = await response.blob();
+        const filename = parseFilename(response.headers.get('Content-Disposition')) || 'exportacion';
+        const mimeType = blob.type || response.headers.get('Content-Type') || 'application/octet-stream';
+        const buffer = await blob.arrayBuffer();
+
+        let binary = '';
+        const bytes = new Uint8Array(buffer);
+        const chunkSize = 0x8000;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+        }
+
+        const result = await window.pywebview.api.save_export(
+          filename,
+          mimeType,
+          btoa(binary)
+        );
+
+        if (!result || (!result.ok && !result.cancelled)) {
+          const message = result && result.error
+            ? result.error
+            : 'No se pudo guardar la exportación.';
+          window.alert(message);
+        }
+      } catch (error) {
+        console.error('Error al exportar desde pywebview', error);
+        window.alert('No se pudo guardar la exportación.');
+      } finally {
+        link.classList.remove('disabled');
+        link.removeAttribute('aria-disabled');
+      }
+    }
+
+    function wirePywebviewExports() {
+      const exportLinks = document.querySelectorAll('[data-pywebview-export="true"]');
+      exportLinks.forEach((link) => {
+        if (link.dataset.pywebviewBound === 'true') return;
+        link.dataset.pywebviewBound = 'true';
+        link.addEventListener('click', savePywebviewExport);
+      });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', wirePywebviewExports);
+    } else {
+      wirePywebviewExports();
+    }
+  })();
+</script>
 {% block scripts %}{% endblock %}
 
 {% if session.user_id %}
