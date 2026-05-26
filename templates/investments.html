@@ -10,11 +10,24 @@
         <i class="bi bi-arrow-clockwise"></i> Actualizar precios
       </button>
     </form>
+    {% if demo_info.get('can_investments_write') %}
     <a href="{{ url_for('investment_new') }}" class="btn btn-primary btn-sm">
       <i class="bi bi-plus"></i> Registrar operación
     </a>
+    {% else %}
+    <button type="button" class="btn btn-outline-secondary btn-sm" disabled
+            title="Las inversiones están en modo solo lectura en tu plan actual.">
+      <i class="bi bi-lock-fill"></i> Registrar operación
+    </button>
+    {% endif %}
   </div>
 </div>
+{% if not demo_info.get('can_investments_write') %}
+<div class="alert alert-warning py-2 small">
+  <i class="bi bi-lock-fill"></i>
+  Las inversiones están disponibles en modo solo lectura en tu plan actual. Actualizá tu plan para registrar o eliminar operaciones.
+</div>
+{% endif %}
 
 <!-- ── Resumen global por moneda ────────────────────────────────────────────── -->
 {% for currency, totals in data.totals.items() %}
@@ -217,12 +230,19 @@
           <td class="text-end fw-semibold">${{ "{:,.2f}".format(inv.quantity * inv.price) }}</td>
           <td>{{ inv.currency }}</td>
           <td>
+            {% if demo_info.get('can_investments_write') %}
             <form method="POST" action="{{ url_for('investment_delete', inv_id=inv.id) }}"
                   onsubmit="return confirm('¿Eliminar esta operación?')">
               <button class="btn btn-outline-danger btn-sm py-0 px-1">
                 <i class="bi bi-trash"></i>
               </button>
             </form>
+            {% else %}
+            <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1" disabled
+                    title="Disponible solo con escritura habilitada para inversiones.">
+              <i class="bi bi-lock-fill"></i>
+            </button>
+            {% endif %}
           </td>
         </tr>
         {% else %}

@@ -40,13 +40,13 @@
 <!-- ── Navbar ──────────────────────────────────────────────── -->
 <nav class="navbar navbar-dark bg-dark py-1 px-3">
   {% set current_tier = demo_info.get('tier', 'DEMO') %}
-  {% set is_full_plan = demo_info.get('is_full') or current_tier == 'FULL' %}
+  {% set is_full_plan = demo_info.get('is_full') %}
   <span class="navbar-brand">
     <i class="bi bi-cash-coin"></i> Nexar Finanzas
     {# ── Badge de plan — 4 estados ────────────────────────── #}
     {% if is_full_plan %}
       <span class="full-badge ms-2">FULL</span>
-    {% elif current_tier == 'PRO' %}
+    {% elif demo_info.get('is_pro') %}
       <span class="pro-badge ms-2">PRO</span>
     {% elif current_tier == 'BASICA' %}
       <span class="basica-badge ms-2">BÁSICA</span>
@@ -190,7 +190,7 @@
         <i class="bi bi-stars"></i> Ver upgrades
       </a>
     </div>
-    {% elif current_tier in ('PRO', 'FULL') %}
+    {% elif demo_info.get('can_update') %}
       {% set monthly_plan_name = 'Plan FULL' if is_full_plan else 'Plan PRO' %}
       {% if update_info and update_info.available %}
       <div class="alert alert-info py-2 px-3 small d-flex justify-content-between align-items-center mb-3">

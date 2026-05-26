@@ -87,6 +87,8 @@ def get_db_path():
 
 
 EXPORT_UPGRADE_MESSAGE = 'La exportación está disponible en los planes Pro y Full.'
+ADVANCED_REPORTS_UPGRADE_MESSAGE = 'Los reportes avanzados no están disponibles en tu plan actual.'
+AI_INSIGHTS_UPGRADE_MESSAGE = 'Los insights financieros con IA están disponibles solo en el Plan Full.'
 
 
 def _reports_redirect():
@@ -109,6 +111,24 @@ def _require_export_capability(capability_key: str):
 
     flash(EXPORT_UPGRADE_MESSAGE, 'warning')
     return _reports_redirect()
+
+
+def _require_capability(capability_key: str, message: str, redirect_factory=None):
+    demo_status = get_demo_status(get_db_path())
+    if demo_status.get(capability_key):
+        return None
+
+    flash(message, 'warning')
+    if redirect_factory is not None:
+        return redirect_factory()
+    return redirect(url_for('dashboard'))
+
+
+def _require_json_capability(capability_key: str, message: str, error_code: str):
+    demo_status = get_demo_status(get_db_path())
+    if demo_status.get(capability_key):
+        return None
+    return jsonify({'error': error_code, 'message': message}), 403
 
 
 def _update_dir() -> Path:
@@ -938,12 +958,16 @@ def register_routes(app):
         year  = int(request.args.get('year',  today.year))
         month = int(request.args.get('month', today.month))
         mode  = request.args.get('mode', 'monthly')
+        demo_status = get_demo_status(get_db_path())
 
-        from demo_limits import get_tier
-        tier = get_tier(get_db_path())
-        if mode == 'annual' and tier == 'BASICA':
-            flash('El reporte anual no está disponible en el Plan Básico.', 'warning')
-            return redirect(url_for('reports', mode='monthly', year=year, month=month))
+        if mode == 'annual':
+            blocked_response = _require_capability(
+                'can_advanced_reports',
+                ADVANCED_REPORTS_UPGRADE_MESSAGE,
+                lambda: redirect(url_for('reports', mode='monthly', year=year, month=month)),
+            )
+            if blocked_response is not None:
+                return blocked_response
 
         if mode == 'annual':
             data = {'annual': services.get_annual_summary(get_db_path(), year)}
@@ -954,7 +978,7 @@ def register_routes(app):
 
         analisis = services.get_analisis_necesario_prescindible(
             get_db_path(), year, month
-        ) if mode == 'monthly' else None
+        ) if mode == 'monthly' and demo_status.get('can_cashflow_analysis') else None
 
         return render_template('reports.html',
                                data=data, mode=mode,
@@ -972,6 +996,14 @@ def register_routes(app):
     @app.route('/reports/chart/annual.json')
     @login_required
     def chart_annual():
+        blocked_response = _require_json_capability(
+            'can_advanced_reports',
+            ADVANCED_REPORTS_UPGRADE_MESSAGE,
+            'advanced_reports_not_available',
+        )
+        if blocked_response is not None:
+            return blocked_response
+
         year = int(request.args.get('year', date.today().year))
         return jsonify(services.get_annual_chart_data(get_db_path(), year))
 
@@ -1047,13 +1079,13 @@ def register_routes(app):
     @login_required
     def investment_new():
         db = get_db(get_db_path())
-        if request.method == 'POST':
-            check = check_limit(get_db_path(), 'investments', 0)
-            if not check['allowed']:
-                db.close()
-                flash(check['message'], 'warning')
-                return redirect(url_for('investments'))
+        check = check_limit(get_db_path(), 'investments', 0)
+        if not check['allowed']:
+            db.close()
+            flash(check['message'], 'warning')
+            return redirect(url_for('investments'))
 
+        if request.method == 'POST':
             asset_type = request.form.get('asset_type', 'stock')
             asset_name = request.form.get('asset_name', '').strip()
             ticker     = request.form.get('ticker', '').strip().upper() or None
@@ -1686,6 +1718,14 @@ def register_routes(app):
     @login_required
     def ai_analisis_gastos():
         import ai_service
+
+        blocked_response = _require_json_capability(
+            'can_ai_insights',
+            AI_INSIGHTS_UPGRADE_MESSAGE,
+            'ai_insights_not_available',
+        )
+        if blocked_response is not None:
+            return blocked_response
 
         data    = request.get_json(force=True) or {}
         year    = int(data.get('year', date.today().year))

@@ -16,8 +16,8 @@ function toggleApiKey() {
 {% endblock %}
 {% block content %}
 {% set current_tier = demo_status.get('tier', 'DEMO') %}
-{% set is_full_plan = demo_status.get('is_full') or current_tier == 'FULL' %}
-{% set is_pro_plan = demo_status.get('is_pro') or current_tier == 'PRO' %}
+{% set is_full_plan = demo_status.get('is_full') %}
+{% set is_pro_plan = demo_status.get('is_pro') %}
 
 <h5 class="fw-bold mb-3"><i class="bi bi-gear"></i> Configuración</h5>
 
