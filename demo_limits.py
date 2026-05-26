@@ -298,7 +298,7 @@ def check_limit(db_path: str, resource: str, current_count: int) -> dict:
         return {
             'allowed':  False,
             'message':  'Las inversiones están disponibles en modo lectura en el Plan Básico. '
-                        'Actualizá al Plan Pro para registrar operaciones.',
+                        'Actualizá al Plan Pro o Full para registrar operaciones.',
             'is_demo':  False,
             'is_basica_readonly': True,
             'limit':    0,
