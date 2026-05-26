@@ -16,7 +16,7 @@ finanzas_app/
 ├── models.py             → Schema de base de datos SQLite
 ├── routes.py             → Rutas y controladores HTTP
 ├── services.py           → Lógica de negocio y reportes
-├── demo_limits.py        → Control de tiers DEMO / BÁSICA / PRO
+├── demo_limits.py        → Control de tiers DEMO / BASICA / PRO / FULL
 ├── ai_service.py         → Módulo de inteligencia artificial
 ├── requirements.txt      → Dependencias Python
 ├── iniciar.bat           → Lanzador Windows
@@ -87,7 +87,7 @@ chmod +x iniciar.sh
 
 ## 🔄 Actualizar una versión existente
 
-> ⚠️ La instalación de actualizaciones está disponible solo en el **Plan Pro**.
+> ⚠️ La instalación de actualizaciones está disponible solo en los planes **PRO** y **FULL**.
 
 Los datos, cuentas, historial y licencia **no se modifican** al actualizar.
 
@@ -110,18 +110,22 @@ clave de licencia y validación con Supabase + SDK `nexar_licencias`.
 
 ### Planes disponibles
 
-| Función | DEMO (30 días) | BÁSICA | PRO |
-|---|:---:|:---:|:---:|
-| Movimientos | Ilimitados | Ilimitados | Ilimitados |
-| Cuentas | 3 en total | 1 por tipo | Ilimitadas |
-| Inversiones | Hasta 3 | Solo lectura | Completo |
-| Presupuestos | Ilimitados | Hasta 3 | Ilimitados |
-| Reportes | Completos | Semanal + Mensual | Completos |
-| IA (API key) | ✅ | ✅ | ✅ |
-| Actualizaciones | ❌ | ❌ | ✅ |
-| Soporte WhatsApp | ❌ | ❌ | ✅ |
-| Duración | 30 días | Permanente | Mensual |
-| Al vencer | Modo lectura | — | Vuelve a BÁSICA |
+| Función | DEMO (30 días) | BASICA | PRO | FULL |
+|---|:---:|:---:|:---:|:---:|
+| Movimientos | Ilimitados | Ilimitados | Ilimitados | Ilimitados |
+| Cuentas | 3 en total | 1 por tipo | Ilimitadas | Ilimitadas |
+| Inversiones | Hasta 3 | Solo lectura | Completo | Completo |
+| Presupuestos | Ilimitados | Hasta 3 | Ilimitados | Ilimitados |
+| Reportes semanales y mensuales | ✅ | ✅ | ✅ | ✅ |
+| Reportes avanzados | ✅ | ❌ | ❌ | ✅ |
+| Análisis de flujo de caja | ✅ | ❌ | ✅ | ✅ |
+| IA integrada (API key) | ✅ | ✅ | ✅ | ✅ |
+| Insights financieros IA | ❌ | ❌ | ❌ | ✅ |
+| Exportar Excel/PDF | ❌ | ❌ | ✅ | ✅ |
+| Actualizaciones | ❌ | ❌ | ✅ | ✅ |
+| Soporte WhatsApp | ❌ | ❌ | ✅ | ✅ |
+| Duración | 30 días | Permanente | Mensual | Mensual |
+| Al vencer | Modo lectura | — | BASICA o DEMO_EXPIRED | BASICA o DEMO_EXPIRED |
 
 ### DEMO
 
@@ -139,8 +143,22 @@ resistente a reinstalaciones — se guarda fuera de la base de datos.
 La activación inicial requiere conexión para validar la clave y vincular el
 equipo. Después queda cache local para continuidad offline.
 
-> Para activar el **Plan Pro** primero debe estar activo el **Plan Básico**.
-> Si adquirís ambos, activá primero la clave Básica y luego la clave Mensual Full.
+Flujos válidos de activación:
+
+- DEMO → BASICA
+- DEMO → PRO
+- DEMO → FULL
+- BASICA → PRO
+- BASICA → FULL
+
+Ya no se exige **BASICA previa** para activar un plan mensual. Si activás una
+licencia **PRO** o **FULL** sobre una instalación limpia, queda habilitada sin
+pasos intermedios.
+
+Cuando vence un plan **PRO** o **FULL**:
+
+- vuelve a **BASICA** si el usuario ya tenía **BASICA** activada
+- pasa a **DEMO_EXPIRED** si nunca tuvo **BASICA**
 
 ### Solicitar licencia
 
@@ -190,7 +208,7 @@ Para restaurar: cerrá la app y reemplazá `database.db` con el backup.
 | Criptomonedas | CoinGecko | `BTC`, `ETH`, `SOL` |
 
 Por cada posición muestra: costo promedio, valor a mercado, ganancia/pérdida y
-rendimiento %. Disponible en Plan Pro; en Plan Básico es solo lectura.
+rendimiento %. Disponible en **PRO** y **FULL**; en **BASICA** es solo lectura.
 
 ---
 
@@ -219,11 +237,11 @@ Los datos se cachean localmente para funcionar sin conexión.
 - ✅ Cálculo de ganancias y pérdidas por posición
 - ✅ Cotizaciones en tiempo real (dólar, monedas, cripto)
 - ✅ Copias de seguridad automáticas programables
-- ✅ Sistema de actualización sin pérdida de datos *(Plan Pro)*
+- ✅ Sistema de actualización sin pérdida de datos *(Planes PRO y FULL)*
 - ✅ Clasificación de categorías: Necesario / Prescindible con análisis en Reportes
 - ✅ Clasificación automática de gastos con IA
 - ✅ Asistente financiero en lenguaje natural (chat flotante)
-- ✅ Sistema de licencias por tiers: DEMO / BÁSICA / PRO
+- ✅ Sistema de licencias por tiers: DEMO / BASICA / PRO / FULL
 - ✅ Activación offline por Token RSA — sin internet
 - ✅ Anti-reinstall: la demo no se reinicia borrando la base de datos
 - ✅ Ventana nativa pywebview con fallback al navegador
