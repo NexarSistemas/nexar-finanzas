@@ -39,14 +39,16 @@
 {% if session.user_id %}
 <!-- ── Navbar ──────────────────────────────────────────────── -->
 <nav class="navbar navbar-dark bg-dark py-1 px-3">
+  {% set current_tier = demo_info.get('tier', 'DEMO') %}
+  {% set is_full_plan = demo_info.get('is_full') or current_tier == 'FULL' %}
   <span class="navbar-brand">
     <i class="bi bi-cash-coin"></i> Nexar Finanzas
     {# ── Badge de plan — 4 estados ────────────────────────── #}
-    {% if demo_info.get('is_full') %}
+    {% if is_full_plan %}
       <span class="full-badge ms-2">FULL</span>
-    {% elif demo_info.get('tier') == 'PRO' %}
+    {% elif current_tier == 'PRO' %}
       <span class="pro-badge ms-2">PRO</span>
-    {% elif demo_info.get('tier') == 'BASICA' %}
+    {% elif current_tier == 'BASICA' %}
       <span class="basica-badge ms-2">BÁSICA</span>
     {% elif demo_info.get('is_expired') %}
       <span class="demo-badge ms-2" style="background:#dc3545;">DEMO VENCIDA</span>
@@ -96,7 +98,7 @@
       <a href="{{ url_for('investments') }}" class="nav-link {% if 'investment' in request.endpoint %}active{% endif %}">
         <i class="bi bi-graph-up-arrow"></i> Inversiones
         {# Candado visual en BASICA #}
-        {% if demo_info.get('tier') == 'BASICA' %}
+        {% if current_tier == 'BASICA' %}
           <i class="bi bi-lock-fill ms-1" style="font-size:.65rem;opacity:.6;" title="Solo lectura en Plan Básico"></i>
         {% endif %}
       </a>
@@ -175,7 +177,7 @@
       </span>
       <a href="{{ url_for('activate') }}" class="btn btn-warning btn-sm py-0">Activar</a>
     </div>
-    {% elif demo_info.get('tier') == 'BASICA' %}
+    {% elif current_tier == 'BASICA' %}
     {# BÁSICA: mostrar banner suave con opción de upgrade #}
     <div class="alert py-1 px-3 small d-flex justify-content-between align-items-center"
          style="background:#e8f5e9;border:1px solid #a5d6a7;color:#2e7d32;">
@@ -188,8 +190,8 @@
         <i class="bi bi-stars"></i> Ver upgrades
       </a>
     </div>
-    {% elif demo_info.get('tier') in ('PRO', 'FULL') %}
-      {% set monthly_plan_name = 'Plan Full' if demo_info.get('is_full') else 'Plan Pro' %}
+    {% elif current_tier in ('PRO', 'FULL') %}
+      {% set monthly_plan_name = 'Plan FULL' if is_full_plan else 'Plan PRO' %}
       {% if update_info and update_info.available %}
       <div class="alert alert-info py-2 px-3 small d-flex justify-content-between align-items-center mb-3">
         <span>

@@ -23,13 +23,13 @@
             <tr>
               <td class="text-muted fw-semibold">Plan actual</td>
               <td>
-                {% if demo_info.is_full %}
+                {% if demo_info.get('is_full') or demo_info.get('tier') == 'FULL' %}
                   <span class="full-badge">FULL</span>
-                {% elif demo_info.tier == 'PRO' %}
+                {% elif demo_info.get('tier') == 'PRO' %}
                   <span class="pro-badge">PRO</span>
-                {% elif demo_info.tier == 'BASICA' %}
+                {% elif demo_info.get('tier') == 'BASICA' %}
                   <span class="basica-badge">BÁSICA</span>
-                {% elif demo_info.is_expired %}
+                {% elif demo_info.get('is_expired') %}
                   <span class="demo-badge" style="background:#dc3545;">DEMO VENCIDA</span>
                 {% else %}
                   <span class="demo-badge">DEMO</span>

@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% block title %}Activación — Nexar Finanzas{% endblock %}
 {% block content %}
+{% set current_tier = tier|default(demo_info.get('tier', 'DEMO'), true) %}
+{% set is_full_plan = demo_info.get('is_full') or current_tier == 'FULL' %}
+{% set is_pro_plan = demo_info.get('is_pro') or current_tier == 'PRO' %}
 
 <h5 class="fw-bold mb-3"><i class="bi bi-key"></i> Licencia del sistema</h5>
 
@@ -28,13 +31,13 @@
 <div class="row g-3 justify-content-center">
   <div class="col-md-7">
 
-    {% if tier == 'FULL' %}
+    {% if is_full_plan %}
     {# ── FULL activo ── #}
     <div class="card shadow-sm" style="border:2px solid #198754;">
       <div class="card-body text-center py-5">
         <span style="font-size:4rem;">👑</span>
-        <h4 class="fw-bold mt-2 text-success">Plan Full activo</h4>
-        <p class="text-muted mb-4">Acceso premium, funciones avanzadas e IA habilitada.</p>
+        <h4 class="fw-bold mt-2 text-success">Plan FULL activo</h4>
+        <p class="text-muted mb-4">Capacidades premium FULL, funciones avanzadas e IA habilitada.</p>
 
         <div class="row g-2 justify-content-center mb-4">
           <div class="col-auto">
@@ -54,13 +57,15 @@
         </div>
 
         <div class="badge py-2 px-4 fs-6 mb-3" style="background:#198754;">
-          <i class="bi bi-stars"></i> Acceso premium activo
+          <i class="bi bi-stars"></i> Capacidades premium FULL activas
         </div>
 
         <div class="row g-2 justify-content-center mb-3 small">
-          <div class="col-auto"><span class="badge text-bg-light border">IA</span></div>
-          <div class="col-auto"><span class="badge text-bg-light border">Reportes avanzados</span></div>
-          <div class="col-auto"><span class="badge text-bg-light border">Excel/PDF</span></div>
+          {% if demo_info.get('can_ai_insights') %}<div class="col-auto"><span class="badge text-bg-light border">IA</span></div>{% endif %}
+          {% if demo_info.get('can_advanced_reports') %}<div class="col-auto"><span class="badge text-bg-light border">Reportes avanzados</span></div>{% endif %}
+          {% if demo_info.get('can_cashflow_analysis') %}<div class="col-auto"><span class="badge text-bg-light border">Flujo de caja</span></div>{% endif %}
+          {% if demo_info.get('can_export_excel') or demo_info.get('can_export_pdf') %}<div class="col-auto"><span class="badge text-bg-light border">Excel/PDF</span></div>{% endif %}
+          {% if demo_info.get('can_update') %}<div class="col-auto"><span class="badge text-bg-light border">Actualizaciones</span></div>{% endif %}
         </div>
 
         <br>
@@ -70,12 +75,12 @@
       </div>
     </div>
 
-    {% elif tier == 'PRO' %}
+    {% elif is_pro_plan %}
     {# ── PRO activo ── #}
     <div class="card shadow-sm" style="border:2px solid #6f42c1;">
       <div class="card-body text-center py-5">
         <span style="font-size:4rem;">🚀</span>
-        <h4 class="fw-bold mt-2" style="color:#6f42c1;">Plan Pro activo</h4>
+        <h4 class="fw-bold mt-2" style="color:#6f42c1;">Plan PRO activo</h4>
         <p class="text-muted mb-4">Acceso completo, actualizaciones incluidas.</p>
 
         <div class="row g-2 justify-content-center mb-4">
@@ -98,7 +103,7 @@
         {% if pro_expired %}
         <div class="alert alert-warning py-2 small mx-auto" style="max-width:420px;">
           <i class="bi bi-exclamation-triangle-fill"></i>
-          Tu Plan Pro venció. Estás usando el <strong>Plan Básico</strong>.
+          Tu Plan PRO venció. Estás usando el <strong>Plan Básico</strong>.
           Activá una nueva clave premium para recuperar el acceso completo.
         </div>
         {% else %}
@@ -114,7 +119,7 @@
       </div>
     </div>
 
-    {% elif tier == 'BASICA' %}
+    {% elif current_tier == 'BASICA' %}
     {# ── BÁSICA activa ── #}
     <div class="card border-success shadow-sm">
       <div class="card-body text-center py-5">
@@ -149,27 +154,31 @@
       </div>
     </div>
 
-    {# Formulario para activar Mensual Full sobre BASICA #}
+    {# Formulario para activar plan mensual sobre BASICA #}
     <div class="card mt-3" style="border:2px solid #6f42c1;">
       <div class="card-header py-2 fw-semibold" style="color:#6f42c1;">
-        <i class="bi bi-stars"></i> Activar Plan Full
+        <i class="bi bi-stars"></i> Activar plan mensual
       </div>
       <div class="card-body">
         <p class="small text-muted mb-2">
-          Si ya tenés tu clave Mensual Full, pegala acá para activarla sobre tu Plan Básico.
+          Si ya tenés tu clave mensual PRO o FULL, pegala acá para activarla sobre tu Plan Básico.
         </p>
+        <div class="d-flex gap-2 flex-wrap justify-content-center mb-3 small">
+          <span class="badge" style="background:#6f42c1;color:white;">PRO</span>
+          <span class="badge bg-success">FULL</span>
+        </div>
         <form method="POST">
           <input type="hidden" name="action" value="activate_license">
           <input name="license_key" class="form-control font-monospace mb-2"
                  placeholder="Ej: NXR-FIN-..." style="font-size:.9rem" required>
           <button type="submit" class="btn w-100"
                   style="background:#6f42c1;color:white;">
-            <i class="bi bi-stars"></i> Activar Plan Full
+            <i class="bi bi-stars"></i> Activar plan mensual
           </button>
         </form>
         <hr class="my-2">
         <p class="small text-muted mb-0 text-center">
-          ¿No tenés la clave todavía? Solicitala por WhatsApp usando el botón de abajo.
+          ¿No tenés la clave todavía? Solicitá PRO o FULL por WhatsApp usando el botón de abajo.
         </p>
       </div>
     </div>
@@ -193,9 +202,9 @@
           <tr>
             <td class="text-muted">Plan</td>
             <td class="fw-semibold">
-              {% if tier == 'FULL' %}Full mensual premium
-              {% elif tier == 'PRO' %}Pro mensual
-              {% elif tier == 'BASICA' %}Básico permanente
+              {% if is_full_plan %}FULL mensual premium
+              {% elif is_pro_plan %}PRO mensual
+              {% elif current_tier == 'BASICA' %}Básico permanente
               {% else %}Demo{% endif %}
             </td>
           </tr>
@@ -222,8 +231,12 @@
       </div>
       <div class="card-body small">
         <p class="text-muted mb-2">
-          {% if tier == 'BASICA' %}
-            Necesitás este código para solicitar un <strong>Plan Full</strong>.
+          {% if current_tier == 'BASICA' %}
+            Necesitás este código para solicitar un <strong>Plan PRO o FULL</strong>.
+          {% elif is_full_plan %}
+            Código específico para renovar tu <strong>Plan FULL</strong> en este equipo.
+          {% elif is_pro_plan %}
+            Código específico para renovar tu <strong>Plan PRO</strong> en este equipo.
           {% else %}
             Código específico para activar Nexar Finanzas.
           {% endif %}
@@ -238,11 +251,11 @@
             <i class="bi bi-clipboard" id="hwid-icon"></i>
           </button>
         </div>
-        {% if tier == 'BASICA' %}
+        {% if current_tier == 'BASICA' %}
         {# Botón WhatsApp con el ID pre-cargado en el mensaje #}
-        <a href="https://wa.me/5492645858874?text=Hola%2C%20quiero%20el%20Plan%20Full.%20Mi%20ID%20de%20activaci%C3%B3n%20es%3A%20{{ activation_id | urlencode }}"
+        <a href="https://wa.me/5492645858874?text=Hola%2C%20quiero%20un%20upgrade%20a%20PRO%20o%20FULL.%20Mi%20ID%20de%20activaci%C3%B3n%20es%3A%20{{ activation_id | urlencode }}"
            target="_blank" class="btn btn-success btn-sm w-100">
-          <i class="bi bi-whatsapp"></i> Solicitar Plan Full por WhatsApp
+          <i class="bi bi-whatsapp"></i> Solicitar PRO o FULL por WhatsApp
         </a>
         {% endif %}
       </div>
@@ -271,14 +284,14 @@
     </div>
 
     {# Renovar suscripción mensual — visible para PRO/FULL activos o vencidos #}
-    {% if tier in ('PRO', 'FULL') or pro_expired %}
+    {% if current_tier in ('PRO', 'FULL') or pro_expired %}
     <div class="card mt-3 {% if pro_expired %}border-warning{% else %}border-0{% endif %}"
-         style="{% if not pro_expired %}background:#f3f0ff;{% endif %}">
+         style="{% if is_full_plan and not pro_expired %}background:#eefaf2;{% elif not pro_expired %}background:#f3f0ff;{% endif %}">
       <div class="card-header py-2 fw-semibold
                   {% if pro_expired %}text-warning{% endif %}"
-           style="{% if not pro_expired %}color:#6f42c1;background:transparent;{% endif %}">
+           style="{% if is_full_plan and not pro_expired %}color:#198754;background:transparent;{% elif not pro_expired %}color:#6f42c1;background:transparent;{% endif %}">
         <i class="bi bi-arrow-repeat"></i>
-        {% if pro_expired %}Renovar suscripción mensual{% elif tier == 'FULL' %}Renovar Plan Full{% else %}Renovar Plan Pro{% endif %}
+        {% if pro_expired %}Renovar suscripción mensual{% elif is_full_plan %}Renovar Plan FULL{% else %}Renovar Plan PRO{% endif %}
       </div>
       <div class="card-body">
         {% if pro_expired %}
@@ -298,9 +311,9 @@
                  placeholder="Ej: NXR-FIN-..." required>
           <button type="submit" class="btn w-100 btn-sm
                   {% if pro_expired %}btn-warning{% endif %}"
-                  style="{% if not pro_expired %}background:#6f42c1;color:white;{% endif %}">
+                  style="{% if is_full_plan and not pro_expired %}background:#198754;color:white;{% elif not pro_expired %}background:#6f42c1;color:white;{% endif %}">
             <i class="bi bi-arrow-repeat"></i>
-            {% if pro_expired %}Reactivar suscripción{% elif tier == 'FULL' %}Renovar Full{% else %}Renovar Pro{% endif %}
+            {% if pro_expired %}Reactivar suscripción{% elif is_full_plan %}Renovar FULL{% else %}Renovar PRO{% endif %}
           </button>
         </form>
         <hr class="my-2">
@@ -413,8 +426,8 @@
               <th>Función</th>
               <th class="text-center">Demo</th>
               <th class="text-center">Básico</th>
-              <th class="text-center" style="color:#6f42c1;">Pro</th>
-              <th class="text-center text-success">Full</th>
+              <th class="text-center" style="color:#6f42c1;">PRO</th>
+              <th class="text-center text-success">FULL</th>
             </tr>
           </thead>
           <tbody style="font-size:.82rem;">
@@ -500,7 +513,8 @@
             <label class="form-label fw-semibold">Plan solicitado</label>
             <select name="plan" class="form-select form-select-sm">
               <option value="BASICA" selected>Básica permanente</option>
-              <option value="MENSUAL_FULL">Mensual Full</option>
+              <option value="PRO">Mensual PRO</option>
+              <option value="FULL">Mensual FULL</option>
               <option value="DEMO">Demo 30 días</option>
             </select>
           </div>

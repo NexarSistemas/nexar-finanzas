@@ -15,6 +15,9 @@ function toggleApiKey() {
 </script>
 {% endblock %}
 {% block content %}
+{% set current_tier = demo_status.get('tier', 'DEMO') %}
+{% set is_full_plan = demo_status.get('is_full') or current_tier == 'FULL' %}
+{% set is_pro_plan = demo_status.get('is_pro') or current_tier == 'PRO' %}
 
 <h5 class="fw-bold mb-3"><i class="bi bi-gear"></i> Configuración</h5>
 
@@ -115,17 +118,17 @@ function toggleApiKey() {
             <tr>
               <td class="text-muted">Versión del sistema</td>
               <td>
-                {% if demo_status.is_expired %}
+                {% if demo_status.get('is_expired') %}
                   <span class="badge bg-danger">DEMO VENCIDA</span>
                   <a href="{{ url_for('activate') }}" class="btn btn-outline-danger btn-sm py-0 ms-2">Activar</a>
-                {% elif demo_status.is_demo %}
+                {% elif demo_status.get('is_demo') %}
                   <span class="badge bg-warning text-dark">DEMO</span>
                   <a href="{{ url_for('activate') }}" class="btn btn-outline-success btn-sm py-0 ms-2">Activar</a>
-                {% elif demo_status.is_full %}
+                {% elif is_full_plan %}
                   <span class="badge bg-success">FULL</span>
-                {% elif demo_status.is_pro %}
+                {% elif is_pro_plan %}
                   <span class="badge" style="background:#6f42c1;color:white;">PRO</span>
-                {% elif demo_status.is_basica %}
+                {% elif demo_status.get('is_basica') or current_tier == 'BASICA' %}
                   <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle">BÁSICA</span>
                 {% else %}
                   <span class="badge bg-secondary">ACTIVA</span>
@@ -135,7 +138,7 @@ function toggleApiKey() {
             <tr><td class="text-muted">Versión app</td><td>v{{ app_version }}</td></tr>
           </tbody>
         </table>
-        {% if demo_status.is_demo %}
+        {% if demo_status.get('is_demo') %}
         <hr>
         <div class="small text-muted">
           <strong>Uso versión DEMO:</strong>
