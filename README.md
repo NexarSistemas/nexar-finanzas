@@ -232,7 +232,7 @@ Los datos se cachean localmente para funcionar sin conexión.
 - ✅ Múltiples cuentas (banco, billetera virtual, efectivo)
 - ✅ Transferencias entre cuentas propias
 - ✅ Presupuestos mensuales con semáforo de alertas
-- ✅ Reportes mensual / anual / semanal con exportación CSV
+- ✅ Reportes mensual / anual / semanal con exportación CSV y exportación Excel/PDF para planes PRO y FULL
 - ✅ Inversiones con cotizaciones automáticas (Yahoo Finance, BYMA, CAFCI, CoinGecko)
 - ✅ Cálculo de ganancias y pérdidas por posición
 - ✅ Cotizaciones en tiempo real (dólar, monedas, cripto)

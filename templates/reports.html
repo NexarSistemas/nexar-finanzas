@@ -43,6 +43,33 @@
      class="btn btn-outline-success btn-sm">
     <i class="bi bi-download"></i> Exportar CSV
   </a>
+  {% if demo_info.get('can_export_excel') %}
+  <a href="{{ url_for('export_excel', mode=mode, year=year, month=month if mode=='monthly' else '') }}"
+     class="btn btn-outline-success btn-sm"
+     data-pywebview-export="true">
+    <i class="bi bi-file-earmark-excel"></i> Excel
+  </a>
+  {% else %}
+  <button type="button" class="btn btn-outline-secondary btn-sm" disabled
+          title="La exportación está disponible en los planes Pro y Full.">
+    <i class="bi bi-file-earmark-excel"></i> Excel
+  </button>
+  {% endif %}
+  {% if demo_info.get('can_export_pdf') %}
+  <a href="{{ url_for('export_pdf', mode=mode, year=year, month=month if mode=='monthly' else '') }}"
+     class="btn btn-outline-danger btn-sm"
+     data-pywebview-export="true">
+    <i class="bi bi-file-earmark-pdf"></i> PDF
+  </a>
+  {% else %}
+  <button type="button" class="btn btn-outline-secondary btn-sm" disabled
+          title="La exportación está disponible en los planes Pro y Full.">
+    <i class="bi bi-file-earmark-pdf"></i> PDF
+  </button>
+  {% endif %}
+  {% if not demo_info.get('can_export_excel') or not demo_info.get('can_export_pdf') %}
+  <span class="text-muted small">La exportación está disponible en los planes Pro y Full.</span>
+  {% endif %}
 </form>
 {% endif %}
 

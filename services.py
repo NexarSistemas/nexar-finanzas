@@ -291,6 +291,151 @@ def export_transactions_csv(db_path: str, year: int = None, month: int = None) -
     return output.getvalue()
 
 
+def export_transactions_excel(db_path: str, year: int = None, month: int = None) -> io.BytesIO:
+    """Exporta transacciones a Excel en memoria."""
+    from openpyxl import Workbook
+
+    conn = get_db(db_path)
+    cur = conn.cursor()
+
+    query = """
+        SELECT t.date, t.type, c.name as category, t.amount, t.currency,
+               t.method, a.name as account, t.description
+        FROM transactions t
+        LEFT JOIN categories c ON t.category_id = c.id
+        LEFT JOIN accounts a ON t.account_id = a.id
+    """
+    params = []
+    if year and month:
+        query += " WHERE strftime('%Y-%m', t.date) = ?"
+        params.append(f"{year:04d}-{month:02d}")
+    elif year:
+        query += " WHERE strftime('%Y', t.date) = ?"
+        params.append(str(year))
+    query += " ORDER BY t.date DESC, t.id DESC"
+
+    cur.execute(query, params)
+    rows = cur.fetchall()
+    conn.close()
+
+    headers = ['Fecha', 'Tipo', 'Categoría', 'Monto', 'Moneda',
+               'Método', 'Cuenta', 'Descripción']
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Transacciones'
+    ws.append(headers)
+
+    for row in rows:
+        ws.append([
+            row['date'],
+            'Ingreso' if row['type'] == 'income' else 'Gasto',
+            row['category'] or '',
+            row['amount'],
+            row['currency'],
+            row['method'] or '',
+            row['account'] or '',
+            row['description'] or '',
+        ])
+
+    column_widths = {
+        'A': 14,
+        'B': 12,
+        'C': 22,
+        'D': 14,
+        'E': 10,
+        'F': 18,
+        'G': 22,
+        'H': 36,
+    }
+    for column, width in column_widths.items():
+        ws.column_dimensions[column].width = width
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output
+
+
+def export_transactions_pdf(db_path: str, year: int = None, month: int = None) -> io.BytesIO:
+    """Exporta transacciones a PDF en memoria."""
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import landscape, letter
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+    conn = get_db(db_path)
+    cur = conn.cursor()
+
+    query = """
+        SELECT t.date, t.type, c.name as category, t.amount, t.currency,
+               t.method, a.name as account, t.description
+        FROM transactions t
+        LEFT JOIN categories c ON t.category_id = c.id
+        LEFT JOIN accounts a ON t.account_id = a.id
+    """
+    params = []
+    if year and month:
+        query += " WHERE strftime('%Y-%m', t.date) = ?"
+        params.append(f"{year:04d}-{month:02d}")
+    elif year:
+        query += " WHERE strftime('%Y', t.date) = ?"
+        params.append(str(year))
+    query += " ORDER BY t.date DESC, t.id DESC"
+
+    cur.execute(query, params)
+    rows = cur.fetchall()
+    conn.close()
+
+    output = io.BytesIO()
+    doc = SimpleDocTemplate(
+        output,
+        pagesize=landscape(letter),
+        leftMargin=24,
+        rightMargin=24,
+        topMargin=24,
+        bottomMargin=24,
+    )
+    styles = getSampleStyleSheet()
+
+    table_rows = [[
+        'Fecha', 'Tipo', 'Categoría', 'Monto', 'Moneda',
+        'Método', 'Cuenta', 'Descripción'
+    ]]
+    for row in rows:
+        table_rows.append([
+            str(row['date']),
+            'Ingreso' if row['type'] == 'income' else 'Gasto',
+            str(row['category'] or ''),
+            f"{row['amount']}",
+            str(row['currency']),
+            str(row['method'] or ''),
+            str(row['account'] or ''),
+            str(row['description'] or ''),
+        ])
+
+    table = Table(
+        table_rows,
+        repeatRows=1,
+        colWidths=[58, 52, 90, 64, 45, 78, 88, 150],
+    )
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#198754')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d0d7de')),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')]),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('TOPPADDING', (0, 0), (-1, 0), 8),
+    ]))
+
+    title = Paragraph('Reporte de transacciones', styles['Heading2'])
+    doc.build([title, Spacer(1, 10), table])
+    output.seek(0)
+    return output
+
+
 # ─── Cotización USD ────────────────────────────────────────────────────────────
 
 def fetch_usd_rate(db_path: str) -> dict:
