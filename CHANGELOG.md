@@ -5,6 +5,26 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
+## [2026-05-25] - Documentación de licencias al día
+
+### Changed
+- README actualizado para reflejar el estado real de licencias: planes DEMO, BASICA, PRO y FULL, capacidades vigentes y regla correcta de vencimiento.
+- Se corrigió la documentación de `demo_limits.py` para describir el soporte actual de FULL y las capacidades expuestas por plan.
+- La tabla de planes ya no indica la regla obsoleta que exigía BASICA previa para activar un plan mensual.
+- Se aclaró en la documentación que PRO y FULL permiten actualizaciones y que, al vencer, solo regresan a BASICA si el usuario ya la tenía activada; en caso contrario quedan en DEMO_EXPIRED.
+
+### Added
+- Contexto técnico nuevo en `docs/ai/AI_CONTEXT.md` para futuras fases de trabajo con Codex.
+- Documento `docs/ai/LICENCIAS_ESTADO_ACTUAL.md` con normalización de planes, flujos válidos, backend Supabase + SDK y funciones sensibles.
+- Hoja de ruta en `docs/ai/ROADMAP.md` y prompt operativo en `docs/ai/PROMPTS_CODEX.md`.
+
+### Documented
+- Queda asentado el estado mergeado de los PRs recientes sobre licencias:
+  activación mensual sin BASICA previa, separación explícita de PRO/FULL,
+  límites FULL en `demo_limits.py`, tests para DEMO/BASICA/PRO/FULL y UI de
+  licencias mostrando FULL como plan independiente.
+
+---
 ## [1.10.16] - 2026-04-23
 
 ### Changed
