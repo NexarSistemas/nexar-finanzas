@@ -916,7 +916,7 @@ def register_routes(app):
         from demo_limits import get_tier
         tier = get_tier(get_db_path())
         if mode == 'annual' and tier == 'BASICA':
-            flash('El reporte anual está disponible en los planes Pro y Full.', 'warning')
+            flash('El reporte anual no está disponible en el Plan Básico.', 'warning')
             return redirect(url_for('reports', mode='monthly', year=year, month=month))
 
         if mode == 'annual':
@@ -1336,7 +1336,7 @@ def register_routes(app):
         demo_status = get_demo_status(get_db_path())
         can_use_updates = bool(demo_status.get('can_update'))
         if not can_use_updates:
-            flash('Las actualizaciones del sistema estan disponibles solo para los planes Pro y Full.', 'warning')
+            flash('Las actualizaciones del sistema están disponibles solo para los planes mensuales.', 'warning')
             return redirect(url_for('dashboard'))
 
         app_version = current_app.config.get("APP_VERSION", "0.0.0")
@@ -1360,7 +1360,7 @@ def register_routes(app):
     def actualizacion_descargar():
         demo_status = get_demo_status(get_db_path())
         if not demo_status.get('can_update'):
-            flash("Las actualizaciones estan disponibles solo para los planes Pro y Full.", "warning")
+            flash("Las actualizaciones están disponibles solo para los planes mensuales.", "warning")
             return redirect(url_for("actualizacion"))
 
         update_info = get_cached_update_info(current_app, current_app.config.get("APP_VERSION", "0.0.0"))
@@ -1414,7 +1414,7 @@ def register_routes(app):
     def actualizacion_instalar(nombre):
         demo_status = get_demo_status(get_db_path())
         if not demo_status.get('can_update'):
-            flash("Las actualizaciones estan disponibles solo para los planes Pro y Full.", "warning")
+            flash("Las actualizaciones están disponibles solo para los planes mensuales.", "warning")
             return redirect(url_for("actualizacion"))
 
         try:
@@ -1545,7 +1545,7 @@ def register_routes(app):
     def sistema_actualizar():
         demo_status = get_demo_status(get_db_path())
         if not demo_status.get('can_update'):
-            flash('⚠ Las actualizaciones del sistema están disponibles solo para los planes Pro y Full.', 'warning')
+            flash('⚠ Las actualizaciones del sistema están disponibles solo para los planes mensuales.', 'warning')
             return redirect(url_for('settings'))
         flash('El flujo por ZIP fue reemplazado por actualizaciones desde releases oficiales.', 'info')
         return redirect(url_for('actualizacion'))
