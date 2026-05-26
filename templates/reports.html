@@ -12,15 +12,25 @@
      class="btn btn-outline-primary btn-sm {% if mode=='monthly' %}active{% endif %}">
     <i class="bi bi-calendar-month"></i> Mensual
   </a>
+  {% if demo_info.get('can_advanced_reports') %}
   <a href="{{ url_for('reports', mode='annual', year=year) }}"
      class="btn btn-outline-primary btn-sm {% if mode=='annual' %}active{% endif %}">
     <i class="bi bi-calendar-year"></i> Anual
   </a>
+  {% else %}
+  <button type="button" class="btn btn-outline-secondary btn-sm" disabled
+          title="Los reportes avanzados no están disponibles en tu plan actual.">
+    <i class="bi bi-calendar-year"></i> Anual
+  </button>
+  {% endif %}
   <a href="{{ url_for('reports', mode='weekly') }}"
      class="btn btn-outline-primary btn-sm {% if mode=='weekly' %}active{% endif %}">
     <i class="bi bi-calendar-week"></i> Semanal
   </a>
 </div>
+{% if not demo_info.get('can_advanced_reports') %}
+<div class="text-muted small mb-3">El reporte anual forma parte de los reportes avanzados de tu plan.</div>
+{% endif %}
 
 <!-- Selector período -->
 {% if mode != 'weekly' %}
@@ -338,11 +348,21 @@
             El asistente analiza tus patrones de gasto y te da sugerencias personalizadas
             para el próximo mes.
           </p>
+          {% if demo_info.get('can_ai_insights') %}
           <button class="btn btn-sm" id="btn_analisis_ia"
                   style="background:#6f42c1;color:white;border-radius:20px;"
                   onclick="pedirAnalisisIA()">
             <i class="bi bi-stars"></i> Analizar con IA
           </button>
+          {% else %}
+          <button class="btn btn-outline-secondary btn-sm" type="button" disabled
+                  title="Los insights financieros con IA están disponibles solo en el Plan Full.">
+            <i class="bi bi-stars"></i> Analizar con IA
+          </button>
+          <div class="small text-muted mt-2">
+            Esta función requiere upgrade para desbloquear insights financieros con IA.
+          </div>
+          {% endif %}
           <div id="analisis_ia_cargando" class="small text-muted mt-2" style="display:none;">
             <span class="spinner-border spinner-border-sm"></span>
             Analizando tus gastos…
@@ -360,6 +380,19 @@
     </div>
   </div>
   {% endif %}{# end analisis #}
+  {% if not demo_info.get('can_cashflow_analysis') %}
+  <div class="card mb-3 border-0 shadow-sm">
+    <div class="card-body py-3">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-lock-fill text-warning"></i>
+        <span class="fw-semibold">Análisis de flujo de caja bloqueado</span>
+      </div>
+      <p class="text-muted small mb-0 mt-2">
+        Tu plan actual no incluye este análisis. Actualizá tu plan para desbloquearlo.
+      </p>
+    </div>
+  </div>
+  {% endif %}
 
 {% elif mode == 'annual' %}
 <!-- ═══════════════════════════════════════════════════════════════
@@ -431,7 +464,9 @@
 
 <script>
 function pedirAnalisisIA() {
-  document.getElementById('btn_analisis_ia').disabled = true;
+  const button = document.getElementById('btn_analisis_ia');
+  if (!button) return;
+  button.disabled = true;
   document.getElementById('analisis_ia_cargando').style.display = 'block';
   document.getElementById('analisis_ia_resultado').style.display = 'none';
   document.getElementById('analisis_ia_error').style.display = 'none';
@@ -444,11 +479,17 @@ function pedirAnalisisIA() {
   .then(r => r.json())
   .then(data => {
     document.getElementById('analisis_ia_cargando').style.display = 'none';
-    document.getElementById('btn_analisis_ia').disabled = false;
+    button.disabled = false;
 
     if (data.error === 'api_key_not_set') {
       document.getElementById('analisis_ia_error').innerHTML =
         '⚙️ Configurá tu API key en <a href="/settings">Configuración → IA</a> para usar esta función.';
+      document.getElementById('analisis_ia_error').style.display = 'block';
+      return;
+    }
+    if (data.error === 'ai_insights_not_available') {
+      document.getElementById('analisis_ia_error').textContent =
+        data.message || 'Esta función requiere upgrade.';
       document.getElementById('analisis_ia_error').style.display = 'block';
       return;
     }
@@ -466,7 +507,7 @@ function pedirAnalisisIA() {
   })
   .catch(() => {
     document.getElementById('analisis_ia_cargando').style.display = 'none';
-    document.getElementById('btn_analisis_ia').disabled = false;
+    button.disabled = false;
     document.getElementById('analisis_ia_error').textContent = '⚠️ Error de conexión.';
     document.getElementById('analisis_ia_error').style.display = 'block';
   });

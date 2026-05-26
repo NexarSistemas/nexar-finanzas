@@ -10,12 +10,17 @@ import requests
 
 
 PRODUCTO_DEFAULT = os.getenv("LICENSE_PRODUCT", "nexar-finanzas")
-PLANES_VALIDOS = {"DEMO", "BASICA", "MENSUAL_FULL"}
+PLANES_VALIDOS = {"DEMO", "BASICA", "PRO", "FULL"}
 
 
 def normalize_plan(plan: str = "") -> str:
     raw = (plan or "BASICA").strip().upper().replace("-", "_").replace(" ", "_")
-    aliases = {"PRO": "MENSUAL_FULL", "FULL": "MENSUAL_FULL", "BASIC": "BASICA", "BASICO": "BASICA"}
+    aliases = {
+        "BASIC": "BASICA",
+        "BASICO": "BASICA",
+        "MENSUAL_PRO": "PRO",
+        "MENSUAL_FULL": "FULL",
+    }
     normalized = aliases.get(raw, raw)
     return normalized if normalized in PLANES_VALIDOS else "BASICA"
 
