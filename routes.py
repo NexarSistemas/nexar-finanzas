@@ -21,7 +21,13 @@ from flask import (
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from models import get_db, recalculate_account_balance
+from models import (
+    account_financial_snapshot,
+    account_min_balance,
+    account_overdraft_limit,
+    get_db,
+    recalculate_account_balance,
+)
 from demo_limits import check_limit, is_full_version, get_demo_status
 from licensing.hardware_id import get_hardware_id
 from update_checker import download_release_asset, get_cached_update_info
@@ -84,6 +90,56 @@ def login_required(f):
 
 def get_db_path():
     return current_app.config['DB_PATH']
+
+
+def _parse_checkbox(name: str) -> bool:
+    return request.form.get(name) in {'1', 'true', 'on', 'yes'}
+
+
+def _get_account(db, account_id):
+    if not account_id:
+        return None
+    return db.execute("SELECT * FROM accounts WHERE id=?", (account_id,)).fetchone()
+
+
+def _balance_validation_message(account, projected_balance: float) -> str:
+    overdraft_limit = account_overdraft_limit(account)
+    if overdraft_limit > 0:
+        return (
+            f'La cuenta "{account["name"]}" supera el limite de descubierto de '
+            f'${overdraft_limit:,.2f}.'
+        )
+    return f'La cuenta "{account["name"]}" no puede quedar con saldo negativo.'
+
+
+def _validate_account_balance(account, projected_balance: float) -> str:
+    if not account:
+        return ''
+    min_balance = account_min_balance(account)
+    if projected_balance < min_balance - 0.000001:
+        return _balance_validation_message(account, projected_balance)
+    return ''
+
+
+def _validate_account_config(
+    acc_type: str,
+    initial_balance: float,
+    permite_descubierto: bool,
+    limite_descubierto: float,
+) -> str:
+    if limite_descubierto < 0:
+        return 'El limite de descubierto no puede ser negativo.'
+    if acc_type != 'bank':
+        if initial_balance < 0:
+            return 'Solo las cuentas bancarias con descubierto pueden iniciar con saldo negativo.'
+        return ''
+    if initial_balance >= 0:
+        return ''
+    if not permite_descubierto:
+        return 'La cuenta bancaria no permite saldo inicial negativo si no tiene descubierto habilitado.'
+    if abs(initial_balance) > limite_descubierto + 0.000001:
+        return 'El saldo inicial negativo supera el limite de descubierto configurado.'
+    return ''
 
 
 EXPORT_UPGRADE_MESSAGE = 'La exportación está disponible en los planes Pro y Full.'
@@ -509,9 +565,14 @@ def register_routes(app):
     @login_required
     def accounts():
         db = get_db(get_db_path())
-        accs = db.execute(
+        rows = db.execute(
             "SELECT * FROM accounts WHERE active=1 ORDER BY type, name"
         ).fetchall()
+        accs = []
+        for row in rows:
+            account = dict(row)
+            account.update(account_financial_snapshot(row))
+            accs.append(account)
         db.close()
         return render_template('accounts.html', accounts=accs)
 
@@ -537,20 +598,47 @@ def register_routes(app):
             name            = request.form.get('name', '').strip()
             currency        = request.form.get('currency', 'ARS')
             initial_balance = float(request.form.get('initial_balance', 0) or 0)
+            permite_descubierto = _parse_checkbox('permite_descubierto')
+            limite_descubierto = float(request.form.get('limite_descubierto', 0) or 0)
             cbu_cvu         = request.form.get('cbu_cvu', '').strip()
             alias           = request.form.get('alias', '').strip()
 
             if not name:
                 flash('El nombre es obligatorio.', 'danger')
             else:
-                db.execute("""
-                    INSERT INTO accounts (name, type, currency, initial_balance, current_balance, cbu_cvu, alias)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (name, acc_type, currency, initial_balance, initial_balance, cbu_cvu, alias))
-                db.commit()
-                flash(f'Cuenta "{name}" creada correctamente.', 'success')
-                db.close()
-                return redirect(url_for('accounts'))
+                error = _validate_account_config(
+                    acc_type,
+                    initial_balance,
+                    permite_descubierto,
+                    limite_descubierto,
+                )
+                if error:
+                    flash(error, 'danger')
+                else:
+                    if acc_type != 'bank':
+                        permite_descubierto = False
+                        limite_descubierto = 0
+                    db.execute("""
+                        INSERT INTO accounts (
+                            name, type, currency, initial_balance, current_balance,
+                            permite_descubierto, limite_descubierto, cbu_cvu, alias
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        name,
+                        acc_type,
+                        currency,
+                        initial_balance,
+                        initial_balance,
+                        int(permite_descubierto),
+                        limite_descubierto,
+                        cbu_cvu,
+                        alias,
+                    ))
+                    db.commit()
+                    flash(f'Cuenta "{name}" creada correctamente.', 'success')
+                    db.close()
+                    return redirect(url_for('accounts'))
 
         db.close()
         return render_template('account_form.html', account=None, action='Crear')
@@ -568,15 +656,34 @@ def register_routes(app):
         if request.method == 'POST':
             name     = request.form.get('name', '').strip()
             currency = request.form.get('currency', 'ARS')
+            permite_descubierto = _parse_checkbox('permite_descubierto')
+            limite_descubierto = float(request.form.get('limite_descubierto', 0) or 0)
             cbu_cvu  = request.form.get('cbu_cvu', '').strip()
             alias    = request.form.get('alias', '').strip()
             if not name:
                 flash('El nombre es obligatorio.', 'danger')
             else:
+                if limite_descubierto < 0:
+                    flash('El limite de descubierto no puede ser negativo.', 'danger')
+                    db.close()
+                    return render_template('account_form.html', account=dict(account), action='Editar')
+                if account['type'] != 'bank':
+                    permite_descubierto = False
+                    limite_descubierto = 0
+                projected_balance = float(account['current_balance'] or 0)
+                if account['type'] == 'bank' and not permite_descubierto and projected_balance < 0:
+                    flash('No podés desactivar el descubierto mientras la cuenta tenga saldo negativo.', 'danger')
+                    db.close()
+                    return render_template('account_form.html', account=dict(account), action='Editar')
+                if account['type'] == 'bank' and projected_balance < -(limite_descubierto or 0) - 0.000001:
+                    flash('El saldo actual supera el nuevo limite de descubierto configurado.', 'danger')
+                    db.close()
+                    return render_template('account_form.html', account=dict(account), action='Editar')
                 db.execute("""
-                    UPDATE accounts SET name=?, currency=?, cbu_cvu=?, alias=?
+                    UPDATE accounts
+                    SET name=?, currency=?, permite_descubierto=?, limite_descubierto=?, cbu_cvu=?, alias=?
                     WHERE id=?
-                """, (name, currency, cbu_cvu, alias, acc_id))
+                """, (name, currency, int(permite_descubierto), limite_descubierto, cbu_cvu, alias, acc_id))
                 recalculate_account_balance(db, acc_id)
                 db.commit()
                 flash('Cuenta actualizada.', 'success')
@@ -617,16 +724,25 @@ def register_routes(app):
             elif amount <= 0:
                 flash('El monto debe ser mayor a cero.', 'danger')
             else:
-                db.execute("""
-                    INSERT INTO transfers (from_account_id, to_account_id, amount, currency, date, description)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """, (from_id, to_id, amount, currency, tx_date, desc))
-                recalculate_account_balance(db, from_id)
-                recalculate_account_balance(db, to_id)
-                db.commit()
-                flash('Transferencia registrada correctamente.', 'success')
-                db.close()
-                return redirect(url_for('accounts'))
+                from_account = _get_account(db, from_id)
+                if not from_account or not _get_account(db, to_id):
+                    flash('Seleccioná cuentas válidas para la transferencia.', 'danger')
+                else:
+                    projected_balance = float(from_account['current_balance'] or 0) - amount
+                    balance_error = _validate_account_balance(from_account, projected_balance)
+                    if balance_error:
+                        flash(balance_error, 'danger')
+                    else:
+                        db.execute("""
+                            INSERT INTO transfers (from_account_id, to_account_id, amount, currency, date, description)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        """, (from_id, to_id, amount, currency, tx_date, desc))
+                        recalculate_account_balance(db, from_id)
+                        recalculate_account_balance(db, to_id)
+                        db.commit()
+                        flash('Transferencia registrada correctamente.', 'success')
+                        db.close()
+                        return redirect(url_for('accounts'))
 
         db.close()
         return render_template('transfer_form.html', accounts=accounts_list,
@@ -721,17 +837,28 @@ def register_routes(app):
             if amount <= 0:
                 flash('El monto debe ser mayor a cero.', 'danger')
             else:
-                db.execute("""
-                    INSERT INTO transactions
-                    (type, amount, currency, category_id, account_id, method, date, description)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """, (tx_type, amount, currency, cat_id, acc_id, method, tx_date, desc))
+                balance_error = ''
                 if acc_id:
-                    recalculate_account_balance(db, int(acc_id))
-                db.commit()
-                flash('Movimiento registrado correctamente.', 'success')
-                db.close()
-                return redirect(url_for('transactions'))
+                    account = _get_account(db, int(acc_id))
+                    if not account:
+                        balance_error = 'Seleccioná una cuenta válida.'
+                    elif tx_type == 'expense':
+                        projected_balance = float(account['current_balance'] or 0) - amount
+                        balance_error = _validate_account_balance(account, projected_balance)
+                if balance_error:
+                    flash(balance_error, 'danger')
+                else:
+                    db.execute("""
+                        INSERT INTO transactions
+                        (type, amount, currency, category_id, account_id, method, date, description)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (tx_type, amount, currency, cat_id, acc_id, method, tx_date, desc))
+                    if acc_id:
+                        recalculate_account_balance(db, int(acc_id))
+                    db.commit()
+                    flash('Movimiento registrado correctamente.', 'success')
+                    db.close()
+                    return redirect(url_for('transactions'))
 
         categories = db.execute(
             "SELECT * FROM categories WHERE active=1 ORDER BY type, name"
@@ -762,6 +889,7 @@ def register_routes(app):
         old_account_id = tx['account_id']
 
         if request.method == 'POST':
+            tx_type  = request.form.get('type', tx['type'])
             amount   = float(request.form.get('amount', 0) or 0)
             currency = request.form.get('currency', 'ARS')
             cat_id   = request.form.get('category_id') or None
@@ -773,20 +901,58 @@ def register_routes(app):
             if amount <= 0:
                 flash('El monto debe ser mayor a cero.', 'danger')
             else:
-                db.execute("""
-                    UPDATE transactions
-                    SET amount=?, currency=?, category_id=?, account_id=?,
-                        method=?, date=?, description=?
-                    WHERE id=?
-                """, (amount, currency, cat_id, acc_id, method, tx_date, desc, tx_id))
-                if old_account_id:
-                    recalculate_account_balance(db, old_account_id)
+                balance_error = ''
+                account_ids = {acc for acc in (old_account_id, int(acc_id) if acc_id else None) if acc}
+                projected_balances = {}
+                for account_id in account_ids:
+                    account = _get_account(db, account_id)
+                    if account:
+                        projected_balances[account_id] = float(account['current_balance'] or 0)
+
+                if old_account_id and old_account_id in projected_balances:
+                    if tx['type'] == 'expense':
+                        projected_balances[old_account_id] += float(tx['amount'] or 0)
+                    elif tx['type'] == 'income':
+                        projected_balances[old_account_id] -= float(tx['amount'] or 0)
+
                 if acc_id:
-                    recalculate_account_balance(db, int(acc_id))
-                db.commit()
-                flash('Movimiento actualizado.', 'success')
-                db.close()
-                return redirect(url_for('transactions'))
+                    new_account_id = int(acc_id)
+                    new_account = _get_account(db, new_account_id)
+                    if not new_account:
+                        balance_error = 'Seleccioná una cuenta válida.'
+                    else:
+                        projected_balances.setdefault(new_account_id, float(new_account['current_balance'] or 0))
+                        if tx_type == 'expense':
+                            projected_balances[new_account_id] -= amount
+                        elif tx_type == 'income':
+                            projected_balances[new_account_id] += amount
+
+                if not balance_error:
+                    for account_id, projected_balance in projected_balances.items():
+                        balance_error = _validate_account_balance(
+                            _get_account(db, account_id),
+                            projected_balance,
+                        )
+                        if balance_error:
+                            break
+
+                if balance_error:
+                    flash(balance_error, 'danger')
+                else:
+                    db.execute("""
+                        UPDATE transactions
+                        SET type=?, amount=?, currency=?, category_id=?, account_id=?,
+                            method=?, date=?, description=?
+                        WHERE id=?
+                    """, (tx_type, amount, currency, cat_id, acc_id, method, tx_date, desc, tx_id))
+                    if old_account_id:
+                        recalculate_account_balance(db, old_account_id)
+                    if acc_id:
+                        recalculate_account_balance(db, int(acc_id))
+                    db.commit()
+                    flash('Movimiento actualizado.', 'success')
+                    db.close()
+                    return redirect(url_for('transactions'))
 
         categories = db.execute(
             "SELECT * FROM categories WHERE active=1 ORDER BY type, name"

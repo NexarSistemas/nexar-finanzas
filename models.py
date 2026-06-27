@@ -226,12 +226,24 @@ def init_db(db_path: str):
             currency        TEXT NOT NULL DEFAULT 'ARS' CHECK (currency IN ('ARS','USD')),
             initial_balance REAL NOT NULL DEFAULT 0,
             current_balance REAL NOT NULL DEFAULT 0,
+            permite_descubierto INTEGER NOT NULL DEFAULT 0,
+            limite_descubierto  REAL NOT NULL DEFAULT 0,
             cbu_cvu         TEXT,
             alias           TEXT,
             active          INTEGER NOT NULL DEFAULT 1,
             created_at      TEXT DEFAULT CURRENT_TIMESTAMP
         )
     """)
+
+    cols_accounts = [row[1] for row in cur.execute("PRAGMA table_info(accounts)").fetchall()]
+    if 'permite_descubierto' not in cols_accounts:
+        cur.execute(
+            "ALTER TABLE accounts ADD COLUMN permite_descubierto INTEGER NOT NULL DEFAULT 0"
+        )
+    if 'limite_descubierto' not in cols_accounts:
+        cur.execute(
+            "ALTER TABLE accounts ADD COLUMN limite_descubierto REAL NOT NULL DEFAULT 0"
+        )
 
     # Categorías dinámicas para ingresos y gastos
     cur.execute("""
@@ -586,3 +598,43 @@ def recalculate_account_balance(conn: sqlite3.Connection, account_id: int):
     balance += cur.fetchone()[0]
 
     cur.execute("UPDATE accounts SET current_balance=? WHERE id=?", (balance, account_id))
+
+
+def account_allows_overdraft(account: sqlite3.Row | dict | None) -> bool:
+    """Indica si una cuenta bancaria tiene descubierto habilitado."""
+    if not account:
+        return False
+    return account['type'] == 'bank' and bool(account['permite_descubierto'])
+
+
+def account_overdraft_limit(account: sqlite3.Row | dict | None) -> float:
+    """Devuelve el limite de descubierto normalizado."""
+    if not account_allows_overdraft(account):
+        return 0.0
+    try:
+        return max(float(account['limite_descubierto'] or 0), 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def account_min_balance(account: sqlite3.Row | dict | None) -> float:
+    """Saldo minimo permitido para una cuenta segun su configuracion."""
+    return -account_overdraft_limit(account) if account_allows_overdraft(account) else 0.0
+
+
+def account_financial_snapshot(account: sqlite3.Row | dict | None) -> dict:
+    """Resumen de saldo y uso de descubierto para mostrar en la UI."""
+    if not account:
+        current_balance = 0.0
+    else:
+        current_balance = float(account['current_balance'] or 0)
+    overdraft_limit = account_overdraft_limit(account)
+    overdraft_used = abs(current_balance) if current_balance < 0 and overdraft_limit > 0 else 0.0
+    available_margin = current_balance + overdraft_limit if overdraft_limit > 0 else 0.0
+    return {
+        'saldo_actual': current_balance,
+        'limite_descubierto': overdraft_limit,
+        'descubierto_usado': overdraft_used,
+        'margen_disponible': available_margin,
+        'permite_descubierto': account_allows_overdraft(account),
+    }
