@@ -39,6 +39,13 @@
                 ${{ "{:,.2f}".format(acc.current_balance) }}
               </div>
               <div class="text-muted" style="font-size:.72rem;">Saldo actual</div>
+              {% if acc.permite_descubierto %}
+              <div class="small mt-2 text-muted">
+                <div>Límite: ${{ "{:,.2f}".format(acc.limite_descubierto) }}</div>
+                <div>Usado: ${{ "{:,.2f}".format(acc.descubierto_usado) }}</div>
+                <div>Margen disponible: ${{ "{:,.2f}".format(acc.margen_disponible) }}</div>
+              </div>
+              {% endif %}
             </div>
           </div>
         </div>

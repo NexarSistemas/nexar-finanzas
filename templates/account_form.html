@@ -1,6 +1,15 @@
 {% extends "base.html" %}
 {% block title %}{{ action }} cuenta — Nexar Finanzas{% endblock %}
 {% block content %}
+{% set form_type = request.form.get('type', account.type if account else 'bank') %}
+{% set form_currency = request.form.get('currency', account.currency if account else 'ARS') %}
+{% set form_name = request.form.get('name', account.name if account else '') %}
+{% set form_initial_balance = request.form.get('initial_balance', account.initial_balance if account else 0) %}
+{% set form_cbu_cvu = request.form.get('cbu_cvu', account.cbu_cvu if account else '') %}
+{% set form_alias = request.form.get('alias', account.alias if account else '') %}
+{% set form_perm_desc = request.form.get('permite_descubierto') %}
+{% set overdraft_enabled = form_perm_desc in ['1', 'true', 'on', 'yes'] if form_perm_desc is not none else (account.permite_descubierto if account else false) %}
+{% set form_limit = request.form.get('limite_descubierto', account.limite_descubierto if account else 0) %}
 
 <div class="d-flex align-items-center mb-3 gap-2">
   <a href="{{ url_for('accounts') }}" class="btn btn-outline-secondary btn-sm">
@@ -16,26 +25,26 @@
 
         <div class="col-12">
           <label class="form-label fw-semibold">Tipo de cuenta</label>
-          <select name="type" class="form-select" {% if account %}disabled{% endif %}>
-            <option value="bank"           {% if account and account.type=='bank' %}selected{% endif %}>🏦 Cuenta bancaria</option>
-            <option value="virtual_wallet" {% if account and account.type=='virtual_wallet' %}selected{% endif %}>📱 Billetera virtual</option>
-            <option value="cash"           {% if account and account.type=='cash' %}selected{% endif %}>💵 Efectivo</option>
+          <select name="type" id="account_type" class="form-select" {% if account %}disabled{% endif %}>
+            <option value="bank"           {% if form_type=='bank' %}selected{% endif %}>🏦 Cuenta bancaria</option>
+            <option value="virtual_wallet" {% if form_type=='virtual_wallet' %}selected{% endif %}>📱 Billetera virtual</option>
+            <option value="cash"           {% if form_type=='cash' %}selected{% endif %}>💵 Efectivo</option>
           </select>
-          {% if account %}<input type="hidden" name="type" value="{{ account.type }}">{% endif %}
+          {% if account %}<input type="hidden" name="type" value="{{ form_type }}">{% endif %}
         </div>
 
         <div class="col-12">
           <label class="form-label fw-semibold">Nombre</label>
           <input type="text" name="name" class="form-control"
-                 value="{{ account.name if account else '' }}"
+                 value="{{ form_name }}"
                  placeholder="Ej: Cuenta Nación, Mercado Pago..." required maxlength="100">
         </div>
 
         <div class="col-6">
           <label class="form-label fw-semibold">Moneda</label>
           <select name="currency" class="form-select">
-            <option value="ARS" {% if not account or account.currency=='ARS' %}selected{% endif %}>ARS</option>
-            <option value="USD" {% if account and account.currency=='USD' %}selected{% endif %}>USD</option>
+            <option value="ARS" {% if form_currency=='ARS' %}selected{% endif %}>ARS</option>
+            <option value="USD" {% if form_currency=='USD' %}selected{% endif %}>USD</option>
           </select>
         </div>
 
@@ -44,23 +53,47 @@
           <label class="form-label fw-semibold">Saldo inicial</label>
           <div class="input-group">
             <span class="input-group-text">$</span>
-            <input type="number" name="initial_balance" step="0.01" min="0"
-                   class="form-control" value="0" placeholder="0.00">
+            <input type="number" name="initial_balance" id="initial_balance" step="0.01"
+                   class="form-control" value="{{ form_initial_balance }}" placeholder="0.00">
           </div>
         </div>
         {% endif %}
 
+        <div class="col-12" id="overdraft_fields" {% if form_type != 'bank' %}style="display:none;"{% endif %}>
+          <div class="rounded border p-3 bg-light">
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" value="1"
+                     id="permite_descubierto" name="permite_descubierto"
+                     {% if overdraft_enabled %}checked{% endif %}>
+              <label class="form-check-label fw-semibold" for="permite_descubierto">
+                Permitir descubierto
+              </label>
+            </div>
+
+            <div>
+              <label class="form-label fw-semibold">Límite de descubierto</label>
+              <div class="input-group">
+                <span class="input-group-text">$</span>
+                <input type="number" name="limite_descubierto" id="limite_descubierto"
+                       step="0.01" min="0" class="form-control"
+                       value="{{ form_limit }}" placeholder="0.00">
+              </div>
+              <div class="form-text">Solo aplica a cuentas bancarias.</div>
+            </div>
+          </div>
+        </div>
+
         <div class="col-12">
           <label class="form-label fw-semibold">CBU / CVU <span class="text-muted">(opcional)</span></label>
           <input type="text" name="cbu_cvu" class="form-control"
-                 value="{{ account.cbu_cvu if account else '' }}"
+                 value="{{ form_cbu_cvu }}"
                  placeholder="22 dígitos..." maxlength="22">
         </div>
 
         <div class="col-12">
           <label class="form-label fw-semibold">Alias <span class="text-muted">(opcional)</span></label>
           <input type="text" name="alias" class="form-control"
-                 value="{{ account.alias if account else '' }}"
+                 value="{{ form_alias }}"
                  placeholder="mi.alias.banco" maxlength="50">
         </div>
 
@@ -75,5 +108,41 @@
     </form>
   </div>
 </div>
+
+<script>
+(function () {
+  const typeSelect = document.getElementById('account_type');
+  const overdraftFields = document.getElementById('overdraft_fields');
+  const overdraftCheckbox = document.getElementById('permite_descubierto');
+  const overdraftLimit = document.getElementById('limite_descubierto');
+  const initialBalance = document.getElementById('initial_balance');
+
+  function syncAccountForm() {
+    const isBank = !typeSelect || typeSelect.value === 'bank';
+    if (overdraftFields) {
+      overdraftFields.style.display = isBank ? '' : 'none';
+    }
+    if (overdraftCheckbox) {
+      if (!isBank) {
+        overdraftCheckbox.checked = false;
+      }
+    }
+    if (overdraftLimit) {
+      overdraftLimit.disabled = !isBank || !overdraftCheckbox || !overdraftCheckbox.checked;
+    }
+    if (initialBalance) {
+      initialBalance.min = isBank && overdraftCheckbox && overdraftCheckbox.checked ? '' : '0';
+    }
+  }
+
+  if (typeSelect) {
+    typeSelect.addEventListener('change', syncAccountForm);
+  }
+  if (overdraftCheckbox) {
+    overdraftCheckbox.addEventListener('change', syncAccountForm);
+  }
+  syncAccountForm();
+})();
+</script>
 
 {% endblock %}
