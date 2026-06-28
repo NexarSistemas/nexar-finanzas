@@ -5,7 +5,12 @@ from pathlib import Path
 
 from flask import Flask
 
-from models import init_db
+from models import (
+    account_financial_snapshot,
+    account_overdraft_alert_level,
+    account_overdraft_usage_percent,
+    init_db,
+)
 from routes import register_routes
 
 
@@ -309,6 +314,63 @@ class AccountOverdraftRoutesTests(unittest.TestCase):
         body = response.get_data(as_text=True)
         self.assertIn('No podés reducir el límite de descubierto a $30,000.00', body)
         self.assertIn('la cuenta ya está usando $40,000.00.', body)
+
+    def test_overdraft_snapshot_reports_usage_percentage_and_alert_levels(self):
+        moderate = {
+            "type": "bank",
+            "current_balance": -80000,
+            "permite_descubierto": 1,
+            "limite_descubierto": 100000,
+        }
+        high = {
+            "type": "bank",
+            "current_balance": -95000,
+            "permite_descubierto": 1,
+            "limite_descubierto": 100000,
+        }
+        limit = {
+            "type": "bank",
+            "current_balance": -100000,
+            "permite_descubierto": 1,
+            "limite_descubierto": 100000,
+        }
+
+        moderate_snapshot = account_financial_snapshot(moderate)
+        self.assertEqual(account_overdraft_usage_percent(moderate), 80.0)
+        self.assertEqual(account_overdraft_alert_level(moderate), "moderate")
+        self.assertEqual(moderate_snapshot["alerta_descubierto_texto"], "Advertencia moderada")
+
+        high_snapshot = account_financial_snapshot(high)
+        self.assertEqual(account_overdraft_usage_percent(high), 95.0)
+        self.assertEqual(account_overdraft_alert_level(high), "high")
+        self.assertEqual(high_snapshot["alerta_descubierto_texto"], "Advertencia alta")
+
+        limit_snapshot = account_financial_snapshot(limit)
+        self.assertEqual(account_overdraft_usage_percent(limit), 100.0)
+        self.assertEqual(account_overdraft_alert_level(limit), "limit")
+        self.assertEqual(limit_snapshot["alerta_descubierto_texto"], "Límite alcanzado")
+
+    def test_accounts_list_shows_overdraft_indicator_percentage_and_alert(self):
+        self.client.post(
+            "/accounts/new",
+            data={
+                "type": "bank",
+                "name": "Banco alerta",
+                "currency": "ARS",
+                "initial_balance": "-96000",
+                "permite_descubierto": "1",
+                "limite_descubierto": "100000",
+            },
+        )
+
+        response = self.client.get("/accounts")
+
+        body = response.get_data(as_text=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("En descubierto", body)
+        self.assertIn("96%", body)
+        self.assertIn("Advertencia alta", body)
+        self.assertIn("El descubierto permite que una cuenta bancaria siga operando temporalmente", body)
 
 
 if __name__ == "__main__":

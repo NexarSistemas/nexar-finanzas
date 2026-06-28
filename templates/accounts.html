@@ -1,6 +1,18 @@
 {% extends "base.html" %}
 {% block title %}Cuentas — Nexar Finanzas{% endblock %}
 {% block content %}
+{% set alert_badges = {
+  'normal': 'text-bg-secondary',
+  'moderate': 'text-bg-warning',
+  'high': 'text-bg-danger',
+  'limit': 'text-bg-dark'
+} %}
+{% set alert_progress = {
+  'normal': 'bg-success',
+  'moderate': 'bg-warning',
+  'high': 'bg-danger',
+  'limit': 'bg-dark'
+} %}
 
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h5 class="fw-bold mb-0"><i class="bi bi-bank"></i> Mis cuentas</h5>
@@ -45,22 +57,44 @@
               <div class="text-muted" style="font-size:.72rem;">Saldo actual</div>
               {% if acc.permite_descubierto %}
               <div class="small mt-3 text-start rounded border {% if overdraft_alert %}border-danger-subtle bg-danger-subtle{% else %}bg-light{% endif %} p-2">
-                <div class="fw-semibold mb-1">Descubierto bancario</div>
-                <div class="d-flex justify-content-between gap-3">
-                  <span class="text-muted">Autorizado</span>
-                  <span>${{ "{:,.2f}".format(acc.limite_descubierto) }}</span>
+                <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                  <div class="fw-semibold">Descubierto bancario</div>
+                  {% if acc.en_descubierto and acc.alerta_descubierto_texto %}
+                  <span class="badge {{ alert_badges[acc.alerta_descubierto] }}">{{ acc.alerta_descubierto_texto }}</span>
+                  {% endif %}
+                </div>
+                <div class="progress mb-2" role="progressbar"
+                     aria-label="Uso del descubierto"
+                     aria-valuenow="{{ acc.porcentaje_descubierto_usado_redondeado }}"
+                     aria-valuemin="0" aria-valuemax="100"
+                     style="height: 0.65rem;">
+                  <div class="progress-bar {{ alert_progress[acc.alerta_descubierto] }}"
+                       style="width: {{ acc.porcentaje_descubierto_usado }}%;"></div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                  <span class="text-muted">Uso actual</span>
+                  <span class="fw-semibold {% if acc.en_descubierto %}text-danger{% else %}text-success{% endif %}">
+                    {{ acc.porcentaje_descubierto_usado_redondeado }}%
+                  </span>
                 </div>
                 <div class="d-flex justify-content-between gap-3">
-                  <span class="text-muted">Utilizado</span>
+                  <span class="text-muted">Usado</span>
                   <span class="{% if acc.descubierto_usado > 0 %}text-danger fw-semibold{% endif %}">
                     ${{ "{:,.2f}".format(acc.descubierto_usado) }}
                   </span>
+                </div>
+                <div class="d-flex justify-content-between gap-3">
+                  <span class="text-muted">Límite</span>
+                  <span>${{ "{:,.2f}".format(acc.limite_descubierto) }}</span>
                 </div>
                 <div class="d-flex justify-content-between gap-3">
                   <span class="text-muted">Disponible</span>
                   <span class="{% if acc.margen_disponible <= 0 %}text-danger fw-semibold{% else %}text-success fw-semibold{% endif %}">
                     ${{ "{:,.2f}".format(acc.margen_disponible) }}
                   </span>
+                </div>
+                <div class="form-text mt-2 mb-0">
+                  El descubierto permite que una cuenta bancaria siga operando temporalmente por debajo de cero hasta el límite autorizado.
                 </div>
               </div>
               {% endif %}

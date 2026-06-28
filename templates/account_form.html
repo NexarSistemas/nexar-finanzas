@@ -10,6 +10,18 @@
 {% set form_perm_desc = request.form.get('permite_descubierto') %}
 {% set overdraft_enabled = form_perm_desc in ['1', 'true', 'on', 'yes'] if form_perm_desc is not none else (account.permite_descubierto if account else false) %}
 {% set form_limit = request.form.get('limite_descubierto', account.limite_descubierto if account else 0) %}
+{% set alert_badges = {
+  'normal': 'text-bg-secondary',
+  'moderate': 'text-bg-warning',
+  'high': 'text-bg-danger',
+  'limit': 'text-bg-dark'
+} %}
+{% set alert_progress = {
+  'normal': 'bg-success',
+  'moderate': 'bg-warning',
+  'high': 'bg-danger',
+  'limit': 'bg-dark'
+} %}
 
 <div class="d-flex align-items-center mb-3 gap-2">
   <a href="{{ url_for('accounts') }}" class="btn btn-outline-secondary btn-sm">
@@ -24,11 +36,27 @@
     <div class="rounded border {% if account.en_descubierto %}border-danger bg-danger-subtle{% else %}bg-light{% endif %} p-3 mb-3">
       <div class="d-flex justify-content-between align-items-center mb-2">
         <span class="fw-semibold">Estado del descubierto</span>
-        {% if account.en_descubierto %}
+        {% if account.en_descubierto and account.alerta_descubierto_texto %}
+        <span class="badge {{ alert_badges[account.alerta_descubierto] }}">{{ account.alerta_descubierto_texto }}</span>
+        {% elif account.en_descubierto %}
         <span class="badge text-bg-danger">En descubierto</span>
         {% else %}
         <span class="badge text-bg-success">Disponible</span>
         {% endif %}
+      </div>
+      <div class="progress mb-2" role="progressbar"
+           aria-label="Uso del descubierto"
+           aria-valuenow="{{ account.porcentaje_descubierto_usado_redondeado }}"
+           aria-valuemin="0" aria-valuemax="100"
+           style="height: 0.75rem;">
+        <div class="progress-bar {{ alert_progress[account.alerta_descubierto] }}"
+             style="width: {{ account.porcentaje_descubierto_usado }}%;"></div>
+      </div>
+      <div class="d-flex justify-content-between align-items-center gap-3 small mb-2">
+        <span class="text-muted">Uso del descubierto</span>
+        <span class="fw-semibold {% if account.en_descubierto %}text-danger{% else %}text-success{% endif %}">
+          {{ account.porcentaje_descubierto_usado_redondeado }}%
+        </span>
       </div>
       <div class="small">
         <div class="d-flex justify-content-between gap-3">
@@ -42,7 +70,7 @@
           <span>${{ "{:,.2f}".format(account.limite_descubierto) }}</span>
         </div>
         <div class="d-flex justify-content-between gap-3">
-          <span class="text-muted">Descubierto utilizado</span>
+          <span class="text-muted">Usado</span>
           <span class="{% if account.descubierto_usado > 0 %}text-danger fw-semibold{% endif %}">
             ${{ "{:,.2f}".format(account.descubierto_usado) }}
           </span>
@@ -52,6 +80,9 @@
           <span class="{% if account.descubierto_disponible <= 0 %}text-danger fw-semibold{% else %}text-success fw-semibold{% endif %}">
             ${{ "{:,.2f}".format(account.descubierto_disponible) }}
           </span>
+        </div>
+        <div class="form-text mt-2 mb-0">
+          El descubierto es un margen que el banco autoriza para usar saldo negativo de forma temporal hasta el límite configurado.
         </div>
       </div>
     </div>
