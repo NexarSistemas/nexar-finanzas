@@ -622,6 +622,28 @@ def account_min_balance(account: sqlite3.Row | dict | None) -> float:
     return -account_overdraft_limit(account) if account_allows_overdraft(account) else 0.0
 
 
+def account_overdraft_usage_percent(account: sqlite3.Row | dict | None) -> float:
+    """Porcentaje de descubierto usado para indicadores visuales."""
+    snapshot = account_financial_snapshot(account)
+    overdraft_limit = float(snapshot['limite_descubierto'] or 0)
+    overdraft_used = float(snapshot['descubierto_usado'] or 0)
+    if overdraft_limit <= 0 or overdraft_used <= 0:
+        return 0.0
+    return min((overdraft_used / overdraft_limit) * 100, 100.0)
+
+
+def account_overdraft_alert_level(account: sqlite3.Row | dict | None) -> str:
+    """Nivel visual de alerta para el uso del descubierto."""
+    usage_percent = account_overdraft_usage_percent(account)
+    if usage_percent >= 100:
+        return 'limit'
+    if usage_percent >= 95:
+        return 'high'
+    if usage_percent >= 80:
+        return 'moderate'
+    return 'normal'
+
+
 def account_financial_snapshot(account: sqlite3.Row | dict | None) -> dict:
     """Resumen de saldo y uso de descubierto para mostrar en la UI."""
     if not account:
@@ -631,12 +653,29 @@ def account_financial_snapshot(account: sqlite3.Row | dict | None) -> dict:
     overdraft_limit = account_overdraft_limit(account)
     overdraft_used = abs(current_balance) if current_balance < 0 and overdraft_limit > 0 else 0.0
     available_margin = current_balance + overdraft_limit if overdraft_limit > 0 else 0.0
+    usage_percent = min((overdraft_used / overdraft_limit) * 100, 100.0) if overdraft_limit > 0 and overdraft_used > 0 else 0.0
+    if usage_percent >= 100:
+        alert_level = 'limit'
+        alert_label = 'Límite alcanzado'
+    elif usage_percent >= 95:
+        alert_level = 'high'
+        alert_label = 'Advertencia alta'
+    elif usage_percent >= 80:
+        alert_level = 'moderate'
+        alert_label = 'Advertencia moderada'
+    else:
+        alert_level = 'normal'
+        alert_label = ''
     return {
         'saldo_actual': current_balance,
         'limite_descubierto': overdraft_limit,
         'descubierto_usado': overdraft_used,
         'descubierto_disponible': available_margin,
         'margen_disponible': available_margin,
+        'porcentaje_descubierto_usado': usage_percent,
+        'porcentaje_descubierto_usado_redondeado': round(usage_percent),
+        'alerta_descubierto': alert_level,
+        'alerta_descubierto_texto': alert_label,
         'en_descubierto': overdraft_used > 0,
         'permite_descubierto': account_allows_overdraft(account),
     }
