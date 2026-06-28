@@ -20,6 +20,43 @@
 
 <div class="card" style="max-width:500px;">
   <div class="card-body">
+    {% if account and account.type == 'bank' and account.permite_descubierto %}
+    <div class="rounded border {% if account.en_descubierto %}border-danger bg-danger-subtle{% else %}bg-light{% endif %} p-3 mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="fw-semibold">Estado del descubierto</span>
+        {% if account.en_descubierto %}
+        <span class="badge text-bg-danger">En descubierto</span>
+        {% else %}
+        <span class="badge text-bg-success">Disponible</span>
+        {% endif %}
+      </div>
+      <div class="small">
+        <div class="d-flex justify-content-between gap-3">
+          <span class="text-muted">Saldo actual</span>
+          <span class="{% if account.current_balance < 0 %}text-danger fw-semibold{% else %}text-success fw-semibold{% endif %}">
+            ${{ "{:,.2f}".format(account.current_balance) }}
+          </span>
+        </div>
+        <div class="d-flex justify-content-between gap-3">
+          <span class="text-muted">Descubierto autorizado</span>
+          <span>${{ "{:,.2f}".format(account.limite_descubierto) }}</span>
+        </div>
+        <div class="d-flex justify-content-between gap-3">
+          <span class="text-muted">Descubierto utilizado</span>
+          <span class="{% if account.descubierto_usado > 0 %}text-danger fw-semibold{% endif %}">
+            ${{ "{:,.2f}".format(account.descubierto_usado) }}
+          </span>
+        </div>
+        <div class="d-flex justify-content-between gap-3">
+          <span class="text-muted">Disponible</span>
+          <span class="{% if account.descubierto_disponible <= 0 %}text-danger fw-semibold{% else %}text-success fw-semibold{% endif %}">
+            ${{ "{:,.2f}".format(account.descubierto_disponible) }}
+          </span>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
     <form method="POST">
       <div class="row g-3">
 
@@ -78,7 +115,12 @@
                        step="0.01" min="0" class="form-control"
                        value="{{ form_limit }}" placeholder="0.00">
               </div>
-              <div class="form-text">Solo aplica a cuentas bancarias.</div>
+              <div class="form-text">
+                Solo aplica a cuentas bancarias.
+                {% if account and account.type == 'bank' and account.descubierto_usado > 0 %}
+                Ya hay ${{ "{:,.2f}".format(account.descubierto_usado) }} utilizados.
+                {% endif %}
+              </div>
             </div>
           </div>
         </div>

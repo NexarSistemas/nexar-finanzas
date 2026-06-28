@@ -102,12 +102,28 @@ def _get_account(db, account_id):
     return db.execute("SELECT * FROM accounts WHERE id=?", (account_id,)).fetchone()
 
 
+def _format_money(amount: float) -> str:
+    return f'${amount:,.2f}'
+
+
+def _account_template_data(account) -> dict | None:
+    if not account:
+        return None
+    data = dict(account)
+    data.update(account_financial_snapshot(account))
+    return data
+
+
 def _balance_validation_message(account, projected_balance: float) -> str:
     overdraft_limit = account_overdraft_limit(account)
     if overdraft_limit > 0:
+        overdraft_used = abs(projected_balance) if projected_balance < 0 else 0.0
+        available_margin = max(overdraft_limit - overdraft_used, 0.0)
         return (
-            f'La cuenta "{account["name"]}" supera el limite de descubierto de '
-            f'${overdraft_limit:,.2f}.'
+            f'La cuenta "{account["name"]}" no tiene margen de descubierto suficiente. '
+            f'Autorizado: {_format_money(overdraft_limit)}. '
+            f'Usado al confirmar: {_format_money(overdraft_used)}. '
+            f'Disponible: {_format_money(available_margin)}.'
         )
     return f'La cuenta "{account["name"]}" no puede quedar con saldo negativo.'
 
@@ -138,7 +154,35 @@ def _validate_account_config(
     if not permite_descubierto:
         return 'La cuenta bancaria no permite saldo inicial negativo si no tiene descubierto habilitado.'
     if abs(initial_balance) > limite_descubierto + 0.000001:
-        return 'El saldo inicial negativo supera el limite de descubierto configurado.'
+        return (
+            'El saldo inicial negativo supera el descubierto autorizado. '
+            f'Autorizado: {_format_money(limite_descubierto)}. '
+            f'Usado al abrir la cuenta: {_format_money(abs(initial_balance))}.'
+        )
+    return ''
+
+
+def _validate_account_edit_overdraft(account, permite_descubierto: bool, limite_descubierto: float) -> str:
+    if limite_descubierto < 0:
+        return 'El limite de descubierto no puede ser negativo.'
+    if not account or account['type'] != 'bank':
+        return ''
+
+    projected_balance = float(account['current_balance'] or 0)
+    overdraft_used = abs(projected_balance) if projected_balance < 0 else 0.0
+
+    if not permite_descubierto and projected_balance < 0:
+        return (
+            'No podés desactivar el descubierto mientras la cuenta siga en descubierto. '
+            f'Descubierto utilizado: {_format_money(overdraft_used)}.'
+        )
+
+    if projected_balance < -(limite_descubierto or 0) - 0.000001:
+        return (
+            f'No podés reducir el límite de descubierto a {_format_money(limite_descubierto)} '
+            f'porque la cuenta ya está usando {_format_money(overdraft_used)}.'
+        )
+
     return ''
 
 
@@ -663,22 +707,14 @@ def register_routes(app):
             if not name:
                 flash('El nombre es obligatorio.', 'danger')
             else:
-                if limite_descubierto < 0:
-                    flash('El limite de descubierto no puede ser negativo.', 'danger')
-                    db.close()
-                    return render_template('account_form.html', account=dict(account), action='Editar')
                 if account['type'] != 'bank':
                     permite_descubierto = False
                     limite_descubierto = 0
-                projected_balance = float(account['current_balance'] or 0)
-                if account['type'] == 'bank' and not permite_descubierto and projected_balance < 0:
-                    flash('No podés desactivar el descubierto mientras la cuenta tenga saldo negativo.', 'danger')
+                error = _validate_account_edit_overdraft(account, permite_descubierto, limite_descubierto)
+                if error:
+                    flash(error, 'danger')
                     db.close()
-                    return render_template('account_form.html', account=dict(account), action='Editar')
-                if account['type'] == 'bank' and projected_balance < -(limite_descubierto or 0) - 0.000001:
-                    flash('El saldo actual supera el nuevo limite de descubierto configurado.', 'danger')
-                    db.close()
-                    return render_template('account_form.html', account=dict(account), action='Editar')
+                    return render_template('account_form.html', account=_account_template_data(account), action='Editar')
                 db.execute("""
                     UPDATE accounts
                     SET name=?, currency=?, permite_descubierto=?, limite_descubierto=?, cbu_cvu=?, alias=?
@@ -691,7 +727,7 @@ def register_routes(app):
                 return redirect(url_for('accounts'))
 
         db.close()
-        return render_template('account_form.html', account=dict(account), action='Editar')
+        return render_template('account_form.html', account=_account_template_data(account), action='Editar')
 
     @app.route('/accounts/<int:acc_id>/delete', methods=['POST'])
     @login_required

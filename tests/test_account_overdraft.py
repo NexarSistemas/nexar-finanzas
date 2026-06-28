@@ -189,6 +189,7 @@ class AccountOverdraftRoutesTests(unittest.TestCase):
                 "method": "debit",
                 "date": "2026-06-27",
             },
+            follow_redirects=True,
         )
 
         balance = self._fetchval("SELECT current_balance FROM accounts WHERE id=?", (account_id,))
@@ -196,6 +197,11 @@ class AccountOverdraftRoutesTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(balance, 0)
         self.assertEqual(tx_count, 0)
+        body = response.get_data(as_text=True)
+        self.assertIn('no tiene margen de descubierto suficiente', body)
+        self.assertIn('Autorizado: $100,000.00', body)
+        self.assertIn('Usado al confirmar: $120,000.00', body)
+        self.assertIn('Disponible: $0.00', body)
 
     def test_income_reduces_used_overdraft(self):
         self.client.post(
@@ -226,6 +232,83 @@ class AccountOverdraftRoutesTests(unittest.TestCase):
         balance = self._fetchval("SELECT current_balance FROM accounts WHERE id=?", (account_id,))
         self.assertEqual(response.status_code, 302)
         self.assertEqual(balance, -35000)
+
+    def test_edit_rejects_disabling_overdraft_while_account_is_negative(self):
+        self.client.post(
+            "/accounts/new",
+            data={
+                "type": "bank",
+                "name": "Banco negativo",
+                "currency": "ARS",
+                "initial_balance": "-25000",
+                "permite_descubierto": "1",
+                "limite_descubierto": "80000",
+            },
+        )
+        account_id = self._fetchval("SELECT id FROM accounts WHERE name=?", ("Banco negativo",))
+
+        response = self.client.post(
+            f"/accounts/{account_id}/edit",
+            data={
+                "type": "bank",
+                "name": "Banco negativo",
+                "currency": "ARS",
+                "limite_descubierto": "80000",
+                "cbu_cvu": "",
+                "alias": "",
+            },
+            follow_redirects=True,
+        )
+
+        account = self._fetchone(
+            "SELECT permite_descubierto, limite_descubierto FROM accounts WHERE id=?",
+            (account_id,),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(account["permite_descubierto"], 1)
+        self.assertEqual(account["limite_descubierto"], 80000)
+        body = response.get_data(as_text=True)
+        self.assertIn('No podés desactivar el descubierto mientras la cuenta siga en descubierto.', body)
+        self.assertIn('Descubierto utilizado: $25,000.00.', body)
+
+    def test_edit_rejects_lowering_limit_below_used_overdraft(self):
+        self.client.post(
+            "/accounts/new",
+            data={
+                "type": "bank",
+                "name": "Banco con uso",
+                "currency": "ARS",
+                "initial_balance": "-40000",
+                "permite_descubierto": "1",
+                "limite_descubierto": "90000",
+            },
+        )
+        account_id = self._fetchval("SELECT id FROM accounts WHERE name=?", ("Banco con uso",))
+
+        response = self.client.post(
+            f"/accounts/{account_id}/edit",
+            data={
+                "type": "bank",
+                "name": "Banco con uso",
+                "currency": "ARS",
+                "permite_descubierto": "1",
+                "limite_descubierto": "30000",
+                "cbu_cvu": "",
+                "alias": "",
+            },
+            follow_redirects=True,
+        )
+
+        account = self._fetchone(
+            "SELECT permite_descubierto, limite_descubierto FROM accounts WHERE id=?",
+            (account_id,),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(account["permite_descubierto"], 1)
+        self.assertEqual(account["limite_descubierto"], 90000)
+        body = response.get_data(as_text=True)
+        self.assertIn('No podés reducir el límite de descubierto a $30,000.00', body)
+        self.assertIn('la cuenta ya está usando $40,000.00.', body)
 
 
 if __name__ == "__main__":

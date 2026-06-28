@@ -635,6 +635,8 @@ def account_financial_snapshot(account: sqlite3.Row | dict | None) -> dict:
         'saldo_actual': current_balance,
         'limite_descubierto': overdraft_limit,
         'descubierto_usado': overdraft_used,
+        'descubierto_disponible': available_margin,
         'margen_disponible': available_margin,
+        'en_descubierto': overdraft_used > 0,
         'permite_descubierto': account_allows_overdraft(account),
     }

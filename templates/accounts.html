@@ -22,7 +22,8 @@
   <div class="row g-3 mb-2">
     {% for acc in group %}
     <div class="col-md-4">
-      <div class="card h-100">
+      {% set overdraft_alert = acc.type == 'bank' and acc.en_descubierto %}
+      <div class="card h-100 {% if overdraft_alert %}border-danger shadow-sm{% endif %}">
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start">
             <div>
@@ -32,6 +33,9 @@
                 {% if acc.alias %}· {{ acc.alias }}{% endif %}
               </div>
               <div class="text-muted small">Moneda: {{ acc.currency }}</div>
+              {% if overdraft_alert %}
+              <span class="badge text-bg-danger mt-2">En descubierto</span>
+              {% endif %}
             </div>
             <div class="text-end">
               <div class="fw-bold fs-5
@@ -40,10 +44,24 @@
               </div>
               <div class="text-muted" style="font-size:.72rem;">Saldo actual</div>
               {% if acc.permite_descubierto %}
-              <div class="small mt-2 text-muted">
-                <div>Límite: ${{ "{:,.2f}".format(acc.limite_descubierto) }}</div>
-                <div>Usado: ${{ "{:,.2f}".format(acc.descubierto_usado) }}</div>
-                <div>Margen disponible: ${{ "{:,.2f}".format(acc.margen_disponible) }}</div>
+              <div class="small mt-3 text-start rounded border {% if overdraft_alert %}border-danger-subtle bg-danger-subtle{% else %}bg-light{% endif %} p-2">
+                <div class="fw-semibold mb-1">Descubierto bancario</div>
+                <div class="d-flex justify-content-between gap-3">
+                  <span class="text-muted">Autorizado</span>
+                  <span>${{ "{:,.2f}".format(acc.limite_descubierto) }}</span>
+                </div>
+                <div class="d-flex justify-content-between gap-3">
+                  <span class="text-muted">Utilizado</span>
+                  <span class="{% if acc.descubierto_usado > 0 %}text-danger fw-semibold{% endif %}">
+                    ${{ "{:,.2f}".format(acc.descubierto_usado) }}
+                  </span>
+                </div>
+                <div class="d-flex justify-content-between gap-3">
+                  <span class="text-muted">Disponible</span>
+                  <span class="{% if acc.margen_disponible <= 0 %}text-danger fw-semibold{% else %}text-success fw-semibold{% endif %}">
+                    ${{ "{:,.2f}".format(acc.margen_disponible) }}
+                  </span>
+                </div>
               </div>
               {% endif %}
             </div>
