@@ -83,6 +83,99 @@
 </form>
 {% endif %}
 
+{% if overdraft_report.by_currency %}
+<div class="card mb-4">
+  <div class="card-header py-2 fw-semibold">Liquidez y descubierto</div>
+  <div class="card-body">
+    <div class="text-muted small mb-3">
+      El saldo neto muestra la posición total, mientras que los fondos positivos y el margen de descubierto se informan por separado para no tratar financiamiento bancario como dinero propio disponible.
+    </div>
+
+    <div class="row g-3 mb-3">
+      {% for summary in overdraft_report.by_currency %}
+      <div class="col-lg-6">
+        <div class="border rounded p-3 h-100 bg-light">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="fw-semibold">Moneda {{ summary.currency }}</div>
+            {% if summary.cuentas_en_descubierto > 0 %}
+            <span class="badge text-bg-danger">{{ summary.cuentas_en_descubierto }} en descubierto</span>
+            {% else %}
+            <span class="badge text-bg-success">Sin descubierto usado</span>
+            {% endif %}
+          </div>
+          <div class="d-flex justify-content-between gap-3 small mb-2">
+            <span class="text-muted">Saldo neto total</span>
+            <span class="fw-semibold {% if summary.saldo_neto_total >= 0 %}text-success{% else %}text-danger{% endif %}">
+              ${{ "{:,.2f}".format(summary.saldo_neto_total) }}
+            </span>
+          </div>
+          <div class="d-flex justify-content-between gap-3 small mb-2">
+            <span class="text-muted">Fondos positivos disponibles</span>
+            <span class="fw-semibold text-success">${{ "{:,.2f}".format(summary.fondos_positivos_disponibles) }}</span>
+          </div>
+          <div class="d-flex justify-content-between gap-3 small mb-2">
+            <span class="text-muted">Descubierto utilizado total</span>
+            <span class="fw-semibold {% if summary.descubierto_utilizado_total > 0 %}text-danger{% endif %}">
+              ${{ "{:,.2f}".format(summary.descubierto_utilizado_total) }}
+            </span>
+          </div>
+          <div class="d-flex justify-content-between gap-3 small mb-2">
+            <span class="text-muted">Margen total disponible</span>
+            <span class="fw-semibold text-primary">${{ "{:,.2f}".format(summary.margen_descubierto_total) }}</span>
+          </div>
+          <div class="d-flex justify-content-between gap-3 small mb-2">
+            <span class="text-muted">Cantidad de cuentas en descubierto</span>
+            <span class="fw-semibold {% if summary.cuentas_en_descubierto > 0 %}text-danger{% else %}text-success{% endif %}">
+              {{ summary.cuentas_en_descubierto }}
+            </span>
+          </div>
+          <div class="d-flex justify-content-between gap-3 small">
+            <span class="text-muted">Mayor descubierto usado por cuenta</span>
+            <span class="fw-semibold">
+              {% if summary.cuenta_mayor_descubierto %}
+              ${{ "{:,.2f}".format(summary.mayor_descubierto_usado_por_cuenta) }} · {{ summary.cuenta_mayor_descubierto }}
+              {% else %}
+              $0.00
+              {% endif %}
+            </span>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {% if overdraft_report.overdraft_accounts %}
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Cuenta</th>
+            <th>Moneda</th>
+            <th class="text-end">Usado</th>
+            <th class="text-end">Límite</th>
+            <th class="text-end">Disponible</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for account in overdraft_report.overdraft_accounts %}
+          <tr>
+            <td>{{ account.name }}</td>
+            <td>{{ account.currency }}</td>
+            <td class="text-end text-danger fw-semibold">${{ "{:,.2f}".format(account.descubierto_usado) }}</td>
+            <td class="text-end">${{ "{:,.2f}".format(account.limite_descubierto) }}</td>
+            <td class="text-end {% if account.margen_disponible <= 0 %}text-danger{% else %}text-success{% endif %}">
+              ${{ "{:,.2f}".format(account.margen_disponible) }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
 <!-- ═══════════════════════════════════════════════════════════════
      REPORTE MENSUAL
 ═══════════════════════════════════════════════════════════════ -->

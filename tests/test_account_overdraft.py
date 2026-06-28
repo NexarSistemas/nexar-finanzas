@@ -8,6 +8,7 @@ from flask import Flask
 from models import (
     account_financial_snapshot,
     account_overdraft_alert_level,
+    account_overdraft_report,
     account_overdraft_usage_percent,
     init_db,
 )
@@ -350,6 +351,62 @@ class AccountOverdraftRoutesTests(unittest.TestCase):
         self.assertEqual(account_overdraft_alert_level(limit), "limit")
         self.assertEqual(limit_snapshot["alerta_descubierto_texto"], "Límite alcanzado")
 
+    def test_overdraft_snapshot_keeps_margin_separate_from_positive_funds(self):
+        snapshot = account_financial_snapshot({
+            "type": "bank",
+            "current_balance": 25000,
+            "permite_descubierto": 1,
+            "limite_descubierto": 100000,
+        })
+
+        self.assertEqual(snapshot["descubierto_usado"], 0.0)
+        self.assertEqual(snapshot["margen_disponible"], 100000.0)
+
+    def test_overdraft_report_aggregates_basic_metrics(self):
+        report = account_overdraft_report([
+            {
+                "name": "Banco A",
+                "type": "bank",
+                "currency": "ARS",
+                "current_balance": 150000,
+                "permite_descubierto": 1,
+                "limite_descubierto": 100000,
+            },
+            {
+                "name": "Banco B",
+                "type": "bank",
+                "currency": "ARS",
+                "current_balance": -40000,
+                "permite_descubierto": 1,
+                "limite_descubierto": 100000,
+            },
+            {
+                "name": "Billetera",
+                "type": "virtual_wallet",
+                "currency": "ARS",
+                "current_balance": 30000,
+                "permite_descubierto": 0,
+                "limite_descubierto": 0,
+            },
+        ])
+
+        self.assertEqual(report["cuentas_en_descubierto_total"], 1)
+        self.assertEqual(report["cuenta_mayor_descubierto"]["name"], "Banco B")
+        self.assertEqual(report["cuenta_mayor_descubierto"]["descubierto_usado"], 40000.0)
+        self.assertEqual(len(report["overdraft_accounts"]), 1)
+        self.assertEqual(report["overdraft_accounts"][0]["name"], "Banco B")
+        self.assertEqual(report["overdraft_accounts"][0]["margen_disponible"], 60000.0)
+
+        ars = report["by_currency"][0]
+        self.assertEqual(ars["currency"], "ARS")
+        self.assertEqual(ars["saldo_neto_total"], 140000.0)
+        self.assertEqual(ars["fondos_positivos_disponibles"], 180000.0)
+        self.assertEqual(ars["descubierto_utilizado_total"], 40000.0)
+        self.assertEqual(ars["margen_descubierto_total"], 160000.0)
+        self.assertEqual(ars["cuentas_en_descubierto"], 1)
+        self.assertEqual(ars["mayor_descubierto_usado_por_cuenta"], 40000.0)
+        self.assertEqual(ars["cuenta_mayor_descubierto"], "Banco B")
+
     def test_accounts_list_shows_overdraft_indicator_percentage_and_alert(self):
         self.client.post(
             "/accounts/new",
@@ -371,6 +428,87 @@ class AccountOverdraftRoutesTests(unittest.TestCase):
         self.assertIn("96%", body)
         self.assertIn("Advertencia alta", body)
         self.assertIn("El descubierto permite que una cuenta bancaria siga operando temporalmente", body)
+
+    def test_accounts_list_does_not_duplicate_global_overdraft_report(self):
+        self.client.post(
+            "/accounts/new",
+            data={
+                "type": "bank",
+                "name": "Banco Fondo",
+                "currency": "ARS",
+                "initial_balance": "150000",
+                "permite_descubierto": "1",
+                "limite_descubierto": "100000",
+            },
+        )
+        self.client.post(
+            "/accounts/new",
+            data={
+                "type": "bank",
+                "name": "Banco Giro",
+                "currency": "ARS",
+                "initial_balance": "-40000",
+                "permite_descubierto": "1",
+                "limite_descubierto": "100000",
+            },
+        )
+
+        response = self.client.get("/accounts")
+
+        body = response.get_data(as_text=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("Resumen de saldos y descubierto", body)
+        self.assertNotIn("Fondos positivos disponibles", body)
+        self.assertNotIn("Descubierto utilizado total", body)
+        self.assertIn("Banco Giro", body)
+        self.assertIn("Descubierto bancario", body)
+
+    def test_reports_shows_basic_overdraft_report_metrics_and_table(self):
+        self.client.post(
+            "/accounts/new",
+            data={
+                "type": "bank",
+                "name": "Banco Fondo",
+                "currency": "ARS",
+                "initial_balance": "150000",
+                "permite_descubierto": "1",
+                "limite_descubierto": "100000",
+            },
+        )
+        self.client.post(
+            "/accounts/new",
+            data={
+                "type": "bank",
+                "name": "Banco Giro",
+                "currency": "ARS",
+                "initial_balance": "-40000",
+                "permite_descubierto": "1",
+                "limite_descubierto": "100000",
+            },
+        )
+
+        response = self.client.get("/reports")
+
+        body = response.get_data(as_text=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Liquidez y descubierto", body)
+        self.assertIn("Saldo neto total", body)
+        self.assertIn("$110,000.00", body)
+        self.assertIn("Fondos positivos disponibles", body)
+        self.assertIn("$150,000.00", body)
+        self.assertIn("Descubierto utilizado total", body)
+        self.assertIn("$40,000.00", body)
+        self.assertIn("Margen total disponible", body)
+        self.assertIn("$160,000.00", body)
+        self.assertIn("Cantidad de cuentas en descubierto", body)
+        self.assertIn("Mayor descubierto usado por cuenta", body)
+        self.assertIn("Cuenta", body)
+        self.assertIn("Usado", body)
+        self.assertIn("Límite", body)
+        self.assertIn("Disponible", body)
+        self.assertIn("Banco Giro", body)
+        self.assertIn("$60,000.00", body)
+        self.assertIn("no tratar financiamiento bancario como dinero propio disponible", body)
 
 
 if __name__ == "__main__":
