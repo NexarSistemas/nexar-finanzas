@@ -28,6 +28,8 @@ license_cache.json
 # ==============================
 
 database.db
+*.db-shm
+*.db-wal
 *.sqlite
 *.sqlite3
 

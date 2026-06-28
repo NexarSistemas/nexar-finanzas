@@ -230,9 +230,11 @@ Los datos se cachean localmente para funcionar sin conexión.
 - ✅ Dashboard con resumen del mes y alertas
 - ✅ Ingresos y gastos con categorías dinámicas e ilimitadas
 - ✅ Múltiples cuentas (banco, billetera virtual, efectivo)
+- ✅ Cuentas bancarias con descubierto autorizado y límite configurable
 - ✅ Transferencias entre cuentas propias
 - ✅ Presupuestos mensuales con semáforo de alertas
 - ✅ Reportes mensual / anual / semanal con exportación CSV y exportación Excel/PDF para planes PRO y FULL
+- ✅ Reportes básicos de liquidez con saldo neto, fondos positivos, descubierto usado y margen disponible
 - ✅ Inversiones con cotizaciones automáticas (Yahoo Finance, BYMA, CAFCI, CoinGecko)
 - ✅ Cálculo de ganancias y pérdidas por posición
 - ✅ Cotizaciones en tiempo real (dólar, monedas, cripto)
@@ -286,6 +288,7 @@ a tus datos reales — transacciones, cuentas, presupuestos e inversiones.
 
 | Versión | Cambios principales |
 |---|---|
+| **v1.11.0** | Bloque funcional de descubierto bancario: soporte, UX visual y reportes básicos |
 | **v1.10.16** | Inicio sin aviso previo de demo/activacion y ventana nativa maximizada |
 | **v1.10.8** | security: actualizar dependencias y unificar requerimientos |
 | **v1.10.7** | Actualización de versión. |
