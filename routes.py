@@ -25,6 +25,7 @@ from models import (
     account_financial_snapshot,
     account_min_balance,
     account_overdraft_limit,
+    account_overdraft_report,
     get_db,
     recalculate_account_balance,
 )
@@ -1161,6 +1162,12 @@ def register_routes(app):
         month = int(request.args.get('month', today.month))
         mode  = request.args.get('mode', 'monthly')
         demo_status = get_demo_status(get_db_path())
+        db = get_db(get_db_path())
+        account_rows = db.execute(
+            "SELECT * FROM accounts WHERE active=1 ORDER BY type, name"
+        ).fetchall()
+        overdraft_report = account_overdraft_report([dict(row) for row in account_rows])
+        db.close()
 
         if mode == 'annual':
             blocked_response = _require_capability(
@@ -1185,7 +1192,8 @@ def register_routes(app):
         return render_template('reports.html',
                                data=data, mode=mode,
                                year=year, month=month, today=today,
-                               analisis=analisis)
+                               analisis=analisis,
+                               overdraft_report=overdraft_report)
 
     @app.route('/reports/chart/monthly.json')
     @login_required

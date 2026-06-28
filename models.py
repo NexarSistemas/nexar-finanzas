@@ -652,7 +652,7 @@ def account_financial_snapshot(account: sqlite3.Row | dict | None) -> dict:
         current_balance = float(account['current_balance'] or 0)
     overdraft_limit = account_overdraft_limit(account)
     overdraft_used = abs(current_balance) if current_balance < 0 and overdraft_limit > 0 else 0.0
-    available_margin = current_balance + overdraft_limit if overdraft_limit > 0 else 0.0
+    available_margin = max(overdraft_limit - overdraft_used, 0.0) if overdraft_limit > 0 else 0.0
     usage_percent = min((overdraft_used / overdraft_limit) * 100, 100.0) if overdraft_limit > 0 and overdraft_used > 0 else 0.0
     if usage_percent >= 100:
         alert_level = 'limit'
@@ -679,3 +679,69 @@ def account_financial_snapshot(account: sqlite3.Row | dict | None) -> dict:
         'en_descubierto': overdraft_used > 0,
         'permite_descubierto': account_allows_overdraft(account),
     }
+
+
+def account_overdraft_report(accounts: list[sqlite3.Row | dict] | None) -> dict:
+    """Agrega métricas básicas de saldos y descubierto, separadas por moneda."""
+    report = {
+        'by_currency': [],
+        'cuentas_en_descubierto_total': 0,
+        'cuenta_mayor_descubierto': None,
+        'overdraft_accounts': [],
+    }
+    if not accounts:
+        return report
+
+    grouped: dict[str, dict] = {}
+    max_account = None
+
+    for account in accounts:
+        currency = account['currency']
+        balance = float(account['current_balance'] or 0)
+        overdraft_limit = account_overdraft_limit(account)
+        overdraft_used = abs(balance) if account['type'] == 'bank' and balance < 0 else 0.0
+        available_margin = max(overdraft_limit - overdraft_used, 0.0) if overdraft_limit > 0 else 0.0
+
+        summary = grouped.setdefault(currency, {
+            'currency': currency,
+            'saldo_neto_total': 0.0,
+            'fondos_positivos_disponibles': 0.0,
+            'descubierto_utilizado_total': 0.0,
+            'margen_descubierto_total': 0.0,
+            'cuentas_en_descubierto': 0,
+            'mayor_descubierto_usado_por_cuenta': 0.0,
+            'cuenta_mayor_descubierto': None,
+        })
+
+        summary['saldo_neto_total'] += balance
+        if balance > 0:
+            summary['fondos_positivos_disponibles'] += balance
+        if overdraft_limit > 0:
+            summary['margen_descubierto_total'] += available_margin
+        if overdraft_used > 0:
+            summary['descubierto_utilizado_total'] += overdraft_used
+            summary['cuentas_en_descubierto'] += 1
+            report['cuentas_en_descubierto_total'] += 1
+            report['overdraft_accounts'].append({
+                'name': account['name'],
+                'currency': currency,
+                'descubierto_usado': overdraft_used,
+                'limite_descubierto': overdraft_limit,
+                'margen_disponible': available_margin,
+            })
+            if overdraft_used > summary['mayor_descubierto_usado_por_cuenta']:
+                summary['mayor_descubierto_usado_por_cuenta'] = overdraft_used
+                summary['cuenta_mayor_descubierto'] = account['name']
+            if max_account is None or overdraft_used > max_account['descubierto_usado']:
+                max_account = {
+                    'name': account['name'],
+                    'currency': currency,
+                    'descubierto_usado': overdraft_used,
+                }
+
+    report['by_currency'] = sorted(grouped.values(), key=lambda item: item['currency'])
+    report['overdraft_accounts'].sort(
+        key=lambda item: (-item['descubierto_usado'], item['currency'], item['name'])
+    )
+    report['cuenta_mayor_descubierto'] = max_account
+    return report
