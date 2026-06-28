@@ -5,6 +5,28 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
+## v1.11.0 - 2026-06-28
+
+### Agregado
+- Soporte de descubierto en cuentas bancarias.
+- Configuración de límite de descubierto autorizado.
+- Saldo inicial negativo permitido para bancos con descubierto habilitado.
+- Validaciones para impedir movimientos que superen el límite autorizado.
+- Indicadores visuales de uso de descubierto.
+- Alertas por uso alto del descubierto.
+- Resumen financiero en Reportes con saldo neto, fondos positivos, descubierto utilizado y margen disponible.
+- Tabla de cuentas actualmente en descubierto.
+
+### Cambiado
+- La pantalla Cuentas conserva sólo información específica por cuenta.
+- El resumen global de descubierto se concentra en Reportes.
+
+### Técnico
+- Nuevas pruebas de descubierto bancario.
+- Migración de datos para columnas de descubierto en cuentas.
+- Exclusión de artefactos SQLite `*.db-shm` y `*.db-wal`.
+
+---
 ## [2026-05-25] - Documentación de licencias al día
 
 ### Changed
