@@ -288,6 +288,7 @@ a tus datos reales — transacciones, cuentas, presupuestos e inversiones.
 
 | Versión | Cambios principales |
 |---|---|
+| **v1.12.0** | Salud Financiera Fase 1 y Reportes completos con ahorro, balance y tasa de ahorro |
 | **v1.11.0** | Bloque funcional de descubierto bancario: soporte, UX visual y reportes básicos |
 | **v1.10.16** | Inicio sin aviso previo de demo/activacion y ventana nativa maximizada |
 | **v1.10.8** | security: actualizar dependencias y unificar requerimientos |
