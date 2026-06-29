@@ -3,6 +3,8 @@ name: Build & Release Nexar Finanzas
 on:
   push:
     branches: [ main ]
+    tags:
+      - 'v*'
 
 permissions:
   contents: write
@@ -25,7 +27,11 @@ jobs:
       - name: Obtener versión desde CHANGELOG
         id: ver
         run: |
-          VERSION=$(grep -m1 -oP '\[\K[0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md)
+          if [[ "${GITHUB_REF_TYPE}" == "tag" && "${GITHUB_REF_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION=$(grep -m1 -oP '\[\K[0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md)
+          fi
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "Versión detectada: $VERSION"
 
@@ -64,7 +70,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: linux
-          path: release/*
+          path: release/**/*
+          if-no-files-found: error
           retention-days: 2
 
   # 🪟 BUILD WINDOWS
@@ -103,7 +110,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: windows
-          path: release/*
+          path: release/**/*
+          if-no-files-found: error
           retention-days: 2
 
   # 📦 PACKAGE + SHA256 + FIRMA
@@ -118,18 +126,29 @@ jobs:
 
       - name: Unificar artefactos
         run: |
-          mkdir final
-          find artifacts -type f -exec cp {} final/ \;
+          mkdir -p dist/release/artifacts
+          find artifacts -type f -exec cp {} dist/release/artifacts/ \;
+
+      - name: Validar instaladores
+        run: |
+          shopt -s nullglob
+          installers=(dist/release/artifacts/*.deb dist/release/artifacts/*.exe dist/release/artifacts/*.zip dist/release/artifacts/*.tar.gz)
+          if [ ${#installers[@]} -eq 0 ]; then
+            echo "❌ No se encontraron instaladores en dist/release/artifacts"
+            exit 1
+          fi
+          printf '✅ Instaladores encontrados:\n'
+          printf ' - %s\n' "${installers[@]}"
 
       - name: Limpiar basura legacy (CRÍTICO)
         run: |
-          rm -f final/SHA256SUMS_*.txt
-          rm -f final/SHA256SUMS-*.txt
-          rm -f final/*.sha256
+          rm -f dist/release/artifacts/SHA256SUMS_*.txt
+          rm -f dist/release/artifacts/SHA256SUMS-*.txt
+          rm -f dist/release/artifacts/*.sha256
 
       - name: Generar SHA256 único
         run: |
-          cd final
+          cd dist/release/artifacts
           sha256sum * > SHA256SUMS.txt
 
       - name: Configurar GPG
@@ -145,7 +164,7 @@ jobs:
 
       - name: Firmar archivos
         run: |
-          find final -type f ! -name "*.sig" -exec \
+          find dist/release/artifacts -type f ! -name "*.sig" -exec \
           gpg --batch --yes \
               --pinentry-mode loopback \
               --passphrase "${{ secrets.GPG_PASSPHRASE }}" \
@@ -154,7 +173,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: final
-          path: final/*
+          path: dist/release/artifacts/*
+          if-no-files-found: error
           retention-days: 2
 
   # 🚀 RELEASE
@@ -168,7 +188,18 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: final
-          path: final/
+          path: dist/release/artifacts/
+
+      - name: Validar instaladores antes de publicar
+        run: |
+          shopt -s nullglob
+          installers=(dist/release/artifacts/*.deb dist/release/artifacts/*.exe dist/release/artifacts/*.zip dist/release/artifacts/*.tar.gz)
+          if [ ${#installers[@]} -eq 0 ]; then
+            echo "❌ No se encontraron instaladores en dist/release/artifacts; no se creará una release vacía"
+            exit 1
+          fi
+          printf '✅ Instaladores listos para publicar:\n'
+          printf ' - %s\n' "${installers[@]}"
 
       - name: Instalar GitHub CLI
         run: sudo apt-get update && sudo apt-get install -y gh
@@ -212,7 +243,7 @@ jobs:
         run: |
           TAG="v${{ needs.check.outputs.version }}"
 
-          for file in final/*; do
+          for file in dist/release/artifacts/*; do
             name=$(basename "$file")
 
             echo "Procesando $name..."
