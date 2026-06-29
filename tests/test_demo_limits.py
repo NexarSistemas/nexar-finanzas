@@ -1,5 +1,4 @@
 import sqlite3
-import tempfile
 import unittest
 from datetime import date, timedelta
 from pathlib import Path
@@ -11,10 +10,11 @@ from demo_limits import (
     is_full_version,
     is_pro_expired,
 )
+from tempdir_compat import make_temp_dir
 
 
 def _create_db(config_values):
-    temp_dir = tempfile.TemporaryDirectory()
+    temp_dir = make_temp_dir()
     db_path = Path(temp_dir.name) / "demo_limits.sqlite3"
 
     conn = sqlite3.connect(db_path)

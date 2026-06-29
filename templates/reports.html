@@ -181,48 +181,107 @@
 ═══════════════════════════════════════════════════════════════ -->
 {% if mode == 'monthly' and data.monthly %}
   {% set d = data.monthly %}
+  {% set overview = d.primary_overview %}
 
   <div class="row g-3 mb-4">
-    <div class="col-md-4">
+    <div class="col-lg-3 col-md-6">
       <div class="card card-stat income">
         <div class="card-body">
-          <div class="text-muted small">Total ingresos ARS</div>
-          <div class="fw-bold fs-4 text-success">${{ "{:,.2f}".format(d.income.get('ARS',0)) }}</div>
-          {% if d.income.get('USD') %}
+          <div class="text-muted small">Ingresos del período ({{ overview.currency }})</div>
+          <div class="fw-bold fs-4 text-success">${{ "{:,.2f}".format(overview.income) }}</div>
+          {% if d.income.get('USD') and overview.currency != 'USD' %}
           <div class="text-muted small">USD ${{ "{:,.2f}".format(d.income.get('USD',0)) }}</div>
           {% endif %}
         </div>
       </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-lg-3 col-md-6">
       <div class="card card-stat expense">
         <div class="card-body">
-          <div class="text-muted small">Total gastos ARS</div>
-          <div class="fw-bold fs-4 text-danger">${{ "{:,.2f}".format(d.expense.get('ARS',0)) }}</div>
-          {% if d.expense.get('USD') %}
+          <div class="text-muted small">Gastos del período ({{ overview.currency }})</div>
+          <div class="fw-bold fs-4 text-danger">${{ "{:,.2f}".format(overview.expense) }}</div>
+          {% if d.expense.get('USD') and overview.currency != 'USD' %}
           <div class="text-muted small">USD ${{ "{:,.2f}".format(d.expense.get('USD',0)) }}</div>
           {% endif %}
         </div>
       </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-lg-3 col-md-6">
       <div class="card card-stat balance">
         <div class="card-body">
           <div class="text-muted small d-flex align-items-center gap-1">
-          Flujo del mes (ARS)
+          Balance neto ({{ overview.currency }})
           <span tabindex="0" data-bs-toggle="tooltip"
                 title="Ingresos menos Gastos del mes. No incluye saldo inicial de cuentas."
                 style="cursor:help;">
             <i class="bi bi-info-circle" style="font-size:.78rem;"></i>
           </span>
         </div>
-          {% set bal = d.balance.get('ARS', 0) %}
-          <div class="fw-bold fs-4 {% if bal >= 0 %}text-primary{% else %}text-danger{% endif %}">
-            ${{ "{:,.2f}".format(bal) }}
+          <div class="fw-bold fs-4 {% if overview.net >= 0 %}text-primary{% else %}text-danger{% endif %}">
+            ${{ "{:,.2f}".format(overview.net) }}
           </div>
           <div class="text-muted" style="font-size:.7rem;">ingresos − gastos</div>
         </div>
       </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-muted small">Tasa de ahorro</div>
+          <div class="fw-bold fs-4 {% if overview.net >= 0 %}text-success{% else %}text-danger{% endif %}">
+            {{ "{:,.2f}".format(overview.savings_rate) }}%
+          </div>
+          <div class="text-muted small">
+            {% if overview.income > 0 %}
+            ahorro neto / ingresos
+            {% else %}
+            sin ingresos para calcular
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      {% if d.has_data %}
+      <div class="row g-3 align-items-center">
+        <div class="col-lg-8">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="badge text-bg-{{ overview.comparison_tone }}">{{ overview.comparison_label }}</span>
+            <span class="text-muted small">Período {{ d.period }}</span>
+          </div>
+          <div class="small text-muted">
+            {% if overview.net > 0 %}
+            El período cerró con ahorro neto positivo y una relación sana entre ingresos y gastos.
+            {% elif overview.net < 0 %}
+            El período cerró con déficit: conviene revisar si el nivel de gastos es sostenible para los ingresos actuales.
+            {% else %}
+            El período cerró equilibrado, sin ahorro neto ni déficit.
+            {% endif %}
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="progress" style="height:12px;border-radius:999px;">
+            {% set total_flow = overview.income + overview.expense %}
+            {% set income_width = (overview.income / total_flow * 100) if total_flow > 0 else 0 %}
+            {% set expense_width = (overview.expense / total_flow * 100) if total_flow > 0 else 0 %}
+            <div class="progress-bar bg-success" style="width:{{ income_width }}%" title="Ingresos {{ income_width|round(1) }}%"></div>
+            <div class="progress-bar bg-danger" style="width:{{ expense_width }}%" title="Gastos {{ expense_width|round(1) }}%"></div>
+          </div>
+          <div class="d-flex justify-content-between mt-2 small text-muted">
+            <span>Ingresos {{ "{:,.2f}".format(overview.income) }}</span>
+            <span>Gastos {{ "{:,.2f}".format(overview.expense) }}</span>
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <div class="text-center py-2">
+        <div class="fw-semibold mb-1">Sin movimientos en el período</div>
+        <div class="text-muted small">Cuando registres ingresos o gastos del mes, acá vas a ver el balance, la tasa de ahorro y la comparación entre ambos.</div>
+      </div>
+      {% endif %}
     </div>
   </div>
 
