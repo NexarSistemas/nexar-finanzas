@@ -4,6 +4,8 @@ Aplicación de gestión financiera personal para escritorio. Funciona completame
 offline, utilizando base de datos SQLite local, y está optimizada para equipos
 de gama media/baja.
 
+> Nota: los estándares de seguridad compartidos de Nexar se mantienen en `../nexar-ai-context/standards/`.
+
 **Desarrollado por Nexar Sistemas - (c) 2026**
 
 ---
