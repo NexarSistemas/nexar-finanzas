@@ -5,6 +5,21 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
+## v1.12.0 - 2026-06-29
+
+### Agregado
+- Salud Financiera Fase 1 con cálculo local y vista dedicada.
+- Indicadores de ingresos, gastos, balance, ahorro y tasa de ahorro en Reportes.
+
+### Cambiado
+- Reportes mensuales con lectura más clara del período y comparación entre ingresos y gastos.
+
+### Técnico
+- Aislamiento de tests del estado real de demo/licencia local mediante `NEXAR_TESTING`.
+- Compatibilidad de la suite de tests con Windows/Python 3.14 usando directorios temporales controlados en el repo.
+- Validación local de `py_compile` y 31 tests OK antes del release.
+
+---
 ## v1.11.0 - 2026-06-28
 
 ### Agregado
