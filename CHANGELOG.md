@@ -5,6 +5,16 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
+## v1.12.1 - 2026-06-29
+
+### Corregido
+- El build Windows vuelve a incluir `services.py` y el paquete `services/` completo dentro de `_internal`, evitando el fallo de arranque por `FileNotFoundError` en instalaciones desde `v1.12.0`.
+
+### Técnico
+- PyInstaller declara `services` como paquete completo con submódulos y valida post-build la presencia de `services.py`, `services/__init__.py` y `services/financial_health.py`.
+- El workflow de build toma la versión desde `VERSION` como fuente principal para evitar desajustes durante releases.
+
+---
 ## v1.12.0 - 2026-06-29
 
 ### Agregado

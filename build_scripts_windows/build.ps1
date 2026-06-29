@@ -98,6 +98,21 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host "[OK] EXE generado" -ForegroundColor Green
 
+$requiredBuildFiles = @(
+    "$DIST_DIR\_internal\services.py",
+    "$DIST_DIR\_internal\services\__init__.py",
+    "$DIST_DIR\_internal\services\financial_health.py"
+)
+
+$missingBuildFiles = @($requiredBuildFiles | Where-Object { -not (Test-Path $_) })
+if ($missingBuildFiles.Count -gt 0) {
+    Write-Host "[ERROR] Build incompleto: faltan archivos criticos de services" -ForegroundColor Red
+    $missingBuildFiles | ForEach-Object { Write-Host "  - $_" -ForegroundColor Red }
+    exit 1
+}
+
+Write-Host "[OK] Validacion post-build de services completada" -ForegroundColor Green
+
 # ── 4. Portable ZIP ──────────────────────────────────────────
 
 Write-Host "[4/5] Creando portable..." -ForegroundColor Yellow
