@@ -32,6 +32,7 @@ from models import (
 from demo_limits import check_limit, is_full_version, get_demo_status
 from licensing.hardware_id import get_hardware_id
 from update_checker import download_release_asset, get_cached_update_info
+from services import financial_health
 import services
 
 
@@ -605,6 +606,12 @@ def register_routes(app):
     # ══════════════════════════════════════════════════════════════════════════
     # CUENTAS
     # ══════════════════════════════════════════════════════════════════════════
+
+    @app.route('/salud-financiera')
+    @login_required
+    def salud_financiera():
+        summary = financial_health.get_financial_health_summary(get_db_path())
+        return render_template('salud_financiera.html', summary=summary)
 
     @app.route('/accounts')
     @login_required
