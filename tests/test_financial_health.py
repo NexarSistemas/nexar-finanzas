@@ -1,6 +1,5 @@
 import os
 import sqlite3
-import tempfile
 import unittest
 from pathlib import Path
 
@@ -9,6 +8,7 @@ from flask import Flask
 from services.financial_health import get_financial_health_summary
 from models import init_db
 from routes import register_routes
+from tempdir_compat import make_temp_dir
 
 
 def _build_app(db_path, base_dir):
@@ -49,7 +49,7 @@ def _build_app(db_path, base_dir):
 
 class FinancialHealthTests(unittest.TestCase):
     def setUp(self):
-        self.temp_dir = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
+        self.temp_dir = make_temp_dir()
         self.addCleanup(self.temp_dir.cleanup)
         previous_testing = os.environ.get("NEXAR_TESTING")
         os.environ["NEXAR_TESTING"] = "1"

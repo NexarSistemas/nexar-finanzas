@@ -67,6 +67,8 @@ Thumbs.db
 
 *.tmp
 *.temp
+.tmp_tests/
+.tmp_probe/
 
 # ==============================
 # Llaves Privadas

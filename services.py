@@ -37,6 +37,58 @@ def get_monthly_summary(db_path: str, year: int, month: int) -> dict:
         exp = summary['expense'].get(currency, 0)
         summary['balance'][currency] = inc - exp
 
+    currencies = sorted(set(summary['income'].keys()) | set(summary['expense'].keys()))
+    monthly_overview = []
+    for currency in currencies:
+        income_total = float(summary['income'].get(currency, 0) or 0)
+        expense_total = float(summary['expense'].get(currency, 0) or 0)
+        net_total = income_total - expense_total
+        savings_rate = (net_total / income_total * 100) if income_total > 0 else 0.0
+
+        if income_total == 0 and expense_total == 0:
+            comparison_label = 'Sin movimientos'
+            comparison_tone = 'muted'
+        elif net_total > 0:
+            comparison_label = 'Ingresos por encima de gastos'
+            comparison_tone = 'success'
+        elif net_total < 0:
+            comparison_label = 'Gastos por encima de ingresos'
+            comparison_tone = 'danger'
+        else:
+            comparison_label = 'Ingresos y gastos equilibrados'
+            comparison_tone = 'primary'
+
+        monthly_overview.append({
+            'currency': currency,
+            'income': round(income_total, 2),
+            'expense': round(expense_total, 2),
+            'net': round(net_total, 2),
+            'savings_rate': round(savings_rate, 2),
+            'comparison_label': comparison_label,
+            'comparison_tone': comparison_tone,
+            'has_data': bool(income_total or expense_total),
+        })
+
+    primary_currency = 'ARS' if 'ARS' in currencies else (currencies[0] if currencies else 'ARS')
+    primary_overview = next(
+        (item for item in monthly_overview if item['currency'] == primary_currency),
+        {
+            'currency': primary_currency,
+            'income': 0.0,
+            'expense': 0.0,
+            'net': 0.0,
+            'savings_rate': 0.0,
+            'comparison_label': 'Sin movimientos',
+            'comparison_tone': 'muted',
+            'has_data': False,
+        },
+    )
+    summary['period'] = period
+    summary['has_data'] = any(item['has_data'] for item in monthly_overview)
+    summary['monthly_overview'] = monthly_overview
+    summary['primary_currency'] = primary_currency
+    summary['primary_overview'] = primary_overview
+
     # Por categoría
     cur.execute("""
         SELECT c.name, t.type, t.currency, COALESCE(SUM(t.amount), 0) as total

@@ -1,6 +1,5 @@
 import io
 import sqlite3
-import tempfile
 import unittest
 from datetime import date, timedelta
 from pathlib import Path
@@ -9,13 +8,14 @@ from flask import Flask
 from openpyxl import load_workbook
 
 from routes import register_routes
+from tempdir_compat import make_temp_dir
 
 
 EXPORT_MESSAGE = "La exportación está disponible en los planes Pro y Full."
 
 
 def _create_db(config_values):
-    temp_dir = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
+    temp_dir = make_temp_dir()
     db_path = Path(temp_dir.name) / "report_exports.sqlite3"
 
     conn = sqlite3.connect(db_path)
