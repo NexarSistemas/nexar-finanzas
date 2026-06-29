@@ -95,6 +95,9 @@
       <a href="{{ url_for('budgets') }}" class="nav-link {% if request.endpoint=='budgets' %}active{% endif %}">
         <i class="bi bi-pie-chart"></i> Presupuestos
       </a>
+      <a href="{{ url_for('salud_financiera') }}" class="nav-link {% if request.endpoint=='salud_financiera' %}active{% endif %}">
+        <i class="bi bi-heart-pulse"></i> Salud financiera
+      </a>
       <a href="{{ url_for('investments') }}" class="nav-link {% if 'investment' in request.endpoint %}active{% endif %}">
         <i class="bi bi-graph-up-arrow"></i> Inversiones
         {# Candado visual en BASICA #}

@@ -5,6 +5,7 @@ Crea todas las tablas necesarias si no existen.
 """
 
 import json
+import os
 import sqlite3
 import platform
 import uuid
@@ -105,6 +106,10 @@ def _generate_machine_id() -> str:
         + str(uuid.getnode())
     )
     return _hl.sha256(raw.encode()).hexdigest()
+
+
+def _is_testing_mode() -> bool:
+    return os.environ.get("NEXAR_TESTING") == "1"
 
 
 def get_db(db_path: str) -> sqlite3.Connection:
@@ -517,7 +522,7 @@ def init_db(db_path: str):
     #      → crear el archivo externo con esa fecha
     #   3. Ninguno tiene fecha → primera instalación real
     #      → guardar hoy en DB y en archivo externo
-    _telem_date = _read_telemetry(_mid)
+    _telem_date = None if _is_testing_mode() else _read_telemetry(_mid)
     _inst_row   = cur.execute(
         "SELECT value FROM config WHERE key='demo_install_date'"
     ).fetchone()

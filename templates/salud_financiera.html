@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Salud financiera - Nexar Finanzas{% endblock %}
+
+{% block content %}
+{% set status_class = 'danger' if summary.score <= 39 else 'warning' if summary.score <= 59 else 'info' if summary.score <= 79 else 'success' %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+  <div>
+    <h1 class="h3 mb-1">Salud financiera</h1>
+    <p class="text-muted mb-0">Resumen local del periodo {{ summary.period }} en {{ summary.components.currency }}.</p>
+  </div>
+  <span class="badge text-bg-{{ status_class }} fs-6 px-3 py-2">{{ summary.status }}</span>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-lg-4">
+    <div class="card shadow-sm h-100 border-0">
+      <div class="card-body">
+        <div class="text-muted small text-uppercase mb-2">Puntaje general</div>
+        <div class="display-4 fw-bold text-{{ status_class }}">{{ summary.score }}</div>
+        <div class="mt-2 text-muted">Escala 0 a 100</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-4">
+    <div class="card shadow-sm h-100 card-stat income">
+      <div class="card-body">
+        <div class="text-muted small">Ingresos del mes</div>
+        <div class="h4 mb-0">${{ "{:,.2f}".format(summary.income) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-4">
+    <div class="card shadow-sm h-100 card-stat expense">
+      <div class="card-body">
+        <div class="text-muted small">Gastos del mes</div>
+        <div class="h4 mb-0">${{ "{:,.2f}".format(summary.expenses) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-4">
+    <div class="card shadow-sm h-100 card-stat balance">
+      <div class="card-body">
+        <div class="text-muted small">Ahorro neto</div>
+        <div class="h4 mb-0 {% if summary.net_savings < 0 %}text-danger{% else %}text-success{% endif %}">
+          ${{ "{:,.2f}".format(summary.net_savings) }}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-4">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="text-muted small">Tasa de ahorro</div>
+        <div class="h4 mb-0">{{ "{:,.2f}".format(summary.savings_rate) }}%</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-4">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="text-muted small">Liquidez disponible</div>
+        <div class="h4 mb-0">${{ "{:,.2f}".format(summary.liquidity) }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-body">
+        <h2 class="h5 mb-3">Componentes del puntaje</h2>
+        <div class="table-responsive">
+          <table class="table align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Componente</th>
+                <th>Valor</th>
+                <th>Puntaje</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{{ summary.components.savings_rate.label }}</td>
+                <td>{{ "{:,.2f}".format(summary.components.savings_rate.value) }}%</td>
+                <td>{{ summary.components.savings_rate.score }}/35</td>
+                <td>{% if summary.components.savings_rate.available %}Disponible{% else %}Sin datos{% endif %}</td>
+              </tr>
+              <tr>
+                <td>{{ summary.components.liquidity.label }}</td>
+                <td>{{ "{:,.2f}".format(summary.components.liquidity.value) }}x</td>
+                <td>{{ summary.components.liquidity.score }}/25</td>
+                <td>{% if summary.components.liquidity.available %}Disponible{% else %}Sin datos{% endif %}</td>
+              </tr>
+              <tr>
+                <td>{{ summary.components.monthly_balance.label }}</td>
+                <td>${{ "{:,.2f}".format(summary.components.monthly_balance.value) }}</td>
+                <td>{{ summary.components.monthly_balance.score }}/25</td>
+                <td>{% if summary.components.monthly_balance.available %}Disponible{% else %}Sin datos{% endif %}</td>
+              </tr>
+              <tr>
+                <td>{{ summary.components.budget_control.label }}</td>
+                <td>{{ "{:,.2f}".format(summary.components.budget_control.value) }}%</td>
+                <td>{{ summary.components.budget_control.score }}/15</td>
+                <td>{% if summary.components.budget_control.available %}Disponible{% else %}Sin datos{% endif %}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-body">
+        <h2 class="h5 mb-3">Alertas simples</h2>
+        {% if summary.alerts %}
+          <ul class="list-group list-group-flush">
+            {% for alert in summary.alerts %}
+              <li class="list-group-item px-0">{{ alert }}</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="alert alert-success mb-0">No se detectaron alertas para este periodo.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

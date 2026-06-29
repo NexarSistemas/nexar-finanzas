@@ -1,3 +1,4 @@
+import os
 import sqlite3
 import tempfile
 import unittest
@@ -51,6 +52,9 @@ class AccountOverdraftRoutesTests(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
         self.addCleanup(self.temp_dir.cleanup)
+        previous_testing = os.environ.get("NEXAR_TESTING")
+        os.environ["NEXAR_TESTING"] = "1"
+        self.addCleanup(self._restore_testing_env, previous_testing)
         self.db_path = str(Path(self.temp_dir.name) / "overdraft.sqlite3")
         init_db(self.db_path)
         self.app = _build_app(self.db_path, self.temp_dir.name)
@@ -69,6 +73,13 @@ class AccountOverdraftRoutesTests(unittest.TestCase):
     def _fetchval(self, query, params=()):
         row = self._fetchone(query, params)
         return row[0] if row else None
+
+    @staticmethod
+    def _restore_testing_env(previous_value):
+        if previous_value is None:
+            os.environ.pop("NEXAR_TESTING", None)
+        else:
+            os.environ["NEXAR_TESTING"] = previous_value
 
     def test_bank_without_overdraft_rejects_negative_initial_balance(self):
         response = self.client.post(
