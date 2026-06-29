@@ -5,7 +5,7 @@
 # ROOT     = raiz del proyecto (un nivel arriba)
 
 import os
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 block_cipher = None
 
@@ -22,11 +22,17 @@ def collect_optional_submodules(package):
 added_files = [
     (os.path.join(ROOT, 'templates'),          'templates'),
     (os.path.join(ROOT, 'licensing'),          'licensing'),
+    (os.path.join(ROOT, 'services.py'),        '.'),
     (os.path.join(ROOT, 'VERSION'),            '.'),
     (os.path.join(ROOT, 'LICENSE'),            '.'),
     (os.path.join(ROOT, 'nexar_finanzas.png'), '.'),
     # En Linux no se incluye el .ico (es de Windows)
 ]
+
+try:
+    added_files += collect_data_files('services', include_py_files=True)
+except Exception:
+    pass
 
 env_file = os.path.join(ROOT, '.env.finanzas')
 if os.path.exists(env_file):
@@ -71,7 +77,7 @@ hidden_imports = [
     'cryptography.hazmat.primitives.hashes',
     'cryptography.hazmat.primitives.serialization',
     'cryptography.hazmat.backends',
-] + collect_optional_submodules('nexar_licencias')
+] + collect_optional_submodules('nexar_licencias') + collect_optional_submodules('services')
 
 a = Analysis(
     [os.path.join(ROOT, 'app.py')],
