@@ -1,4 +1,4 @@
-# 💰 Nexar Finanzas v1.12.1
+# 💰 Nexar Finanzas v1.12.2
 
 Aplicación de gestión financiera personal para escritorio. Funciona completamente
 offline, utilizando base de datos SQLite local, y está optimizada para equipos
@@ -7,7 +7,7 @@ de gama media/baja.
 Estado actual:
 
 - Estado del repositorio: activo
-- Version actual: `1.12.1`
+- Version actual: `1.12.2`
 - Contexto central del ecosistema: `nexar-ai-context/CONTEXTO_NEXAR.md`
 
 > Nota: los estándares de seguridad compartidos de Nexar se mantienen en `nexar-ai-context/standards/`.
