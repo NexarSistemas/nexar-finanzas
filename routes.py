@@ -192,6 +192,111 @@ EXPORT_UPGRADE_MESSAGE = 'La exportación está disponible en los planes Pro y F
 ADVANCED_REPORTS_UPGRADE_MESSAGE = 'Los reportes avanzados no están disponibles en tu plan actual.'
 AI_INSIGHTS_UPGRADE_MESSAGE = 'Los insights financieros con IA están disponibles solo en el Plan Full.'
 
+def _mask_license_key(license_key: str) -> str:
+    key = (license_key or "").strip()
+    if not key:
+        return ""
+    if len(key) <= 10:
+        return key
+    return f"{key[:8]}...{key[-4:]}"
+
+
+def _build_license_capabilities(demo_status: dict) -> tuple[list[dict], list[dict]]:
+    can_investments_write = bool(demo_status.get("can_investments_write"))
+    capabilities = [
+        {
+            "id": "reportes",
+            "label": "Reportes",
+            "enabled": True,
+            "detail": "Semanales y mensuales",
+        },
+        {
+            "id": "reportes_avanzados",
+            "label": "Reportes avanzados",
+            "enabled": bool(demo_status.get("can_advanced_reports")),
+            "detail": "Analisis ampliado y vistas premium",
+        },
+        {
+            "id": "flujo_caja",
+            "label": "Flujo de caja",
+            "enabled": bool(demo_status.get("can_cashflow_analysis")),
+            "detail": "Analisis de flujo de caja",
+        },
+        {
+            "id": "inversiones",
+            "label": "Inversiones",
+            "enabled": True,
+            "detail": "Escritura habilitada" if can_investments_write else "Solo lectura",
+        },
+        {
+            "id": "excel",
+            "label": "Exportacion Excel",
+            "enabled": bool(demo_status.get("can_export_excel")),
+            "detail": "Descarga de reportes en Excel",
+        },
+        {
+            "id": "pdf",
+            "label": "Exportacion PDF",
+            "enabled": bool(demo_status.get("can_export_pdf")),
+            "detail": "Descarga de reportes en PDF",
+        },
+        {
+            "id": "ia",
+            "label": "Insights IA",
+            "enabled": bool(demo_status.get("can_ai_insights")),
+            "detail": "Insights financieros asistidos por IA",
+        },
+        {
+            "id": "actualizaciones",
+            "label": "Actualizaciones",
+            "enabled": bool(demo_status.get("can_update")),
+            "detail": "Instalacion de nuevas versiones",
+        },
+    ]
+
+    blocked = [
+        {"label": item["label"], "message": "Disponible en planes superiores."}
+        for item in capabilities
+        if not item["enabled"]
+    ]
+    if not can_investments_write:
+        blocked.append({
+            "label": "Inversiones en modo completo",
+            "message": "Disponible en planes superiores.",
+        })
+
+    return capabilities, blocked
+
+
+def _build_license_summary(cfg: dict[str, str], tier_actual: str, demo_status: dict) -> dict[str, str | bool]:
+    plan_activo = (cfg.get("license_plan") or cfg.get("license_tier") or tier_actual or "DEMO").strip().upper()
+    plan_efectivo = (tier_actual or "DEMO").strip().upper()
+    pro_expired = bool(demo_status.get("pro_expired"))
+    is_demo = bool(demo_status.get("is_demo"))
+
+    if demo_status.get("is_expired"):
+        estado = "Demo vencida"
+        estado_clase = "danger"
+    elif pro_expired and plan_activo in {"PRO", "FULL"} and plan_efectivo == "BASICA":
+        estado = "Suscripcion vencida"
+        estado_clase = "warning"
+    elif is_demo:
+        estado = "Demo activa"
+        estado_clase = "warning"
+    else:
+        estado = "Licencia activa"
+        estado_clase = "success"
+
+    return {
+        "plan_activo": plan_activo,
+        "plan_efectivo": plan_efectivo,
+        "estado": estado,
+        "estado_clase": estado_clase,
+        "es_pago": tier_actual in {"BASICA", "PRO", "FULL"},
+        "tipo_plan": "Pago" if tier_actual in {"BASICA", "PRO", "FULL"} else "Demo",
+        "license_key_partial": _mask_license_key(cfg.get("license_key", "")),
+    }
+
 
 def _reports_redirect():
     today = date.today()
@@ -1440,6 +1545,13 @@ def register_routes(app):
                 flash(msg, 'success' if ok else 'danger')
                 return redirect(url_for('dashboard' if ok else 'activate'))
 
+            if action == 'refresh_license':
+                from licensing.license_sdk import validate_saved_license
+
+                ok, msg = validate_saved_license(db_path, debug=True)
+                flash(msg, 'success' if ok else 'warning')
+                return redirect(url_for('activate'))
+
             flash('Acción de licencia no reconocida.', 'danger')
             return redirect(url_for('activate'))
 
@@ -1457,10 +1569,13 @@ def register_routes(app):
         from licensing.supabase_license_api import generate_activation_id, is_configured
 
         tier_actual = get_tier(db_path)
+        demo_status = get_demo_status(db_path)
         request_id, machine_details = generate_activation_id(session.get("username", ""))
         product_hwid = get_current_hwid() or get_hardware_id()
         machine_details["request_id"] = request_id
         machine_details["product_hwid"] = product_hwid
+        capabilities, blocked_capabilities = _build_license_capabilities(demo_status)
+        license_summary = _build_license_summary(cfg, tier_actual, demo_status)
 
         return render_template('activate.html',
                                already_full=already_full,
@@ -1476,7 +1591,12 @@ def register_routes(app):
                                license_plan=cfg.get('license_plan', ''),
                                tier=tier_actual,
                                pro_expired=is_pro_expired(db_path),
-                               demo_days=get_demo_days_remaining(db_path))
+                               demo_days=get_demo_days_remaining(db_path),
+                               can_refresh_license=bool(cfg.get('license_key', '').strip()),
+                               capabilities=capabilities,
+                               blocked_capabilities=blocked_capabilities,
+                               license_summary=license_summary,
+                               demo_status=demo_status)
 
     # ══════════════════════════════════════════════════════════════════════════
     # CONFIGURACIÓN Y PERFIL
