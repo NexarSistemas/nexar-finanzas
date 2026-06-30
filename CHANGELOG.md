@@ -5,7 +5,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
-## Unreleased
+## v1.12.2 - 2026-06-30
 
 ### Changed
 - La pantalla `Mi plan` queda mas limpia y consistente: el ID completo solo se muestra en su tarjeta dedicada, el resumen lateral evita duplicar `Plan` y `Plan efectivo` cuando coinciden, y se mantienen las acciones manuales de activacion, refresh y solicitud sin agregar checkout.
