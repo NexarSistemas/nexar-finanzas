@@ -3,14 +3,12 @@ name: Build & Release Nexar Finanzas
 on:
   push:
     branches: [ main ]
-    tags:
-      - 'v*'
 
 permissions:
   contents: write
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -24,13 +22,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Obtener versión desde CHANGELOG
+      - name: Obtener versión desde VERSION
         id: ver
         run: |
-          if [[ "${GITHUB_REF_TYPE}" == "tag" && "${GITHUB_REF_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            VERSION="${GITHUB_REF_NAME#v}"
-          else
-            VERSION="$(tr -d '\r\n' < VERSION)"
+          VERSION="$(tr -d '\r\n' < VERSION)"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "❌ VERSION debe tener formato semver X.Y.Z"
+            exit 1
+          fi
+          if ! grep -q "^## \[$VERSION\]" CHANGELOG.md; then
+            echo "❌ CHANGELOG.md no tiene entrada ## [$VERSION]"
+            exit 1
           fi
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "Versión detectada: $VERSION"
@@ -42,6 +44,7 @@ jobs:
 
     env:
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      VERSION: ${{ needs.check.outputs.version }}
 
     steps:
       - uses: actions/checkout@v4
@@ -63,6 +66,7 @@ jobs:
           PUBLIC_KEY: ${{ secrets.PUBLIC_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          VERSION: ${{ needs.check.outputs.version }}
         run: |
           chmod +x build_scripts_linux/build.sh
           bash build_scripts_linux/build.sh
@@ -81,6 +85,7 @@ jobs:
 
     env:
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      VERSION: ${{ needs.check.outputs.version }}
 
     steps:
       - uses: actions/checkout@v4
@@ -105,6 +110,7 @@ jobs:
           PUBLIC_KEY: ${{ secrets.PUBLIC_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          VERSION: ${{ needs.check.outputs.version }}
         run: powershell -ExecutionPolicy Bypass -File build_scripts_windows/build.ps1
 
       - uses: actions/upload-artifact@v4
@@ -225,6 +231,10 @@ jobs:
           /^## \[/ && flag {exit}
           flag
           ' CHANGELOG.md > release.md
+          if [ ! -s release.md ]; then
+            echo "❌ release.md quedó vacío; revisar formato de CHANGELOG.md"
+            exit 1
+          fi
 
       - name: Crear release
         if: steps.release_check.outputs.exists == 'false'
