@@ -130,22 +130,37 @@ def _get_liquidity(conn: sqlite3.Connection, currency: str) -> float:
     return float(row["total"] or 0.0) if row else 0.0
 
 
+def _budget_control_unavailable(reason: str | None = None, score: int = 8) -> dict:
+    result = {
+        "score": score,
+        "value": 0.0,
+        "available": False,
+        "budget_count": 0,
+        "over_budget_count": 0,
+        "usage_rate": 0.0,
+    }
+    if reason:
+        result["skipped_reason"] = reason
+    return result
+
+
 def _get_budget_control(
     conn: sqlite3.Connection, period: str, year: int, month: int, currency: str
 ) -> dict:
+    # Los presupuestos actuales no guardan moneda y la UI los trata como ARS.
+    # Si la moneda principal del periodo es otra, no se comparan montos para evitar
+    # puntajes incorrectos por mezclar gastos USD con limites ARS.
+    if currency != "ARS":
+        return _budget_control_unavailable(
+            "El control de presupuestos se omite porque los presupuestos actuales estan expresados en ARS y la moneda principal analizada no es ARS."
+        )
+
     if not (
         _table_exists(conn, "budgets")
         and _table_exists(conn, "transactions")
         and _table_exists(conn, "categories")
     ):
-        return {
-            "score": 8,
-            "value": 0.0,
-            "available": False,
-            "budget_count": 0,
-            "over_budget_count": 0,
-            "usage_rate": 0.0,
-        }
+        return _budget_control_unavailable()
 
     rows = conn.execute(
         """
@@ -166,14 +181,7 @@ def _get_budget_control(
     ).fetchall()
 
     if not rows:
-        return {
-            "score": 8,
-            "value": 0.0,
-            "available": False,
-            "budget_count": 0,
-            "over_budget_count": 0,
-            "usage_rate": 0.0,
-        }
+        return _budget_control_unavailable()
 
     over_budget_count = 0
     usage_values = []
@@ -188,14 +196,9 @@ def _get_budget_control(
             over_budget_count += 1
 
     if not usage_values:
-        return {
-            "score": 8,
-            "value": 0.0,
-            "available": False,
-            "budget_count": len(rows),
-            "over_budget_count": 0,
-            "usage_rate": 0.0,
-        }
+        result = _budget_control_unavailable()
+        result["budget_count"] = len(rows)
+        return result
 
     average_usage = sum(usage_values) / len(usage_values)
     if over_budget_count == 0 and average_usage <= 0.8:
@@ -273,7 +276,12 @@ def get_financial_health_summary(db_path: str) -> dict:
         if liquidity < 0:
             alerts.append("La liquidez disponible es negativa en la moneda principal analizada.")
         if not budget_control["available"]:
-            alerts.append("No hay presupuestos cargados para evaluar control basico de gastos.")
+            alerts.append(
+                budget_control.get(
+                    "skipped_reason",
+                    "No hay presupuestos cargados para evaluar control basico de gastos.",
+                )
+            )
         elif budget_control["over_budget_count"] > 0:
             alerts.append(
                 f"Hay {budget_control['over_budget_count']} presupuesto(s) del mes por encima del limite."
