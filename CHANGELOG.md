@@ -5,13 +5,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
-## v1.12.2 - 2026-06-30
+## [1.12.2] - 2026-06-30
 
 ### Changed
 - La pantalla `Mi plan` queda mas limpia y consistente: el ID completo solo se muestra en su tarjeta dedicada, el resumen lateral evita duplicar `Plan` y `Plan efectivo` cuando coinciden, y se mantienen las acciones manuales de activacion, refresh y solicitud sin agregar checkout.
 
 ---
-## v1.12.1 - 2026-06-29
+## [1.12.1] - 2026-06-29
 
 ### Corregido
 - El build Windows vuelve a incluir `services.py` y el paquete `services/` completo dentro de `_internal`, evitando el fallo de arranque por `FileNotFoundError` en instalaciones desde `v1.12.0`.
@@ -21,7 +21,7 @@ Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 - El workflow de build toma la versión desde `VERSION` como fuente principal para evitar desajustes durante releases.
 
 ---
-## v1.12.0 - 2026-06-29
+## [1.12.0] - 2026-06-29
 
 ### Agregado
 - Salud Financiera Fase 1 con cálculo local y vista dedicada.
@@ -36,7 +36,7 @@ Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 - Validación local de `py_compile` y 31 tests OK antes del release.
 
 ---
-## v1.11.0 - 2026-06-28
+## [1.11.0] - 2026-06-28
 
 ### Agregado
 - Soporte de descubierto en cuentas bancarias.
@@ -226,7 +226,7 @@ Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
   (directorio del código) en lugar de `BASE_DIR` (directorio de datos). En instalaciones
   `.deb` estos directorios son distintos, lo que causaba que las actualizaciones no se
   aplicaran. (`routes.py` + `app.py`)
-  
+   
 ## [1.10.1] — 2026-03-21
 
 ### Corregido
@@ -245,7 +245,7 @@ Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
   - **BÁSICA**: pago único permanente. Movimientos ilimitados, 1 cuenta por tipo, inversiones en solo lectura, hasta 3 presupuestos, reportes semanal + mensual.
   - **PRO**: suscripción mensual. Acceso completo, actualizaciones incluidas, soporte WhatsApp.
 - **Activación por Token Base64 + RSA**: nuevo sistema de activación offline con firma digital RSA (PKCS1v15 + SHA256). Reemplaza los códigos HMAC anteriores para clientes nuevos.
-- **Anti-reinstall (`telemetry.bin`)**: la fecha de inicio de la demo se guarda fuera de la base de datos en `~/.local/share/NexarFinanzas/telemetry.bin` (Linux) o `%APPDATA%\NexarFinanzas	elemetry.bin` (Windows). Sobrevive al borrado de la BD.
+- **Anti-reinstall (`telemetry.bin`)**: la fecha de inicio de la demo se guarda fuera de la base de datos en `~/.local/share/NexarFinanzas/telemetry.bin` (Linux) o `%APPDATA%/NexarFinanzas/telemetry.bin` (Windows). Sobrevive al borrado de la BD.
 - **Detección de hardware ID (`machine_id`)**: se genera y persiste en la BD para vincular licencias al equipo.
 - **Pantalla de activación rediseñada**: campo token largo (textarea), tabla comparativa de planes, botón WhatsApp con ID pre-cargado, formulario de upgrade PRO desde BÁSICA.
 - **Badge de plan en navbar**: muestra DEMO (con días restantes), BÁSICA o PRO con estilos diferenciados.
