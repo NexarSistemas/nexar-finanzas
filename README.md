@@ -8,7 +8,7 @@ Estado actual:
 
 - Estado del repositorio: activo
 - Version actual: `1.12.2`
-- Contexto central del ecosistema: `nexar-ai-context/CONTEXTO_NEXAR.md`
+- Contexto central del ecosistema: repo externo `nexar-ai-context`, archivo `CONTEXTO_NEXAR.md`
 
 > Nota: los estándares de seguridad compartidos de Nexar se mantienen en `nexar-ai-context/standards/`.
 **Desarrollado por Nexar Sistemas - (c) 2026**
