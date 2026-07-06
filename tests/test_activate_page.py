@@ -106,6 +106,28 @@ class ActivatePageTests(unittest.TestCase):
         self.assertIn("Todas las capacidades de esta pantalla estan habilitadas", html)
         self.assertIn("NXR-FIN-", html)
 
+    def test_activate_page_shows_refresh_for_pending_checkout_without_license_key(self):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+                "pending_checkout_activation_id": "HWID-DEMO-001",
+                "pending_checkout_plan": "PRO",
+                "pending_checkout_request_type": "alta_licencia",
+                "pending_checkout_external_reference": "ALTA|HWID-DEMO-001|nexar-finanzas|PRO",
+                "pending_checkout_started_at": "2026-07-06 10:30",
+            }
+        )
+
+        response = client.get("/activate")
+
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn("Refrescar licencia", html)
+        self.assertIn("Detectamos un checkout directo iniciado", html)
+        self.assertIn("HWID-DEMO-001", html)
+
     def test_activate_page_shows_checkout_buttons_for_demo(self):
         with patch.dict(
             "os.environ",
@@ -174,6 +196,11 @@ class ActivatePageTests(unittest.TestCase):
         self.assertEqual(kwargs["email_titular"], "demo@example.com")
         self.assertEqual(kwargs["license_key"], "")
 
+        follow_up = client.get("/activate")
+        html = follow_up.get_data(as_text=True)
+        self.assertIn("Refrescar licencia", html)
+        self.assertIn("Detectamos un checkout directo iniciado", html)
+
     def test_activate_checkout_requires_holder_email(self):
         with patch.dict(
             "os.environ",
@@ -220,6 +247,59 @@ class ActivatePageTests(unittest.TestCase):
         self.assertIn("Checkout directo", html)
         self.assertNotIn("Pagar BASICA con Mercado Pago", html)
         self.assertIn("checkout online disponible en este entorno", html)
+
+    @patch("licensing.license_sdk.validate_saved_license", return_value=(True, "Licencia validada correctamente."))
+    def test_refresh_license_with_license_key_keeps_normal_flow(self, mock_validate_saved_license):
+        client = self._make_client(
+            {
+                "license_tier": "FULL",
+                "license_plan": "FULL",
+                "license_key": "NXR-FIN-1234567890",
+                "pending_checkout_activation_id": "HWID-DEMO-001",
+                "pending_checkout_plan": "FULL",
+                "pending_checkout_request_type": "alta_licencia",
+            }
+        )
+
+        response = client.post(
+            "/activate",
+            data={"action": "refresh_license"},
+            follow_redirects=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        mock_validate_saved_license.assert_called_once()
+
+        conn = sqlite3.connect(client.application.config["DB_PATH"])
+        row = conn.execute(
+            "SELECT value FROM config WHERE key = 'pending_checkout_activation_id'"
+        ).fetchone()
+        conn.close()
+        self.assertEqual((row[0] if row else ""), "")
+
+    def test_refresh_license_without_license_key_shows_safe_message_for_pending_checkout(self):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+                "pending_checkout_activation_id": "HWID-DEMO-001",
+                "pending_checkout_plan": "PRO",
+                "pending_checkout_request_type": "alta_licencia",
+            }
+        )
+
+        response = client.post(
+            "/activate",
+            data={"action": "refresh_license"},
+            follow_redirects=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn("no tiene una license_key guardada", html)
+        self.assertIn("No vuelvas a pagar", html)
+        self.assertIn("Activar licencia", html)
 
     @patch("routes.create_checkout_preference", return_value="https://mp.test/init")
     def test_activate_page_and_post_match_available_plans_for_expired_pro_with_basica(

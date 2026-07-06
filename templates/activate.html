@@ -228,9 +228,16 @@
           <h5 class="mb-0"><i class="bi bi-credit-card me-2"></i>Checkout directo</h5>
         </div>
         <div class="card-body">
+          {% if pending_checkout.activation_id and pending_checkout.request_type == 'alta_licencia' and not license_key_local %}
+          <div class="alert alert-warning small">
+            Detectamos un checkout directo iniciado para <strong>{{ pending_checkout.plan or 'tu plan' }}</strong> con este equipo.
+            Si ya pagaste, usa <strong>Refrescar licencia</strong> para revisar el siguiente paso. Si todavia no recibiste tu clave,
+            pegala apenas la tengas o gestioná la activacion por WhatsApp con tu ID <strong>{{ pending_checkout.activation_id }}</strong>.
+          </div>
+          {% endif %}
           {% if available_checkout_plans %}
           <div class="alert alert-light border small">
-            Si elegis Mercado Pago, cuando termines el pago, volve a Nexar Finanzas y toca <strong>Refrescar licencia</strong>.
+            Si elegis Mercado Pago, cuando termines el pago, volve a Nexar Finanzas y toca <strong>Refrescar licencia</strong>. Si la clave aun no llego, la activacion manual sigue disponible abajo.
           </div>
           <div class="d-flex flex-wrap gap-2 mb-2">
             {% for plan in available_checkout_plans %}
@@ -356,7 +363,7 @@ async function startCheckout(button) {
     const openData = await openResponse.json();
     if (openResponse.ok && openData.ok) {
       feedback.className = 'small text-success';
-      feedback.textContent = 'Mercado Pago se abrio en el navegador externo. Cuando termines el pago, volve a Nexar Finanzas y toca Refrescar licencia.';
+      feedback.textContent = 'Mercado Pago se abrio en el navegador externo. Cuando termines el pago, volve a Nexar Finanzas y toca Refrescar licencia. Si la clave todavia no aparece, usa la activacion manual con tu ID.';
       return;
     }
 
@@ -372,7 +379,7 @@ async function startCheckout(button) {
 
     window.open(createData.init_point, '_blank', 'noopener');
     feedback.className = 'small text-success';
-    feedback.textContent = 'Checkout listo. Cuando termines el pago, volve a Nexar Finanzas y toca Refrescar licencia.';
+    feedback.textContent = 'Checkout listo. Cuando termines el pago, volve a Nexar Finanzas y toca Refrescar licencia. Si la clave todavia no aparece, usa la activacion manual con tu ID.';
   } catch (error) {
     feedback.className = 'small text-danger';
     feedback.textContent = error.message || 'No se pudo iniciar el checkout. Puedes continuar con la solicitud manual.';
