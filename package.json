@@ -1,0 +1,19 @@
+{
+  "name": "nexar-finanzas",
+  "version": "1.12.2",
+  "private": true,
+  "description": "Scripts auxiliares para levantar Nexar Finanzas en modo web/remoto para revisión de templates.",
+  "scripts": {
+    "setup:python": "python -m pip install -r requirements.txt",
+    "dev": "cross-env SECRET_KEY=nexar-dev-local-key FINANZAS_DATA_DIR=.nexar-data python app.py",
+    "dev:web": "cross-env SECRET_KEY=nexar-dev-local-key FINANZAS_DATA_DIR=.nexar-data python -c \"from app import app; app.run(debug=False, host='127.0.0.1', port=5000, threaded=True, use_reloader=False)\"",
+    "dev:remote": "cross-env SECRET_KEY=nexar-dev-local-key FINANZAS_DATA_DIR=.nexar-data python -c \"from app import app; app.run(debug=False, host='0.0.0.0', port=5000, threaded=True, use_reloader=False)\"",
+    "tunnel": "lt --port 5000",
+    "stitch": "concurrently -k \"npm:dev:remote\" \"npm:tunnel\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "localtunnel": "^2.0.2"
+  }
+}
