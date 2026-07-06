@@ -11,6 +11,7 @@ import re
 import shutil
 import subprocess
 import threading
+import webbrowser
 from datetime import date, datetime
 from functools import wraps
 from pathlib import Path
@@ -31,9 +32,17 @@ from models import (
 )
 from demo_limits import check_limit, is_full_version, get_demo_status
 from licensing.hardware_id import get_hardware_id
+from licensing.supabase_license_api import normalize_plan
 from update_checker import download_release_asset, get_cached_update_info
 from services import financial_health
 import services
+from services.mercadopago_checkout import (
+    MercadoPagoCheckoutError,
+    build_external_reference,
+    create_checkout_preference,
+    get_price_for_plan,
+    plan_supports_checkout,
+)
 
 
 # ─── Utilidades ───────────────────────────────────────────────────────────────
@@ -296,6 +305,234 @@ def _build_license_summary(cfg: dict[str, str], tier_actual: str, demo_status: d
         "tipo_plan": "Pago" if tier_actual in {"BASICA", "PRO", "FULL"} else "Demo",
         "license_key_partial": _mask_license_key(cfg.get("license_key", "")),
     }
+
+
+def _get_activate_license_key(cfg: dict[str, str]) -> str:
+    return str(cfg.get("license_key", "") or "").strip()
+
+
+def _get_activate_plan_activo(cfg: dict[str, str], tier_actual: str) -> str:
+    return normalize_plan(cfg.get("license_plan") or cfg.get("license_tier") or tier_actual or "DEMO")
+
+
+def _normalize_checkout_requested_plan(value: str) -> str:
+    raw = str(value or "").strip().upper().replace("-", "_").replace(" ", "_")
+    aliases = {
+        "BASIC": "BASICA",
+        "BASICO": "BASICA",
+        "MENSUAL_PRO": "PRO",
+        "MENSUAL_FULL": "FULL",
+    }
+    normalized = aliases.get(raw, raw)
+    return normalized if normalized in {"BASICA", "PRO", "FULL"} else ""
+
+
+def _get_activate_checkout_plans(
+    cfg: dict[str, str],
+    tier_actual: str,
+    demo_status: dict,
+) -> list[str]:
+    plan_activo = _get_activate_plan_activo(cfg, tier_actual)
+    basica_activada = str(cfg.get("basica_activada", "") or "").strip() == "1"
+    pro_expired = bool(demo_status.get("pro_expired"))
+
+    if pro_expired and plan_activo in {"PRO", "FULL"}:
+        if basica_activada and plan_activo == "PRO":
+            candidates = ["PRO", "FULL"]
+        elif basica_activada and plan_activo == "FULL":
+            candidates = ["FULL"]
+        else:
+            candidates = ["BASICA", "PRO", "FULL"]
+    elif tier_actual in {"DEMO", "DEMO_EXPIRED"}:
+        candidates = ["BASICA", "PRO", "FULL"]
+    elif tier_actual == "BASICA":
+        candidates = ["PRO", "FULL"]
+    elif tier_actual == "PRO":
+        candidates = ["FULL"]
+    else:
+        candidates = []
+
+    return [plan for plan in candidates if plan_supports_checkout(plan)]
+
+
+def _load_activate_checkout_config(db_path: str) -> dict[str, str]:
+    db = get_db(db_path)
+    config_rows = db.execute(
+        "SELECT key, value FROM config WHERE key IN "
+        "('license_activated_at','license_type','license_expires_at',"
+        "'license_tier','license_key','license_plan','basica_activada')"
+    ).fetchall()
+    db.close()
+    return {r['key']: r['value'] for r in config_rows}
+
+
+def _resolve_activate_checkout_plan(
+    cfg: dict[str, str],
+    tier_actual: str,
+    demo_status: dict,
+) -> str:
+    available_plans = _get_activate_checkout_plans(cfg, tier_actual, demo_status)
+    if not available_plans:
+        return ""
+
+    payload = request.get_json(silent=True) if request.is_json else {}
+    requested_plan = str(
+        (payload or {}).get("plan")
+        or (payload or {}).get("plan_destino")
+        or request.form.get("plan", "")
+        or request.form.get("plan_destino", "")
+    ).strip()
+    if not requested_plan:
+        return available_plans[0]
+
+    normalized_requested_plan = _normalize_checkout_requested_plan(requested_plan)
+    return normalized_requested_plan if normalized_requested_plan in available_plans else ""
+
+
+def _resolve_activate_checkout_request_type(cfg: dict[str, str]) -> str:
+    return "cambio_plan" if _get_activate_license_key(cfg) else "alta_licencia"
+
+
+def _validate_checkout_holder(nombre: str, email: str) -> tuple[bool, str]:
+    holder_name = str(nombre or "").strip()
+    holder_email = str(email or "").strip().lower()
+
+    if not holder_name:
+        return False, "Completa el nombre del titular antes de continuar."
+    if not holder_email:
+        return False, "Completa el email del titular antes de continuar."
+    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", holder_email):
+        return False, "Ingresa un email valido para iniciar el checkout."
+    return True, ""
+
+
+def _build_activate_checkout_context(
+    cfg: dict[str, str],
+    tier_actual: str,
+    demo_status: dict,
+) -> tuple[dict[str, object] | None, tuple[object, int] | None]:
+    available_plans = _get_activate_checkout_plans(cfg, tier_actual, demo_status)
+    plan_destino = _resolve_activate_checkout_plan(cfg, tier_actual, demo_status)
+    payload = request.get_json(silent=True) if request.is_json else request.form
+    requested_plan = str(
+        (payload or {}).get("plan") or (payload or {}).get("plan_destino") or ""
+    ).strip()
+
+    if requested_plan and not plan_destino:
+        return None, (
+            jsonify({
+                "ok": False,
+                "message": "El plan seleccionado no esta disponible para tu licencia actual.",
+            }),
+            400,
+        )
+
+    if not plan_destino:
+        return None, (
+            jsonify({
+                "ok": False,
+                "message": "Tu plan actual no tiene opciones de checkout directo disponibles.",
+            }),
+            400,
+        )
+
+    holder_name = str((payload or {}).get("nombre", "")).strip()
+    holder_email = str((payload or {}).get("email", "")).strip().lower()
+    holder_phone = str((payload or {}).get("whatsapp", "")).strip()
+    ok_holder, holder_message = _validate_checkout_holder(holder_name, holder_email)
+    if not ok_holder:
+        return None, (
+            jsonify({
+                "ok": False,
+                "message": holder_message,
+            }),
+            400,
+        )
+
+    from licensing.license_sdk import get_current_hwid, get_license_product
+
+    producto = get_license_product()
+    license_key = _get_activate_license_key(cfg)
+    tipo_solicitud = _resolve_activate_checkout_request_type(cfg)
+    activation_id = get_current_hwid() or get_hardware_id()
+    if tipo_solicitud == "cambio_plan" and not license_key:
+        return None, (
+            jsonify({
+                "ok": False,
+                "message": "No se encontro una licencia activa para iniciar el checkout.",
+            }),
+            400,
+        )
+
+    try:
+        precio = get_price_for_plan(plan_destino)
+        external_reference = build_external_reference(
+            producto=producto,
+            plan_destino=plan_destino,
+            tipo_solicitud=tipo_solicitud,
+            license_key=license_key,
+            activation_id=activation_id,
+        )
+    except MercadoPagoCheckoutError as exc:
+        return None, (
+            jsonify({
+                "ok": False,
+                "message": str(exc),
+            }),
+            400,
+        )
+
+    return {
+        "plan_destino": plan_destino,
+        "available_plans": available_plans,
+        "tipo_solicitud": tipo_solicitud,
+        "producto": producto,
+        "precio": precio,
+        "license_key": license_key,
+        "activation_id": activation_id,
+        "external_reference": external_reference,
+        "holder_name": holder_name,
+        "holder_email": holder_email,
+        "holder_phone": holder_phone,
+    }, None
+
+
+def _create_activate_checkout_init_point(
+    cfg: dict[str, str],
+    tier_actual: str,
+    demo_status: dict,
+) -> tuple[str | None, dict[str, object] | None, tuple[object, int] | None]:
+    checkout_context, error_response = _build_activate_checkout_context(
+        cfg,
+        tier_actual,
+        demo_status,
+    )
+    if error_response:
+        return None, None, error_response
+
+    assert checkout_context is not None
+
+    try:
+        init_point = create_checkout_preference(
+            producto=str(checkout_context["producto"]),
+            plan_destino=str(checkout_context["plan_destino"]),
+            precio=int(checkout_context["precio"]),
+            external_reference=str(checkout_context["external_reference"]),
+            license_key=str(checkout_context["license_key"]),
+            email_titular=str(checkout_context["holder_email"]),
+            activation_id=str(checkout_context["activation_id"]),
+            tipo_solicitud=str(checkout_context["tipo_solicitud"]),
+        )
+    except MercadoPagoCheckoutError as exc:
+        return None, checkout_context, (
+            jsonify({
+                "ok": False,
+                "message": str(exc),
+            }),
+            400,
+        )
+
+    return init_point, checkout_context, None
 
 
 def _reports_redirect():
@@ -1555,14 +1792,7 @@ def register_routes(app):
             flash('Acción de licencia no reconocida.', 'danger')
             return redirect(url_for('activate'))
 
-        db = get_db(db_path)
-        config_rows = db.execute(
-            "SELECT key, value FROM config WHERE key IN "
-            "('license_activated_at','license_type','license_expires_at',"
-            "'license_tier','license_key','license_plan')"
-        ).fetchall()
-        db.close()
-        cfg = {r['key']: r['value'] for r in config_rows}
+        cfg = _load_activate_checkout_config(db_path)
 
         from demo_limits import get_tier, is_pro_expired, get_demo_days_remaining
         from licensing.license_sdk import get_current_hwid, get_license_product
@@ -1576,6 +1806,7 @@ def register_routes(app):
         machine_details["product_hwid"] = product_hwid
         capabilities, blocked_capabilities = _build_license_capabilities(demo_status)
         license_summary = _build_license_summary(cfg, tier_actual, demo_status)
+        available_checkout_plans = _get_activate_checkout_plans(cfg, tier_actual, demo_status)
 
         return render_template('activate.html',
                                already_full=already_full,
@@ -1596,7 +1827,70 @@ def register_routes(app):
                                capabilities=capabilities,
                                blocked_capabilities=blocked_capabilities,
                                license_summary=license_summary,
-                               demo_status=demo_status)
+                               demo_status=demo_status,
+                               available_checkout_plans=available_checkout_plans)
+
+    @app.route('/activate/checkout', methods=['POST'])
+    @login_required
+    def activate_checkout():
+        db_path = get_db_path()
+        cfg = _load_activate_checkout_config(db_path)
+        demo_status = get_demo_status(db_path)
+        tier_actual = str(demo_status.get("tier") or "DEMO")
+
+        init_point, _checkout_context, error_response = _create_activate_checkout_init_point(
+            cfg,
+            tier_actual,
+            demo_status,
+        )
+        if error_response:
+            return error_response
+
+        return jsonify({
+            "ok": True,
+            "init_point": init_point,
+            "message": "Checkout generado correctamente.",
+        })
+
+    @app.route('/activate/checkout/open', methods=['POST'])
+    @login_required
+    def activate_checkout_open():
+        db_path = get_db_path()
+        cfg = _load_activate_checkout_config(db_path)
+        demo_status = get_demo_status(db_path)
+        tier_actual = str(demo_status.get("tier") or "DEMO")
+
+        init_point, checkout_context, error_response = _create_activate_checkout_init_point(
+            cfg,
+            tier_actual,
+            demo_status,
+        )
+        if error_response:
+            return error_response
+
+        assert init_point is not None
+        assert checkout_context is not None
+
+        try:
+            opened = webbrowser.open(init_point)
+        except Exception:
+            return jsonify({
+                "ok": False,
+                "message": "No se pudo abrir Mercado Pago en el navegador externo.",
+            }), 500
+
+        if not opened:
+            return jsonify({
+                "ok": False,
+                "message": "No se pudo confirmar la apertura del navegador externo.",
+                "init_point": init_point,
+            }), 500
+
+        return jsonify({
+            "ok": True,
+            "message": "Checkout abierto en navegador externo.",
+            "plan_destino": checkout_context["plan_destino"],
+        })
 
     # ══════════════════════════════════════════════════════════════════════════
     # CONFIGURACIÓN Y PERFIL

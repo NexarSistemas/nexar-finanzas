@@ -2,6 +2,7 @@ import sqlite3
 import unittest
 from datetime import date, timedelta
 from pathlib import Path
+from unittest.mock import patch
 
 from flask import Flask
 
@@ -104,6 +105,173 @@ class ActivatePageTests(unittest.TestCase):
         self.assertIn("Refrescar licencia", html)
         self.assertIn("Todas las capacidades de esta pantalla estan habilitadas", html)
         self.assertIn("NXR-FIN-", html)
+
+    def test_activate_page_shows_checkout_buttons_for_demo(self):
+        with patch.dict(
+            "os.environ",
+            {
+                "NEXAR_FINANZAS_PRECIO_BASICA": "49900",
+                "NEXAR_FINANZAS_PRECIO_PRO": "9900",
+                "NEXAR_FINANZAS_PRECIO_FULL": "19900",
+            },
+            clear=False,
+        ):
+            client = self._make_client(
+                {
+                    "license_tier": "DEMO",
+                    "license_plan": "DEMO",
+                    "demo_install_date": str(date.today()),
+                }
+            )
+
+            response = client.get("/activate")
+
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn("Checkout directo", html)
+        self.assertIn("Pagar BASICA con Mercado Pago", html)
+        self.assertIn("Pagar PRO con Mercado Pago", html)
+        self.assertIn("Pagar FULL con Mercado Pago", html)
+
+    @patch("routes.webbrowser.open", return_value=True)
+    @patch("routes.create_checkout_preference", return_value="https://mp.test/init")
+    def test_activate_checkout_open_uses_activation_flow_without_license_key(
+        self,
+        mock_create_checkout,
+        _mock_open_browser,
+    ):
+        with patch.dict(
+            "os.environ",
+            {
+                "NEXAR_FINANZAS_PRECIO_PRO": "9900",
+            },
+            clear=False,
+        ):
+            client = self._make_client(
+                {
+                    "license_tier": "DEMO",
+                    "license_plan": "DEMO",
+                    "demo_install_date": str(date.today()),
+                }
+            )
+
+            response = client.post(
+                "/activate/checkout/open",
+                json={
+                    "plan": "PRO",
+                    "nombre": "Titular Demo",
+                    "email": "demo@example.com",
+                    "whatsapp": "2640000000",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertTrue(payload["ok"])
+        kwargs = mock_create_checkout.call_args.kwargs
+        self.assertEqual(kwargs["tipo_solicitud"], "alta_licencia")
+        self.assertEqual(kwargs["plan_destino"], "PRO")
+        self.assertEqual(kwargs["email_titular"], "demo@example.com")
+        self.assertEqual(kwargs["license_key"], "")
+
+    def test_activate_checkout_requires_holder_email(self):
+        with patch.dict(
+            "os.environ",
+            {
+                "NEXAR_FINANZAS_PRECIO_PRO": "9900",
+            },
+            clear=False,
+        ):
+            client = self._make_client(
+                {
+                    "license_tier": "BASICA",
+                    "license_plan": "BASICA",
+                    "license_key": "NXR-FIN-1234567890",
+                }
+            )
+
+            response = client.post(
+                "/activate/checkout",
+                json={
+                    "plan": "PRO",
+                    "nombre": "Titular Basica",
+                    "email": "",
+                },
+            )
+
+        self.assertEqual(response.status_code, 400)
+        payload = response.get_json()
+        self.assertFalse(payload["ok"])
+        self.assertIn("email del titular", payload["message"].lower())
+
+    def test_activate_page_hides_checkout_without_configured_prices(self):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+            }
+        )
+
+        response = client.get("/activate")
+
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn("Checkout directo", html)
+        self.assertNotIn("Pagar BASICA con Mercado Pago", html)
+        self.assertIn("checkout online disponible en este entorno", html)
+
+    @patch("routes.create_checkout_preference", return_value="https://mp.test/init")
+    def test_activate_page_and_post_match_available_plans_for_expired_pro_with_basica(
+        self,
+        _mock_create_checkout,
+    ):
+        with patch.dict(
+            "os.environ",
+            {
+                "NEXAR_FINANZAS_PRECIO_BASICA": "49900",
+                "NEXAR_FINANZAS_PRECIO_PRO": "9900",
+                "NEXAR_FINANZAS_PRECIO_FULL": "19900",
+            },
+            clear=False,
+        ):
+            client = self._make_client(
+                {
+                    "license_tier": "PRO",
+                    "license_plan": "PRO",
+                    "license_key": "NXR-FIN-1234567890",
+                    "license_expires_at": str(date.today() - timedelta(days=1)),
+                    "basica_activada": "1",
+                }
+            )
+
+            response = client.get("/activate")
+
+            self.assertEqual(response.status_code, 200)
+            html = response.get_data(as_text=True)
+            self.assertNotIn("Pagar BASICA con Mercado Pago", html)
+            self.assertIn("Pagar PRO con Mercado Pago", html)
+            self.assertIn("Pagar FULL con Mercado Pago", html)
+
+            rejected = client.post(
+                "/activate/checkout",
+                json={
+                    "plan": "BASICA",
+                    "nombre": "Titular Basica",
+                    "email": "basica@example.com",
+                },
+            )
+            self.assertEqual(rejected.status_code, 400)
+
+            accepted = client.post(
+                "/activate/checkout",
+                json={
+                    "plan": "PRO",
+                    "nombre": "Titular Basica",
+                    "email": "basica@example.com",
+                },
+            )
+            self.assertEqual(accepted.status_code, 200)
 
 
 if __name__ == "__main__":
