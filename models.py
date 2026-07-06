@@ -522,7 +522,8 @@ def init_db(db_path: str):
     #      → crear el archivo externo con esa fecha
     #   3. Ninguno tiene fecha → primera instalación real
     #      → guardar hoy en DB y en archivo externo
-    _telem_date = None if _is_testing_mode() else _read_telemetry(_mid)
+    _testing_mode = _is_testing_mode()
+    _telem_date = None if _testing_mode else _read_telemetry(_mid)
     _inst_row   = cur.execute(
         "SELECT value FROM config WHERE key='demo_install_date'"
     ).fetchone()
@@ -537,7 +538,8 @@ def init_db(db_path: str):
             )
     elif _db_date:
         # BD tiene fecha pero archivo no existe → crear archivo
-        _write_telemetry(_db_date, _mid)
+        if not _testing_mode:
+            _write_telemetry(_db_date, _mid)
     else:
         # Primera instalación real
         _today = date.today().isoformat()
@@ -545,7 +547,8 @@ def init_db(db_path: str):
             "INSERT OR REPLACE INTO config (key, value) VALUES ('demo_install_date', ?)",
             (_today,)
         )
-        _write_telemetry(_today, _mid)
+        if not _testing_mode:
+            _write_telemetry(_today, _mid)
 
     # ── Migración silenciosa: usuarios con código HMAC viejo ──────────────────
     # Si version='FULL' pero license_tier es 'DEMO' o no existe, el usuario activó
