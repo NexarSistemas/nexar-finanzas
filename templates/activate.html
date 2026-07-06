@@ -225,6 +225,39 @@
 
       <div class="card shadow-sm mt-4">
         <div class="card-header bg-white">
+          <h5 class="mb-0"><i class="bi bi-credit-card me-2"></i>Checkout directo</h5>
+        </div>
+        <div class="card-body">
+          {% if available_checkout_plans %}
+          <div class="alert alert-light border small">
+            Si elegis Mercado Pago, cuando termines el pago, volve a Nexar Finanzas y toca <strong>Refrescar licencia</strong>.
+          </div>
+          <div class="d-flex flex-wrap gap-2 mb-2">
+            {% for plan in available_checkout_plans %}
+            <button
+              type="button"
+              class="btn {% if loop.first %}btn-primary{% else %}btn-outline-primary{% endif %} checkout-plan-button"
+              data-plan="{{ plan }}"
+              data-open-url="{{ url_for('activate_checkout_open') }}"
+              data-create-url="{{ url_for('activate_checkout') }}"
+            >
+              <i class="bi bi-bag-check"></i> Pagar {{ plan }} con Mercado Pago
+            </button>
+            {% endfor %}
+          </div>
+          <div class="small text-muted" id="checkout-feedback">
+            Completa nombre y email del titular en la solicitud manual de abajo antes de iniciar el checkout.
+          </div>
+          {% else %}
+          <p class="text-muted mb-0">
+            Tu plan actual no tiene checkout online disponible en este entorno. La gestion manual sigue habilitada.
+          </p>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="card shadow-sm mt-4">
+        <div class="card-header bg-white">
           <h5 class="mb-0"><i class="bi bi-send me-2"></i>Solicitud manual</h5>
         </div>
         <div class="card-body">
@@ -243,19 +276,19 @@
             <input type="hidden" name="activation_id" value="{{ activation_id }}">
             <div class="col-md-6">
               <label class="form-label fw-semibold">Nombre del titular</label>
-              <input name="nombre" class="form-control" required>
+              <input id="holder-name" name="nombre" class="form-control" required>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Email</label>
-              <input name="email" type="email" class="form-control" required>
+              <input id="holder-email" name="email" type="email" class="form-control" required>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">WhatsApp</label>
-              <input name="whatsapp" class="form-control">
+              <input id="holder-whatsapp" name="whatsapp" class="form-control">
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Plan solicitado</label>
-              <select name="plan" class="form-select">
+              <select id="manual-plan" name="plan" class="form-select">
                 <option value="BASICA" {% if current_tier == 'BASICA' %}selected{% endif %}>BASICA</option>
                 <option value="PRO" {% if license_summary.plan_activo == 'PRO' %}selected{% endif %}>PRO</option>
                 <option value="FULL" {% if license_summary.plan_activo == 'FULL' %}selected{% endif %}>FULL</option>
@@ -292,5 +325,65 @@ function copyHWID() {
     }, 2000);
   });
 }
+
+async function startCheckout(button) {
+  const holderName = document.getElementById('holder-name');
+  const holderEmail = document.getElementById('holder-email');
+  const holderWhatsapp = document.getElementById('holder-whatsapp');
+  const feedback = document.getElementById('checkout-feedback');
+
+  if (!button || !holderName || !holderEmail || !feedback) return;
+
+  const payload = {
+    plan: button.dataset.plan || '',
+    nombre: holderName.value || '',
+    email: holderEmail.value || '',
+    whatsapp: holderWhatsapp ? holderWhatsapp.value || '' : '',
+  };
+
+  const originalText = button.innerHTML;
+  button.disabled = true;
+  button.innerHTML = '<i class="bi bi-arrow-repeat"></i> Iniciando checkout...';
+  feedback.className = 'small text-muted';
+  feedback.textContent = 'Preparando checkout...';
+
+  try {
+    const openResponse = await fetch(button.dataset.openUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const openData = await openResponse.json();
+    if (openResponse.ok && openData.ok) {
+      feedback.className = 'small text-success';
+      feedback.textContent = 'Mercado Pago se abrio en el navegador externo. Cuando termines el pago, volve a Nexar Finanzas y toca Refrescar licencia.';
+      return;
+    }
+
+    const createResponse = await fetch(button.dataset.createUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const createData = await createResponse.json();
+    if (!createResponse.ok || !createData.ok || !createData.init_point) {
+      throw new Error((createData && createData.message) || (openData && openData.message) || 'No se pudo iniciar el checkout.');
+    }
+
+    window.open(createData.init_point, '_blank', 'noopener');
+    feedback.className = 'small text-success';
+    feedback.textContent = 'Checkout listo. Cuando termines el pago, volve a Nexar Finanzas y toca Refrescar licencia.';
+  } catch (error) {
+    feedback.className = 'small text-danger';
+    feedback.textContent = error.message || 'No se pudo iniciar el checkout. Puedes continuar con la solicitud manual.';
+  } finally {
+    button.disabled = false;
+    button.innerHTML = originalText;
+  }
+}
+
+document.querySelectorAll('.checkout-plan-button').forEach((button) => {
+  button.addEventListener('click', () => startCheckout(button));
+});
 </script>
 {% endblock %}
