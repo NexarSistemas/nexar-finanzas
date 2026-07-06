@@ -360,10 +360,55 @@ def _load_activate_checkout_config(db_path: str) -> dict[str, str]:
     config_rows = db.execute(
         "SELECT key, value FROM config WHERE key IN "
         "('license_activated_at','license_type','license_expires_at',"
-        "'license_tier','license_key','license_plan','basica_activada')"
+        "'license_tier','license_key','license_plan','basica_activada',"
+        "'pending_checkout_activation_id','pending_checkout_plan',"
+        "'pending_checkout_request_type','pending_checkout_external_reference',"
+        "'pending_checkout_started_at')"
     ).fetchall()
     db.close()
     return {r['key']: r['value'] for r in config_rows}
+
+
+def _get_pending_checkout_state(cfg: dict[str, str]) -> dict[str, str]:
+    return {
+        "activation_id": str(cfg.get("pending_checkout_activation_id", "") or "").strip(),
+        "plan": normalize_plan(cfg.get("pending_checkout_plan") or ""),
+        "request_type": str(cfg.get("pending_checkout_request_type", "") or "").strip().lower(),
+        "external_reference": str(cfg.get("pending_checkout_external_reference", "") or "").strip(),
+        "started_at": str(cfg.get("pending_checkout_started_at", "") or "").strip(),
+    }
+
+
+def _has_pending_checkout_for_activation(cfg: dict[str, str]) -> bool:
+    pending = _get_pending_checkout_state(cfg)
+    return bool(
+        pending["activation_id"]
+        and pending["request_type"] == "alta_licencia"
+    )
+
+
+def _clear_pending_checkout_state(db_path: str) -> None:
+    _set_config_values({
+        "pending_checkout_activation_id": "",
+        "pending_checkout_plan": "",
+        "pending_checkout_request_type": "",
+        "pending_checkout_external_reference": "",
+        "pending_checkout_started_at": "",
+    }, db_path=db_path)
+
+
+def _persist_pending_checkout_state(checkout_context: dict[str, object], db_path: str) -> None:
+    if str(checkout_context.get("tipo_solicitud", "")).strip().lower() != "alta_licencia":
+        _clear_pending_checkout_state(db_path)
+        return
+
+    _set_config_values({
+        "pending_checkout_activation_id": str(checkout_context.get("activation_id", "")).strip(),
+        "pending_checkout_plan": normalize_plan(str(checkout_context.get("plan_destino", "")).strip()),
+        "pending_checkout_request_type": "alta_licencia",
+        "pending_checkout_external_reference": str(checkout_context.get("external_reference", "")).strip(),
+        "pending_checkout_started_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+    }, db_path=db_path)
 
 
 def _resolve_activate_checkout_plan(
@@ -391,6 +436,23 @@ def _resolve_activate_checkout_plan(
 
 def _resolve_activate_checkout_request_type(cfg: dict[str, str]) -> str:
     return "cambio_plan" if _get_activate_license_key(cfg) else "alta_licencia"
+
+
+def _build_pending_checkout_refresh_message(cfg: dict[str, str]) -> str:
+    pending = _get_pending_checkout_state(cfg)
+    activation_id = pending["activation_id"]
+    plan = pending["plan"] or "tu plan"
+    if not activation_id:
+        return (
+            "No hay una licencia guardada ni un checkout directo pendiente para refrescar."
+        )
+
+    return (
+        f"Si ya pagaste el checkout directo de {plan}, esta instalacion aun no tiene una "
+        "license_key guardada para completar la activacion automaticamente. "
+        f"Usa el campo 'Activar licencia' cuando recibas la clave o contacta a Nexar con tu "
+        f"ID de activacion {activation_id}. No vuelvas a pagar."
+    )
 
 
 def _validate_checkout_holder(nombre: str, email: str) -> tuple[bool, str]:
@@ -1779,14 +1841,28 @@ def register_routes(app):
 
                 license_key = request.form.get('license_key', '').strip()
                 ok, msg = validate_license_key(license_key, db_path=db_path, debug=True)
+                if ok:
+                    _clear_pending_checkout_state(db_path)
                 flash(msg, 'success' if ok else 'danger')
                 return redirect(url_for('dashboard' if ok else 'activate'))
 
             if action == 'refresh_license':
-                from licensing.license_sdk import validate_saved_license
+                cfg = _load_activate_checkout_config(db_path)
+                license_key = _get_activate_license_key(cfg)
+                if license_key:
+                    from licensing.license_sdk import validate_saved_license
 
-                ok, msg = validate_saved_license(db_path, debug=True)
-                flash(msg, 'success' if ok else 'warning')
+                    ok, msg = validate_saved_license(db_path, debug=True)
+                    if ok:
+                        _clear_pending_checkout_state(db_path)
+                    flash(msg, 'success' if ok else 'warning')
+                    return redirect(url_for('activate'))
+
+                if _has_pending_checkout_for_activation(cfg):
+                    flash(_build_pending_checkout_refresh_message(cfg), 'warning')
+                    return redirect(url_for('activate'))
+
+                flash('No hay licencia guardada ni checkout pendiente para refrescar.', 'warning')
                 return redirect(url_for('activate'))
 
             flash('Acción de licencia no reconocida.', 'danger')
@@ -1807,6 +1883,8 @@ def register_routes(app):
         capabilities, blocked_capabilities = _build_license_capabilities(demo_status)
         license_summary = _build_license_summary(cfg, tier_actual, demo_status)
         available_checkout_plans = _get_activate_checkout_plans(cfg, tier_actual, demo_status)
+        pending_checkout = _get_pending_checkout_state(cfg)
+        can_refresh_license = bool(_get_activate_license_key(cfg) or _has_pending_checkout_for_activation(cfg))
 
         return render_template('activate.html',
                                already_full=already_full,
@@ -1823,7 +1901,8 @@ def register_routes(app):
                                tier=tier_actual,
                                pro_expired=is_pro_expired(db_path),
                                demo_days=get_demo_days_remaining(db_path),
-                               can_refresh_license=bool(cfg.get('license_key', '').strip()),
+                               can_refresh_license=can_refresh_license,
+                               pending_checkout=pending_checkout,
                                capabilities=capabilities,
                                blocked_capabilities=blocked_capabilities,
                                license_summary=license_summary,
@@ -1845,6 +1924,9 @@ def register_routes(app):
         )
         if error_response:
             return error_response
+
+        assert _checkout_context is not None
+        _persist_pending_checkout_state(_checkout_context, db_path)
 
         return jsonify({
             "ok": True,
@@ -1870,6 +1952,8 @@ def register_routes(app):
 
         assert init_point is not None
         assert checkout_context is not None
+
+        _persist_pending_checkout_state(checkout_context, db_path)
 
         try:
             opened = webbrowser.open(init_point)
