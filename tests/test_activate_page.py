@@ -146,6 +146,24 @@ class ActivatePageTests(unittest.TestCase):
         self.assertIn("PRO · Pagar con Mercado Pago", html)
         self.assertIn("FULL · Pagar con Mercado Pago", html)
 
+    def test_activate_page_shows_checkout_buttons_for_expired_demo(self):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today() - timedelta(days=31)),
+            }
+        )
+
+        response = client.get("/activate")
+
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn("Checkout directo", html)
+        self.assertIn("BASICA · Pagar con Mercado Pago", html)
+        self.assertIn("PRO · Pagar con Mercado Pago", html)
+        self.assertIn("FULL · Pagar con Mercado Pago", html)
+
     @patch("routes.webbrowser.open", return_value=True)
     @patch("routes.create_checkout_preference", return_value="https://mp.test/init")
     def test_activate_checkout_open_uses_activation_flow_without_license_key(
