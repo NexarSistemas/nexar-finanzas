@@ -40,7 +40,6 @@ from services.mercadopago_checkout import (
     MercadoPagoCheckoutError,
     build_external_reference,
     create_checkout_preference,
-    get_price_for_plan,
     plan_supports_checkout,
 )
 
@@ -527,7 +526,6 @@ def _build_activate_checkout_context(
         )
 
     try:
-        precio = get_price_for_plan(plan_destino)
         external_reference = build_external_reference(
             producto=producto,
             plan_destino=plan_destino,
@@ -549,7 +547,7 @@ def _build_activate_checkout_context(
         "available_plans": available_plans,
         "tipo_solicitud": tipo_solicitud,
         "producto": producto,
-        "precio": precio,
+        "precio": 0,
         "license_key": license_key,
         "activation_id": activation_id,
         "external_reference": external_reference,
