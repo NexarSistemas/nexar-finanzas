@@ -48,33 +48,11 @@ def get_price_for_plan(plan_destino: str) -> int:
     plan = _normalize_checkout_plan(plan_destino)
     if not plan:
         raise MercadoPagoCheckoutError("El plan solicitado no admite checkout online.")
-
-    env_key = f"NEXAR_FINANZAS_PRECIO_{plan}"
-    raw_amount = str(os.getenv(env_key, "") or "").strip()
-    if not raw_amount:
-        raise MercadoPagoCheckoutError(
-            "Checkout online no disponible para ese plan en este entorno."
-        )
-
-    try:
-        amount = int(raw_amount)
-    except ValueError as exc:
-        raise MercadoPagoCheckoutError(
-            f"El precio configurado para {plan} no es valido."
-        ) from exc
-    if amount <= 0:
-        raise MercadoPagoCheckoutError(
-            f"El precio configurado para {plan} no es valido."
-        )
-    return amount
+    return 0
 
 
 def plan_supports_checkout(plan_destino: str) -> bool:
-    try:
-        get_price_for_plan(plan_destino)
-    except MercadoPagoCheckoutError:
-        return False
-    return True
+    return bool(_normalize_checkout_plan(plan_destino))
 
 
 def build_external_reference(
@@ -116,7 +94,7 @@ def create_checkout_preference(
     *,
     producto: str,
     plan_destino: str,
-    precio: int,
+    precio: int = 0,
     external_reference: str,
     license_key: str,
     email_titular: str,
@@ -143,7 +121,7 @@ def create_checkout_preference(
     payload = {
         "producto": str(producto or "").strip(),
         "plan_destino": plan,
-        "precio": int(precio),
+        "precio": int(precio or 0),
         "external_reference": reference,
         "license_key": str(license_key or "").strip(),
         "activation_id": str(activation_id or "").strip(),

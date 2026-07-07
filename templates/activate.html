@@ -248,7 +248,7 @@
               data-open-url="{{ url_for('activate_checkout_open') }}"
               data-create-url="{{ url_for('activate_checkout') }}"
             >
-              <i class="bi bi-bag-check"></i> Pagar {{ plan }} con Mercado Pago
+              <i class="bi bi-bag-check"></i> {{ plan }} · Pagar con Mercado Pago
             </button>
             {% endfor %}
           </div>
@@ -257,7 +257,7 @@
           </div>
           {% else %}
           <p class="text-muted mb-0">
-            Tu plan actual no tiene checkout online disponible en este entorno. La gestion manual sigue habilitada.
+            Tu plan actual no tiene opciones de checkout online disponibles. La gestion manual sigue habilitada.
           </p>
           {% endif %}
         </div>
