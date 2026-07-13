@@ -13,6 +13,7 @@ import sys
 import sqlite3
 
 from .demo_state      import set_demo, set_full
+from .license_service import PAID_PLANS, get_license_state
 
 
 # ── Ruta a la BD (misma lógica que app.py) ────────────────────────────────────
@@ -49,12 +50,7 @@ def _is_full_in_db():
         db_path = _get_db_path()
         if not os.path.exists(db_path):
             return False
-        conn = sqlite3.connect(db_path)
-        row  = conn.execute(
-            "SELECT value FROM config WHERE key='version'"
-        ).fetchone()
-        conn.close()
-        return row is not None and row[0] == 'FULL'
+        return get_license_state(db_path).effective_tier in PAID_PLANS
     except Exception:
         return False
 

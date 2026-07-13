@@ -32,7 +32,15 @@ from models import (
 )
 from demo_limits import check_limit, is_full_version, get_demo_status
 from licensing.hardware_id import get_hardware_id
-from licensing.supabase_license_api import normalize_plan
+from licensing.license_service import (
+    get_current_hwid,
+    get_license_product,
+    normalize_paid_plan,
+    normalize_plan,
+    validate_license_key,
+    validate_saved_license,
+)
+from licensing.supabase_license_api import create_license_request, generate_activation_id, is_configured
 from update_checker import download_release_asset, get_cached_update_info
 from services import financial_health
 import services
@@ -315,15 +323,7 @@ def _get_activate_plan_activo(cfg: dict[str, str], tier_actual: str) -> str:
 
 
 def _normalize_checkout_requested_plan(value: str) -> str:
-    raw = str(value or "").strip().upper().replace("-", "_").replace(" ", "_")
-    aliases = {
-        "BASIC": "BASICA",
-        "BASICO": "BASICA",
-        "MENSUAL_PRO": "PRO",
-        "MENSUAL_FULL": "FULL",
-    }
-    normalized = aliases.get(raw, raw)
-    return normalized if normalized in {"BASICA", "PRO", "FULL"} else ""
+    return normalize_paid_plan(value)
 
 
 def _get_activate_checkout_plans(
@@ -509,8 +509,6 @@ def _build_activate_checkout_context(
             }),
             400,
         )
-
-    from licensing.license_sdk import get_current_hwid, get_license_product
 
     producto = get_license_product()
     license_key = _get_activate_license_key(cfg)
@@ -1812,9 +1810,6 @@ def register_routes(app):
             action = request.form.get('action', 'activate_license')
 
             if action == 'request_license':
-                from licensing.license_sdk import get_current_hwid, get_license_product
-                from licensing.supabase_license_api import create_license_request
-
                 activation_id = request.form.get('activation_id', '').strip()
                 product_hwid = get_current_hwid() or get_hardware_id()
                 ok, msg, _data = create_license_request(
@@ -1835,8 +1830,6 @@ def register_routes(app):
                 return redirect(url_for('activate'))
 
             if action == 'activate_license':
-                from licensing.license_sdk import validate_license_key
-
                 license_key = request.form.get('license_key', '').strip()
                 ok, msg = validate_license_key(license_key, db_path=db_path, debug=True)
                 if ok:
@@ -1848,8 +1841,6 @@ def register_routes(app):
                 cfg = _load_activate_checkout_config(db_path)
                 license_key = _get_activate_license_key(cfg)
                 if license_key:
-                    from licensing.license_sdk import validate_saved_license
-
                     ok, msg = validate_saved_license(db_path, debug=True)
                     if ok:
                         _clear_pending_checkout_state(db_path)
@@ -1869,8 +1860,6 @@ def register_routes(app):
         cfg = _load_activate_checkout_config(db_path)
 
         from demo_limits import get_tier, is_pro_expired, get_demo_days_remaining
-        from licensing.license_sdk import get_current_hwid, get_license_product
-        from licensing.supabase_license_api import generate_activation_id, is_configured
 
         tier_actual = get_tier(db_path)
         demo_status = get_demo_status(db_path)

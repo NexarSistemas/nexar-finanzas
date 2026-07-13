@@ -4,7 +4,6 @@ Inicialización y esquema de la base de datos SQLite.
 Crea todas las tablas necesarias si no existen.
 """
 
-import json
 import os
 import sqlite3
 import platform
@@ -12,6 +11,9 @@ import uuid
 from datetime import date
 import base64 as _b64
 import hashlib as _hl
+
+from licensing.license_service import normalize_plan as _normalize_license_plan
+from licensing.license_service import sync_license_from_remote as _sync_license_from_remote
 
 
 # ─── Anti-reinstall — archivo externo de control de demo ─────────────────────
@@ -142,52 +144,12 @@ def set_config(db_path: str, values: dict) -> None:
 
 
 def normalize_license_plan(plan: str | None) -> str:
-    raw = (plan or "BASICA").strip().upper().replace("-", "_").replace(" ", "_")
-    aliases = {
-        "BASIC": "BASICA",
-        "BASICO": "BASICA",
-        "BASICA": "BASICA",
-        "DEMO": "DEMO",
-        "PRO": "PRO",
-        "MENSUAL_PRO": "PRO",
-        "FULL": "FULL",
-        "MENSUAL": "FULL",
-        "MENSUAL_FULL": "FULL",
-    }
-    return aliases.get(raw, "BASICA")
-
-
-def _local_tier_from_plan(plan: str | None) -> str:
-    return normalize_license_plan(plan)
+    return _normalize_license_plan(plan)
 
 
 def sync_license_from_remote(db_path: str, license_data: dict) -> None:
     """Guarda en SQLite la licencia normalizada que devuelve Supabase/SDK."""
-    data = dict(license_data or {})
-    plan = normalize_license_plan(data.get("plan") or data.get("tier") or data.get("license_plan"))
-    tier = _local_tier_from_plan(plan)
-    expires_at = data.get("expira") or data.get("expires_at") or ""
-    license_key = data.get("license_key") or ""
-    max_devices = data.get("max_devices") or data.get("max_machines") or 1
-
-    cfg = get_config(db_path)
-    basica_activada = cfg.get("basica_activada", "0") == "1" or tier == "BASICA"
-
-    values = {
-        "version": "DEMO" if tier == "DEMO" else "FULL",
-        "license_tier": tier,
-        "license_plan": plan,
-        "license_expires_at": "" if tier == "BASICA" else expires_at,
-        "license_key": license_key,
-        "license_signature": data.get("public_signature") or data.get("signature") or "",
-        "license_type": "supabase",
-        "license_activated_at": data.get("activated_at") or data.get("created_at") or date.today().isoformat(),
-        "license_last_check": date.today().isoformat(),
-        "license_max_devices": max_devices,
-        "license_data_full": json.dumps(data, ensure_ascii=False, sort_keys=True),
-        "basica_activada": "1" if basica_activada else "0",
-    }
-    set_config(db_path, values)
+    _sync_license_from_remote(db_path, license_data)
 
 
 def init_db(db_path: str):
@@ -448,8 +410,8 @@ def init_db(db_path: str):
     cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('ai_api_key', '')")
     cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('ai_enabled', '1')")
     # ── Sistema de licencias por tiers ────────────────────────────────────────
-    # license_tier:       'DEMO' | 'BASICA' | 'PRO'
-    # license_expires_at: fecha ISO de vencimiento PRO (vacío = no vence)
+    # license_tier:       'DEMO' | 'BASICA' | 'PRO' | 'FULL'
+    # license_expires_at: fecha ISO de vencimiento PRO/FULL (vacío = no vence)
     # demo_install_date:  fecha ISO de primera instalación (gestionada por anti-reinstall)
     # machine_id:         hardware ID del equipo (gestionado más abajo)
     cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('license_tier', 'DEMO')")
