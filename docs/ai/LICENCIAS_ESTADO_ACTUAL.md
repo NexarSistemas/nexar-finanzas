@@ -18,6 +18,7 @@ La activación y validación moderna usan:
 
 - Supabase como backend remoto
 - SDK `nexar_licencias`
+- fachada local `licensing/license_service.py`
 - `license_key`
 - producto `nexar-finanzas`
 - `machine_id` / hardware binding
@@ -40,6 +41,10 @@ La normalización vigente está alineada con `models.py`:
 - `MENSUAL_FULL` → `FULL`
 
 Regla clave: `FULL` no debe degradarse ni renombrarse como `PRO`.
+
+La normalización operativa vive en `licensing/license_service.py`. Los helpers
+historicos de `models.py`, `demo_limits.py`, `routes.py` y
+`licensing/license_sdk.py` deben delegar alli.
 
 ## Flujos válidos
 

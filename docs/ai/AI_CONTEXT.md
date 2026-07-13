@@ -40,11 +40,16 @@ IA optativas configuradas por el usuario.
 - `routes.py`: rutas HTTP y enforcement funcional.
 - `models.py`: persistencia SQLite, normalización y sincronización de licencias.
 - `demo_limits.py`: tiers, límites, capacidades y estado consolidado.
+- `licensing/license_service.py`: fachada local y fuente de verdad para
+  normalización, estado efectivo, SDKConfig, cache/fallback y sincronización.
 - `licensing/`: integración Supabase + SDK + validación de licencia.
 - `tests/test_demo_limits.py`: cobertura base del comportamiento por plan.
+- `tests/test_license_service.py`: cobertura de fachada, aliases, cache y
+  vencimientos.
 - `README.md`: documentación pública del producto.
 - `CHANGELOG.md`: historial de cambios del proyecto.
 - `docs/ai/LICENCIAS_ESTADO_ACTUAL.md`: fuente rápida para decisiones sobre licencias.
+- `docs/ai/LICENCIAS_ARQUITECTURA.md`: arquitectura vigente de licencias.
 - `docs/ai/PROMPTS_CODEX.md`: reglas operativas para próximas fases.
 
 ## Reglas para Codex

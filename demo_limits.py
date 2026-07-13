@@ -15,6 +15,16 @@ mantienen sus firmas originales para no romper routes.py ni templates.
 import sqlite3
 from datetime import date
 
+from licensing.license_service import (
+    MONTHLY_PLANS,
+    PLAN_BASICA,
+    PLAN_DEMO,
+    PLAN_DEMO_EXPIRED,
+    PLAN_FULL,
+    PLAN_PRO,
+    get_license_state,
+    normalize_plan,
+)
 
 # ─── Límites por tier ─────────────────────────────────────────────────────────
 #
@@ -154,42 +164,9 @@ def get_tier(db_path: str) -> str:
       - Resto: retorna el tier guardado en la BD
     """
     try:
-        conn = sqlite3.connect(db_path)
-        conn.row_factory = sqlite3.Row
-        cur  = conn.cursor()
-
-        tier_row = cur.execute("SELECT value FROM config WHERE key='license_tier'").fetchone()
-        expires_row = cur.execute("SELECT value FROM config WHERE key='license_expires_at'").fetchone()
-        install_row = cur.execute("SELECT value FROM config WHERE key='demo_install_date'").fetchone()
-        basica_row = cur.execute("SELECT value FROM config WHERE key='basica_activada'").fetchone()
-        conn.close()
-
-        tier = tier_row[0] if tier_row else 'DEMO'
-        expires_at = expires_row[0] if expires_row else ''
-        install_dt = install_row[0] if install_row else ''
-        basica_activada = basica_row[0] if basica_row else ''
-
-        # PRO/FULL vencido → BASICA si está activada; si no, DEMO_EXPIRED
-        if tier in ('PRO', 'FULL') and expires_at:
-            try:
-                if date.today() > date.fromisoformat(expires_at):
-                    return 'BASICA' if basica_activada == '1' else 'DEMO_EXPIRED'
-            except Exception:
-                pass
-
-        # DEMO: verificar si venció (30 días)
-        if tier == 'DEMO' and install_dt:
-            try:
-                delta = (date.today() - date.fromisoformat(install_dt)).days
-                if delta > 30:
-                    return 'DEMO_EXPIRED'
-            except Exception:
-                pass
-
-        return tier
-
+        return get_license_state(db_path).effective_tier
     except Exception:
-        return 'DEMO'
+        return PLAN_DEMO
 
 
 def is_pro_expired(db_path: str) -> bool:
@@ -198,19 +175,7 @@ def is_pro_expired(db_path: str) -> bool:
     Útil para mostrar el aviso de renovación en los templates.
     """
     try:
-        conn = sqlite3.connect(db_path)
-        conn.row_factory = sqlite3.Row
-        cur  = conn.cursor()
-        tier_row = cur.execute("SELECT value FROM config WHERE key='license_tier'").fetchone()
-        expires_row = cur.execute("SELECT value FROM config WHERE key='license_expires_at'").fetchone()
-        conn.close()
-
-        if not tier_row or tier_row[0] not in ('PRO', 'FULL'):
-            return False
-        expires_at = expires_row[0] if expires_row else ''
-        if not expires_at:
-            return False
-        return date.today() > date.fromisoformat(expires_at)
+        return get_license_state(db_path).subscription_expired
     except Exception:
         return False
 
@@ -227,7 +192,7 @@ def get_demo_days_remaining(db_path: str) -> int | None:
         install_row = cur.execute("SELECT value FROM config WHERE key='demo_install_date'").fetchone()
         conn.close()
 
-        if not tier_row or tier_row[0] != 'DEMO':
+        if not tier_row or normalize_plan(tier_row[0], default=PLAN_DEMO) != PLAN_DEMO:
             return None
         if not install_row or not install_row[0]:
             return 30
@@ -251,7 +216,8 @@ def get_pro_days_remaining(db_path: str) -> int | None:
         expires_row = cur.execute("SELECT value FROM config WHERE key='license_expires_at'").fetchone()
         conn.close()
 
-        if not tier_row or tier_row[0] not in ('PRO', 'FULL'):
+        tier = normalize_plan(tier_row[0], default=PLAN_DEMO) if tier_row else PLAN_DEMO
+        if tier not in MONTHLY_PLANS:
             return None
         
         expires_at = expires_row[0] if expires_row else ''
@@ -281,7 +247,7 @@ def check_limit(db_path: str, resource: str, current_count: int) -> dict:
     tier = get_tier(db_path)
 
     # DEMO vencida: modo lectura total, nada permitido
-    if tier == 'DEMO_EXPIRED':
+    if tier == PLAN_DEMO_EXPIRED:
         return {
             'allowed':  False,
             'message':  _MSG_DEMO_VENCIDA,
@@ -306,7 +272,7 @@ def check_limit(db_path: str, resource: str, current_count: int) -> dict:
         }
 
     # Para cuentas en DEMO: límite global compartido entre los 3 tipos
-    if resource in ('bank_accounts', 'virtual_wallets', 'cash_accounts') and tier == 'DEMO':
+    if resource in ('bank_accounts', 'virtual_wallets', 'cash_accounts') and tier == PLAN_DEMO:
         total_limit = limits.get('accounts_total')
         if total_limit is not None:
             # Contar el total de cuentas activas de todos los tipos
@@ -343,16 +309,16 @@ def check_limit(db_path: str, resource: str, current_count: int) -> dict:
         return {
             'allowed': True,
             'message': '',
-            'is_demo': tier in ('DEMO', 'DEMO_EXPIRED'),
+            'is_demo': tier in (PLAN_DEMO, PLAN_DEMO_EXPIRED),
         }
 
     if current_count >= limit:
-        tier_label = 'DEMO' if tier == 'DEMO' else 'Plan Básico'
+        tier_label = 'DEMO' if tier == PLAN_DEMO else 'Plan Básico'
         return {
             'allowed':  False,
             'message':  f'Límite {tier_label}: máximo {limit}. '
                         f'{_MSG_LIMITE}',
-            'is_demo':  tier in ('DEMO', 'DEMO_EXPIRED'),
+            'is_demo':  tier in (PLAN_DEMO, PLAN_DEMO_EXPIRED),
             'limit':    limit,
             'resource': resource,
         }
@@ -360,7 +326,7 @@ def check_limit(db_path: str, resource: str, current_count: int) -> dict:
     return {
         'allowed': True,
         'message': f'{tier}: {current_count + 1}/{limit}',
-        'is_demo': tier in ('DEMO', 'DEMO_EXPIRED'),
+        'is_demo': tier in (PLAN_DEMO, PLAN_DEMO_EXPIRED),
         'limit':   limit,
     }
 
@@ -375,7 +341,7 @@ def is_full_version(db_path: str) -> bool:
     PRO/FULL vencido con BASICA activa retorna True porque el usuario sigue pago.
     """
     tier = get_tier(db_path)
-    return tier in ('BASICA', 'PRO', 'FULL')
+    return tier in (PLAN_BASICA, PLAN_PRO, PLAN_FULL)
 
 
 def get_demo_status(db_path: str) -> dict:
@@ -426,7 +392,7 @@ def get_demo_status(db_path: str) -> dict:
         )}
 
     # ── Armar límites con porcentaje de uso ───────────────────────────────────
-    limits = TIER_LIMITS.get(tier if tier != 'DEMO_EXPIRED' else 'DEMO',
+    limits = TIER_LIMITS.get(tier if tier != PLAN_DEMO_EXPIRED else PLAN_DEMO,
                              TIER_LIMITS['DEMO'])
 
     # Para DEMO: el límite de cuentas es total global de 3
@@ -440,7 +406,7 @@ def get_demo_status(db_path: str) -> dict:
             }
             continue
 
-        if resource in ('bank_accounts', 'virtual_wallets', 'cash_accounts') and tier in ('DEMO', 'DEMO_EXPIRED'):
+        if resource in ('bank_accounts', 'virtual_wallets', 'cash_accounts') and tier in (PLAN_DEMO, PLAN_DEMO_EXPIRED):
             total_limit = limits.get('accounts_total', 3)
             total_actual = counts['bank_accounts'] + counts['virtual_wallets'] + counts['cash_accounts']
             limits_info[resource] = {
@@ -472,7 +438,7 @@ def get_demo_status(db_path: str) -> dict:
     # ── Determinar versión para templates ─────────────────────────────────────
     # 'version' se usa en base.html para el badge
     # Mantenemos compatibilidad: DEMO/DEMO_EXPIRED → 'DEMO', resto → tier real
-    if tier in ('DEMO', 'DEMO_EXPIRED'):
+    if tier in (PLAN_DEMO, PLAN_DEMO_EXPIRED):
         version_label = 'DEMO'
         is_demo_flag  = True
     else:
@@ -495,11 +461,11 @@ def get_demo_status(db_path: str) -> dict:
         'counts':    counts,
         # Campos nuevos para templates actualizados
         'tier':           tier,               # DEMO/DEMO_EXPIRED/BASICA/PRO/FULL
-        'is_expired':     tier == 'DEMO_EXPIRED',
-        'is_basica':      tier == 'BASICA',
-        'is_pro':         tier == 'PRO',
-        'is_full':        tier == 'FULL',
-        'is_paid':        tier in ('BASICA', 'PRO', 'FULL'),
+        'is_expired':     tier == PLAN_DEMO_EXPIRED,
+        'is_basica':      tier == PLAN_BASICA,
+        'is_pro':         tier == PLAN_PRO,
+        'is_full':        tier == PLAN_FULL,
+        'is_paid':        tier in (PLAN_BASICA, PLAN_PRO, PLAN_FULL),
         'pro_expired':    is_pro_expired(db_path),
         'demo_days':      demo_days,          # int o None
         'pro_days':       pro_days,           # int o None

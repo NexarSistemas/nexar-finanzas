@@ -8,20 +8,18 @@ from typing import Any
 
 import requests
 
+from licensing.license_service import (
+    PAID_PLANS,
+    get_license_product,
+    normalize_plan as normalize_finanzas_plan,
+)
 
-PRODUCTO_DEFAULT = os.getenv("LICENSE_PRODUCT", "nexar-finanzas")
-PLANES_VALIDOS = {"DEMO", "BASICA", "PRO", "FULL"}
+PRODUCTO_DEFAULT = get_license_product()
+PLANES_VALIDOS = {"DEMO", *PAID_PLANS}
 
 
 def normalize_plan(plan: str = "") -> str:
-    raw = (plan or "BASICA").strip().upper().replace("-", "_").replace(" ", "_")
-    aliases = {
-        "BASIC": "BASICA",
-        "BASICO": "BASICA",
-        "MENSUAL_PRO": "PRO",
-        "MENSUAL_FULL": "FULL",
-    }
-    normalized = aliases.get(raw, raw)
+    normalized = normalize_finanzas_plan(plan)
     return normalized if normalized in PLANES_VALIDOS else "BASICA"
 
 
@@ -30,17 +28,21 @@ def _clean_base_url(url: str) -> str:
 
 
 def _table_url() -> str:
-    base = _clean_base_url(os.getenv("SUPABASE_URL", ""))
+    base = _clean_base_url(os.getenv("NEXAR_LICENSES_VALIDATION_URL", "") or os.getenv("SUPABASE_URL", ""))
     return f"{base}/rest/v1/licencias" if base else ""
 
 
 def _requests_table_url() -> str:
-    base = _clean_base_url(os.getenv("SUPABASE_URL", ""))
+    base = _clean_base_url(os.getenv("NEXAR_LICENSES_VALIDATION_URL", "") or os.getenv("SUPABASE_URL", ""))
     return f"{base}/rest/v1/solicitudes_licencia" if base else ""
 
 
 def _anon_key() -> str:
-    return os.getenv("SUPABASE_ANON_KEY", "") or os.getenv("SUPABASE_KEY", "")
+    return (
+        os.getenv("NEXAR_LICENSES_SUPABASE_KEY", "")
+        or os.getenv("SUPABASE_ANON_KEY", "")
+        or os.getenv("SUPABASE_KEY", "")
+    )
 
 
 def _headers() -> dict[str, str]:
@@ -54,7 +56,7 @@ def _headers() -> dict[str, str]:
 
 
 def is_configured() -> bool:
-    return bool(os.getenv("SUPABASE_URL") and _anon_key())
+    return bool((os.getenv("NEXAR_LICENSES_VALIDATION_URL") or os.getenv("SUPABASE_URL")) and _anon_key())
 
 
 def build_machine_id(raw: str) -> str:
@@ -86,7 +88,7 @@ def generate_activation_id(user_hint: str = "") -> tuple[str, dict[str, str]]:
     except Exception:
         pass
 
-    raw = "|".join([PRODUCTO_DEFAULT, username, host, machine_id, product_uuid, disk_hint])
+    raw = "|".join([get_license_product(), username, host, machine_id, product_uuid, disk_hint])
     digest = hashlib.sha256(raw.encode("utf-8")).hexdigest().upper()
     activation_id = f"NXID-{digest[:24]}"
     details = {

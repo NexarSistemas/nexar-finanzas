@@ -245,7 +245,7 @@ class ActivatePageTests(unittest.TestCase):
         self.assertIn("BASICA · Pagar con Mercado Pago", html)
         self.assertNotIn("checkout online disponible en este entorno", html)
 
-    @patch("licensing.license_sdk.validate_saved_license", return_value=(True, "Licencia validada correctamente."))
+    @patch("routes.validate_saved_license", return_value=(True, "Licencia validada correctamente."))
     def test_refresh_license_with_license_key_keeps_normal_flow(self, mock_validate_saved_license):
         client = self._make_client(
             {
