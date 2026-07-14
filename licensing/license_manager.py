@@ -38,6 +38,7 @@ def validate_local_license():
 
     try:
         # verify_signature eliminado
+        pass
     except Exception:
         set_demo()
         return False

@@ -16,6 +16,33 @@ from .demo_state      import set_demo, set_full
 from .license_service import PAID_PLANS, get_license_state
 
 
+_TEMPORARY_VALIDATION_MESSAGES = (
+    "Error validando licencia:",
+    "No se pudo validar online:",
+)
+
+
+def _is_temporary_validation_failure(result) -> bool:
+    """
+    Prefer structured SDK/service metadata when available. Current wrappers return
+    only (ok, message), so message prefixes are a compatibility fallback.
+    Missing SDK/config/cache is not classified as temporary validation.
+    """
+    details = result[2] if isinstance(result, tuple) and len(result) > 2 else None
+    if isinstance(details, dict):
+        if details.get("temporary") is True:
+            return True
+        reason = str(details.get("reason") or details.get("error_type") or "").strip().lower()
+        if reason in {"network_error", "timeout", "temporary_error", "transport_error"}:
+            return True
+        if reason in {"sin_cache", "missing_config", "sdk_unavailable"}:
+            return False
+
+    message = result[1] if isinstance(result, tuple) and len(result) > 1 else result
+    text = str(message or "").strip()
+    return any(text.startswith(prefix) for prefix in _TEMPORARY_VALIDATION_MESSAGES)
+
+
 # ── Ruta a la BD (misma lógica que app.py) ────────────────────────────────────
 
 def _get_db_path():
@@ -55,6 +82,17 @@ def _is_full_in_db():
         return False
 
 
+def _get_local_paid_tier() -> str:
+    try:
+        db_path = _get_db_path()
+        if not os.path.exists(db_path):
+            return ""
+        tier = get_license_state(db_path).effective_tier
+        return tier if tier in PAID_PLANS else ""
+    except Exception:
+        return ""
+
+
 # ── Función principal ─────────────────────────────────────────────────────────
 
 def _get_config_value(key: str) -> str:
@@ -72,20 +110,25 @@ def _get_config_value(key: str) -> str:
 
 def check_license():
     """
-    Verifica el estado de la licencia y retorna "FULL" o "DEMO".
+    Verifica el estado de la licencia y retorna el tier pago local o "DEMO".
     Solo muestra la pantalla de bienvenida la primera vez que el usuario
     abre la app sin ningún registro de licencia.
     """
 
     # ── Caso 1: ya activado por la interfaz web → FULL ────────────────────────
-    if _is_full_in_db():
+    local_paid_tier = _get_local_paid_tier()
+    if local_paid_tier:
         if _get_config_value("license_key"):
             try:
                 from .license_sdk import validate_saved_license
 
-                ok, msg = validate_saved_license(_get_db_path(), debug=True)
+                validation_result = validate_saved_license(_get_db_path(), debug=True)
+                ok, msg = validation_result[:2]
                 if not ok:
                     print(f"[LICENSE] {msg}")
+                    if _is_temporary_validation_failure(validation_result):
+                        set_full({"tier": local_paid_tier})
+                        return local_paid_tier
                     try:
                         from .license_api import _revocar_finanzas
 
@@ -99,8 +142,8 @@ def check_license():
                     return "DEMO"
             except Exception as e:
                 print(f"[AVISO] No se pudo validar licencia guardada: {e}")
-        set_full({})
-        return "FULL"
+        set_full({"tier": local_paid_tier})
+        return local_paid_tier
 
     # Sin licencia activa: iniciar en DEMO sin mostrar ventanas previas.
     set_demo()

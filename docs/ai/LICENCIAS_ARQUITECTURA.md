@@ -33,6 +33,74 @@ Campos SQLite relevantes:
 - `basica_activada`: derecho permanente base adquirido previamente.
 - `demo_install_date`: fecha local de primera ejecucion demo.
 
+## Anti-reinstall de DEMO
+
+La proteccion local contra reinstalacion de la DEMO vive en `models.py` y usa
+un archivo externo a la base financiera principal:
+
+- Windows: `%APPDATA%\NexarFinanzas\telemetry.bin`.
+- Linux/Mac: `$XDG_DATA_HOME/NexarFinanzas/telemetry.bin` o
+  `~/.local/share/NexarFinanzas/telemetry.bin`.
+
+`telemetry.bin` guarda la fecha original de inicio de DEMO codificada con un
+salt derivado del `machine_id`. No contiene secretos ni datos financieros. Su
+proposito es que borrar o recrear `database.db`, mover la carpeta de la app o
+reinstalar la aplicacion en la misma cuenta del sistema operativo no reinicie el
+periodo de 30 dias.
+
+Orden de precedencia al inicializar:
+
+- si `telemetry.bin` existe y corresponde al `machine_id`, restaura
+  `demo_install_date` en SQLite;
+- si SQLite tiene `demo_install_date` pero falta `telemetry.bin`, recrea el
+  archivo externo con esa fecha, para migraciones o instalaciones previas;
+- si no existe ninguno, registra la fecha actual como primera instalacion real.
+
+En `NEXAR_TESTING=1` no se lee ni escribe telemetria real. Los tests que simulan
+produccion deben redirigir `XDG_DATA_HOME`/`APPDATA` a un temporal controlado.
+
+Relaciones entre identificadores:
+
+- `machine_id`: hash local simple usado por `models.py` para vincular
+  `telemetry.bin` al equipo.
+- HWID/product HWID: lo resuelve `license_service.get_current_hwid()` mediante
+  el SDK `nexar_licencias` cuando esta disponible y es el identificador usado
+  para activacion y licencias pagas.
+- `activation_id`: la UI de activacion usa el product HWID; el helper
+  `generate_activation_id()` queda para solicitudes manuales con detalles del
+  equipo.
+- cache del SDK: cachea licencias pagas validadas y permite continuidad
+  offline; no es la fuente de inicio de DEMO.
+- validacion remota: actualmente aplica a licencias `BASICA`, `PRO` y `FULL`.
+  No existe todavia un registro remoto de inicio de DEMO para bloquear una DEMO
+  despues de reinstalar el sistema operativo.
+
+Escenarios protegidos:
+
+- primera instalacion real: inicia DEMO de 30 dias;
+- segunda inicializacion: conserva la fecha original;
+- borrar o recrear SQLite: restaura la fecha desde `telemetry.bin`;
+- cambiar la ruta de la base o carpeta de instalacion: conserva la DEMO porque
+  la telemetria esta fuera de la carpeta de la app;
+- reinstalar la aplicacion en la misma cuenta del sistema operativo: conserva
+  la fecha original;
+- DEMO vencida: sigue vencida tras reinstalacion simulada;
+- licencias `BASICA`, `PRO` y `FULL`: no se bloquean por una DEMO vencida local.
+
+Limitaciones conocidas:
+
+- Cambiar a otro usuario del sistema operativo puede iniciar otra DEMO si ese
+  usuario no comparte la ruta de datos donde vive `telemetry.bin`.
+- Reinstalar completamente el sistema operativo puede iniciar otra DEMO si se
+  pierde la telemetria local y no existe validacion remota de DEMO.
+- El mecanismo no depende de la ruta de instalacion ni solo de SQLite, pero
+  sigue siendo local. Para cerrar esos dos escenarios hace falta soporte remoto
+  en Nexar Licencias/Supabase para registrar el inicio de DEMO por HWID/producto.
+
+Ante fallas temporales de validacion remota, el arranque conserva una licencia
+paga local vigente en vez de revocarla automaticamente. Las revocaciones quedan
+reservadas para rechazos explicitos del servidor o del SDK.
+
 ## Estado efectivo
 
 `license_service.get_license_state(db_path)` devuelve:
