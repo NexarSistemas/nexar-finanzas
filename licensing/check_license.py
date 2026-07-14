@@ -16,6 +16,20 @@ from .demo_state      import set_demo, set_full
 from .license_service import PAID_PLANS, get_license_state
 
 
+_TEMPORARY_VALIDATION_MESSAGES = (
+    "Error validando licencia:",
+    "No se pudo validar online:",
+    "No se pudo cargar el SDK",
+    "Falta configurar",
+    "No se pudo validar online y no hay cache offline",
+)
+
+
+def _is_temporary_validation_failure(message: str) -> bool:
+    text = str(message or "").strip()
+    return any(text.startswith(prefix) for prefix in _TEMPORARY_VALIDATION_MESSAGES)
+
+
 # ── Ruta a la BD (misma lógica que app.py) ────────────────────────────────────
 
 def _get_db_path():
@@ -86,6 +100,9 @@ def check_license():
                 ok, msg = validate_saved_license(_get_db_path(), debug=True)
                 if not ok:
                     print(f"[LICENSE] {msg}")
+                    if _is_temporary_validation_failure(msg):
+                        set_full({})
+                        return "FULL"
                     try:
                         from .license_api import _revocar_finanzas
 
