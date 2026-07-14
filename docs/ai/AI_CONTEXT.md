@@ -50,6 +50,8 @@ IA optativas configuradas por el usuario.
 - `CHANGELOG.md`: historial de cambios del proyecto.
 - `docs/ai/LICENCIAS_ESTADO_ACTUAL.md`: fuente rápida para decisiones sobre licencias.
 - `docs/ai/LICENCIAS_ARQUITECTURA.md`: arquitectura vigente de licencias.
+- `docs/ai/LICENCIAS_MATRIZ_ESTADOS.md`: matriz de estados, transiciones,
+  capacidades y cobertura de tests de licencias.
 - `docs/ai/PROMPTS_CODEX.md`: reglas operativas para próximas fases.
 
 ## Reglas para Codex
