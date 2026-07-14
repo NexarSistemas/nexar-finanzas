@@ -49,10 +49,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verificar SECRET_KEY
+      - name: Verificar secretos de build
+        env:
+          SDK_DEPLOY_KEY: ${{ secrets.NEXAR_LICENCIAS_DEPLOY_KEY }}
         run: |
           if [ -z "$SECRET_KEY" ]; then
             echo "❌ SECRET_KEY no está definida"
+            exit 1
+          fi
+          if [ -z "$SDK_DEPLOY_KEY" ]; then
+            echo "❌ NEXAR_LICENCIAS_DEPLOY_KEY no está definida"
             exit 1
           fi
 
@@ -100,11 +106,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verificar SECRET_KEY
+      - name: Verificar secretos de build
         shell: bash
+        env:
+          SDK_DEPLOY_KEY: ${{ secrets.NEXAR_LICENCIAS_DEPLOY_KEY }}
         run: |
           if [ -z "$SECRET_KEY" ]; then
             echo "❌ SECRET_KEY no está definida"
+            exit 1
+          fi
+          if [ -z "$SDK_DEPLOY_KEY" ]; then
+            echo "❌ NEXAR_LICENCIAS_DEPLOY_KEY no está definida"
             exit 1
           fi
 

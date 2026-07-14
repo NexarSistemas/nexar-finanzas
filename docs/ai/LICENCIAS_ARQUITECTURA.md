@@ -125,8 +125,10 @@ Reglas:
 La integracion con `nexar_licencias` se hace desde `license_service.py`.
 
 - Se usa `SDKConfig` cuando el SDK esta disponible.
-- `requirements.txt` fija el SDK a una release concreta de `nexar_licencias`;
-  no debe apuntar a `main` ni a una carpeta editable local.
+- `requirements.txt` queda reservado para desarrollo y ejecucion desde codigo
+  fuente; no debe requerir acceso al repositorio privado del SDK.
+- `requirements-build.txt` fija el SDK a una release concreta de
+  `nexar_licencias`; no debe apuntar a `main` ni a una carpeta editable local.
 - Se prefieren variables `NEXAR_LICENSES_*`.
 - Se mantienen aliases legacy: `SUPABASE_URL`, `SUPABASE_KEY`,
   `SUPABASE_ANON_KEY`, `NEXAR_CACHE_FILE`, `NEXAR_CACHE_DAYS`.
@@ -138,17 +140,22 @@ La integracion con `nexar_licencias` se hace desde `license_service.py`.
 - El codigo del SDK no se autoactualiza por separado dentro de una instalacion
   existente de Finanzas. Politica de actualizacion:
   nueva release de `nexar_licencias` -> actualizar la referencia en
-  `requirements.txt` -> ejecutar tests -> generar nuevos builds -> publicar una
-  nueva version de Nexar Finanzas.
+  `requirements-build.txt` -> ejecutar tests -> generar nuevos builds ->
+  publicar una nueva version de Nexar Finanzas.
 - Los datos de licencia y estado remoto pueden sincronizarse con Supabase; eso
   no implica actualizar automaticamente el codigo Python del SDK ya empaquetado.
 
 ## Empaquetado del SDK
 
-Los builds Windows y Linux instalan `requirements.txt` dentro del entorno de
-build antes de ejecutar PyInstaller. La dependencia privada de
-`nexar_licencias` se obtiene por SSH desde GitHub usando una deploy key de solo
-lectura configurada como secreto de GitHub Actions.
+Los builds Windows y Linux instalan `requirements-build.txt` dentro del entorno
+de build antes de ejecutar PyInstaller. Ese archivo incluye `requirements.txt`
+y agrega la dependencia privada de `nexar_licencias`, que se obtiene por SSH
+desde GitHub usando una deploy key de solo lectura.
+
+En GitHub Actions la clave privada de esa Deploy Key vive exclusivamente en el
+secreto `NEXAR_LICENCIAS_DEPLOY_KEY`. La Deploy Key debe estar configurada con
+solo lectura en `rolojnb/nexar_licencias`. No se documentan ni se versionan
+claves o fragmentos de claves.
 
 Los specs de PyInstaller recolectan los submodulos de `nexar_licencias` con
 `collect_optional_submodules('nexar_licencias')`. Por eso el SDK queda dentro del
@@ -156,6 +163,10 @@ directorio `dist/NexarFinanzas` y viaja tanto en el portable como en el
 instalador `.exe` y el paquete `.deb`. El `.deb` no declara `nexar_licencias`
 como dependencia Debian: el usuario final no debe instalar Python, pip ni el SDK
 manualmente.
+
+Cuando la app corre desde codigo fuente y el SDK no esta instalado, la fachada
+mantiene el fallback existente de validacion directa/cache segun corresponda.
+Ese modo no debe intentar descargar el SDK privado automaticamente.
 
 ## Compatibilidad
 

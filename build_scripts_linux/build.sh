@@ -61,8 +61,11 @@ VENV_DIR=".venv_build"
 create_build_venv() {
     "$PYTHON" -m venv --system-site-packages "$VENV_DIR"
     "$VENV_DIR/bin/pip" install --upgrade pip pyinstaller
-    if [ -f "requirements.txt" ]; then
-        "$VENV_DIR/bin/pip" install -r requirements.txt
+    if [ -f "requirements-build.txt" ]; then
+        "$VENV_DIR/bin/pip" install -r requirements-build.txt
+    else
+        echo -e "${RED}[ERROR] No se encontró requirements-build.txt para el build${NC}"
+        exit 1
     fi
 }
 

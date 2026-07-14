@@ -47,6 +47,10 @@ IA optativas configuradas por el usuario.
 - `tests/test_license_service.py`: cobertura de fachada, aliases, cache y
   vencimientos.
 - `README.md`: documentación pública del producto.
+- `requirements.txt`: dependencias de desarrollo/ejecucion desde codigo fuente;
+  no debe depender de repositorios privados.
+- `requirements-build.txt`: dependencias de empaquetado; incluye el SDK privado
+  `nexar_licencias` fijado a una release.
 - `CHANGELOG.md`: historial de cambios del proyecto.
 - `docs/ai/LICENCIAS_ESTADO_ACTUAL.md`: fuente rápida para decisiones sobre licencias.
 - `docs/ai/LICENCIAS_ARQUITECTURA.md`: arquitectura vigente de licencias.

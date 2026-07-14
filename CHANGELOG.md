@@ -5,6 +5,33 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
+## [1.13.0] - 2026-07-14
+
+### Corregido
+- La dependencia privada `nexar_licencias` deja de instalarse desde
+  `requirements.txt`, evitando que instalaciones locales, `iniciar.sh` e
+  `iniciar.bat` requieran acceso SSH al repositorio privado.
+
+### Cambiado
+- Se agrega `requirements-build.txt` para empaquetado: reutiliza
+  `requirements.txt` y fija `nexar-licencias` a `v1.2.0` mediante Git SSH.
+- Los builds Windows y Linux instalan `requirements-build.txt` antes de
+  ejecutar PyInstaller, por lo que el SDK sigue viajando dentro de `.exe`,
+  portable y `.deb`.
+- GitHub Actions valida explícitamente el secreto
+  `NEXAR_LICENCIAS_DEPLOY_KEY`, que debe contener la clave privada de una Deploy
+  Key de solo lectura configurada en `rolojnb/nexar_licencias`.
+
+### Documentado
+- La política de actualización queda formalizada: nueva release del SDK ->
+  actualizar `requirements-build.txt` -> ejecutar tests -> generar builds ->
+  publicar una nueva versión de Nexar Finanzas.
+- Se mantiene documentado que el Issue #63 sigue abierto: la protección local de
+  DEMO cubre borrado de SQLite, cambio de carpeta y reinstalación en el mismo
+  usuario; cambio de usuario y reinstalación completa del sistema operativo
+  requieren registro remoto de DEMO por HWID/producto.
+
+---
 ## [1.12.2] - 2026-06-30
 
 ### Changed

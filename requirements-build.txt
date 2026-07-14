@@ -1,0 +1,12 @@
+# ==============================================================================
+# 🚀 NEXAR SISTEMAS - REQUERIMIENTOS DE BUILD
+# ==============================================================================
+#
+# Este archivo es solo para empaquetar releases con PyInstaller.
+# Las instalaciones desde codigo fuente y los lanzadores locales usan
+# requirements.txt, que no requiere acceso al repositorio privado del SDK.
+
+-r requirements.txt
+
+# 🔑 SDK de licencias Nexar incluido en builds empaquetados
+nexar-licencias @ git+ssh://git@github.com/rolojnb/nexar_licencias.git@v1.2.0
