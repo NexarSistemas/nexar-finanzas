@@ -101,6 +101,34 @@ class LicenseServiceTests(unittest.TestCase):
         self.assertEqual(cfg["license_plan"], "FULL")
         self.assertEqual(cfg["basica_activada"], "0")
 
+    def test_sync_remote_accepts_direct_paid_plan_activation_matrix(self):
+        cases = (
+            ("BASICA", "BASICA", ""),
+            ("PRO", "PRO", str(date.today() + timedelta(days=30))),
+            ("MENSUAL_FULL", "FULL", str(date.today() + timedelta(days=30))),
+        )
+
+        for remote_plan, expected_plan, expires_at in cases:
+            with self.subTest(remote_plan=remote_plan):
+                temp_dir, db_path = _create_config_db({"basica_activada": "0"})
+                self.addCleanup(temp_dir.cleanup)
+
+                sync_license_from_remote(
+                    db_path,
+                    {
+                        "license_key": f"NXR-FIN-{expected_plan}",
+                        "plan": remote_plan,
+                        "expira": expires_at,
+                        "max_devices": 1,
+                    },
+                )
+
+                cfg = _read_config(db_path)
+                self.assertEqual(cfg["license_tier"], expected_plan)
+                self.assertEqual(cfg["license_plan"], expected_plan)
+                self.assertEqual(cfg["license_expires_at"], "" if expected_plan == "BASICA" else expires_at)
+                self.assertEqual(cfg["license_key"], f"NXR-FIN-{expected_plan}")
+
     @patch("licensing.license_service.get_sdk_config", return_value=object())
     @patch("licensing.license_service.load_public_key", return_value="public-key")
     @patch("licensing.license_service.import_validar_licencia", return_value=None)
