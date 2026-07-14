@@ -125,6 +125,8 @@ Reglas:
 La integracion con `nexar_licencias` se hace desde `license_service.py`.
 
 - Se usa `SDKConfig` cuando el SDK esta disponible.
+- `requirements.txt` fija el SDK a una release concreta de `nexar_licencias`;
+  no debe apuntar a `main` ni a una carpeta editable local.
 - Se prefieren variables `NEXAR_LICENSES_*`.
 - Se mantienen aliases legacy: `SUPABASE_URL`, `SUPABASE_KEY`,
   `SUPABASE_ANON_KEY`, `NEXAR_CACHE_FILE`, `NEXAR_CACHE_DAYS`.
@@ -133,6 +135,27 @@ La integracion con `nexar_licencias` se hace desde `license_service.py`.
   pueda importarse.
 - El cache offline del SDK se acepta como fuente valida cuando devuelve una
   licencia `ok`.
+- El codigo del SDK no se autoactualiza por separado dentro de una instalacion
+  existente de Finanzas. Politica de actualizacion:
+  nueva release de `nexar_licencias` -> actualizar la referencia en
+  `requirements.txt` -> ejecutar tests -> generar nuevos builds -> publicar una
+  nueva version de Nexar Finanzas.
+- Los datos de licencia y estado remoto pueden sincronizarse con Supabase; eso
+  no implica actualizar automaticamente el codigo Python del SDK ya empaquetado.
+
+## Empaquetado del SDK
+
+Los builds Windows y Linux instalan `requirements.txt` dentro del entorno de
+build antes de ejecutar PyInstaller. La dependencia privada de
+`nexar_licencias` se obtiene por SSH desde GitHub usando una deploy key de solo
+lectura configurada como secreto de GitHub Actions.
+
+Los specs de PyInstaller recolectan los submodulos de `nexar_licencias` con
+`collect_optional_submodules('nexar_licencias')`. Por eso el SDK queda dentro del
+directorio `dist/NexarFinanzas` y viaja tanto en el portable como en el
+instalador `.exe` y el paquete `.deb`. El `.deb` no declara `nexar_licencias`
+como dependencia Debian: el usuario final no debe instalar Python, pip ni el SDK
+manualmente.
 
 ## Compatibilidad
 
