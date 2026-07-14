@@ -24,11 +24,11 @@
               <td class="text-muted fw-semibold">Plan actual</td>
               <td>
                 {% if demo_info.get('is_full') or demo_info.get('tier') == 'FULL' %}
-                  <span class="full-badge">FULL</span>
+                  <span class="full-badge">Plan Full</span>
                 {% elif demo_info.get('tier') == 'PRO' %}
-                  <span class="pro-badge">PRO</span>
+                  <span class="pro-badge">Plan Pro</span>
                 {% elif demo_info.get('tier') == 'BASICA' %}
-                  <span class="basica-badge">BÁSICA</span>
+                  <span class="basica-badge">Plan Básica</span>
                 {% elif demo_info.get('is_expired') %}
                   <span class="demo-badge" style="background:#dc3545;">DEMO VENCIDA</span>
                 {% else %}

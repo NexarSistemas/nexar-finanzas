@@ -208,6 +208,20 @@ EXPORT_UPGRADE_MESSAGE = 'La exportación está disponible en los planes Pro y F
 ADVANCED_REPORTS_UPGRADE_MESSAGE = 'Los reportes avanzados no están disponibles en tu plan actual.'
 AI_INSIGHTS_UPGRADE_MESSAGE = 'Los insights financieros con IA están disponibles solo en el Plan Full.'
 
+PLAN_DISPLAY_LABELS = {
+    "DEMO": "Demo",
+    "DEMO_EXPIRED": "Demo vencida",
+    "BASICA": "Plan Básica",
+    "PRO": "Plan Pro",
+    "FULL": "Plan Full",
+}
+
+
+def _plan_display_label(plan: str) -> str:
+    normalized = normalize_plan(plan or "DEMO")
+    return PLAN_DISPLAY_LABELS.get(normalized, normalized.title())
+
+
 def _mask_license_key(license_key: str) -> str:
     key = (license_key or "").strip()
     if not key:
@@ -285,8 +299,8 @@ def _build_license_capabilities(demo_status: dict) -> tuple[list[dict], list[dic
 
 
 def _build_license_summary(cfg: dict[str, str], tier_actual: str, demo_status: dict) -> dict[str, str | bool]:
-    plan_activo = (cfg.get("license_plan") or cfg.get("license_tier") or tier_actual or "DEMO").strip().upper()
-    plan_efectivo = (tier_actual or "DEMO").strip().upper()
+    plan_activo = normalize_plan(cfg.get("license_plan") or cfg.get("license_tier") or tier_actual or "DEMO")
+    plan_efectivo = normalize_plan(tier_actual or "DEMO")
     pro_expired = bool(demo_status.get("pro_expired"))
     is_demo = bool(demo_status.get("is_demo"))
 
@@ -305,11 +319,13 @@ def _build_license_summary(cfg: dict[str, str], tier_actual: str, demo_status: d
 
     return {
         "plan_activo": plan_activo,
+        "plan_activo_label": _plan_display_label(plan_activo),
         "plan_efectivo": plan_efectivo,
+        "plan_efectivo_label": _plan_display_label(plan_efectivo),
         "estado": estado,
         "estado_clase": estado_clase,
         "es_pago": tier_actual in {"BASICA", "PRO", "FULL"},
-        "tipo_plan": "Pago" if tier_actual in {"BASICA", "PRO", "FULL"} else "Demo",
+        "tipo_plan": _plan_display_label(tier_actual) if tier_actual in {"BASICA", "PRO", "FULL"} else "Demo",
         "license_key_partial": _mask_license_key(cfg.get("license_key", "")),
     }
 

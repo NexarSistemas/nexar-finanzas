@@ -105,6 +105,8 @@ class ActivatePageTests(unittest.TestCase):
         self.assertIn("Refrescar licencia", html)
         self.assertIn("Todas las capacidades de esta pantalla estan habilitadas", html)
         self.assertIn("NXR-FIN-", html)
+        self.assertIn("Plan Full", html)
+        self.assertNotIn("Plan Pro</div>", html)
 
     def test_activate_page_shows_refresh_for_pending_checkout_without_license_key(self):
         client = self._make_client(
@@ -142,9 +144,9 @@ class ActivatePageTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         html = response.get_data(as_text=True)
         self.assertIn("Checkout directo", html)
-        self.assertIn("BASICA · Pagar con Mercado Pago", html)
-        self.assertIn("PRO · Pagar con Mercado Pago", html)
-        self.assertIn("FULL · Pagar con Mercado Pago", html)
+        self.assertIn("Plan Básica · Pagar con Mercado Pago", html)
+        self.assertIn("Plan Pro · Pagar con Mercado Pago", html)
+        self.assertIn("Plan Full · Pagar con Mercado Pago", html)
 
     def test_activate_page_shows_checkout_buttons_for_expired_demo(self):
         client = self._make_client(
@@ -160,9 +162,9 @@ class ActivatePageTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         html = response.get_data(as_text=True)
         self.assertIn("Checkout directo", html)
-        self.assertIn("BASICA · Pagar con Mercado Pago", html)
-        self.assertIn("PRO · Pagar con Mercado Pago", html)
-        self.assertIn("FULL · Pagar con Mercado Pago", html)
+        self.assertIn("Plan Básica · Pagar con Mercado Pago", html)
+        self.assertIn("Plan Pro · Pagar con Mercado Pago", html)
+        self.assertIn("Plan Full · Pagar con Mercado Pago", html)
 
     @patch("routes.webbrowser.open", return_value=True)
     @patch("routes.create_checkout_preference", return_value="https://mp.test/init")
@@ -242,7 +244,7 @@ class ActivatePageTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         html = response.get_data(as_text=True)
         self.assertIn("Checkout directo", html)
-        self.assertIn("BASICA · Pagar con Mercado Pago", html)
+        self.assertIn("Plan Básica · Pagar con Mercado Pago", html)
         self.assertNotIn("checkout online disponible en este entorno", html)
 
     @patch("routes.validate_saved_license", return_value=(True, "Licencia validada correctamente."))
@@ -317,9 +319,9 @@ class ActivatePageTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         html = response.get_data(as_text=True)
-        self.assertNotIn("BASICA · Pagar con Mercado Pago", html)
-        self.assertIn("PRO · Pagar con Mercado Pago", html)
-        self.assertIn("FULL · Pagar con Mercado Pago", html)
+        self.assertNotIn("Plan Básica · Pagar con Mercado Pago", html)
+        self.assertIn("Plan Pro · Pagar con Mercado Pago", html)
+        self.assertIn("Plan Full · Pagar con Mercado Pago", html)
 
         rejected = client.post(
             "/activate/checkout",
@@ -340,6 +342,22 @@ class ActivatePageTests(unittest.TestCase):
             },
         )
         self.assertEqual(accepted.status_code, 200)
+
+    def test_about_page_shows_full_as_full_plan(self):
+        client = self._make_client(
+            {
+                "license_tier": "FULL",
+                "license_plan": "FULL",
+                "license_expires_at": str(date.today() + timedelta(days=10)),
+            }
+        )
+
+        response = client.get("/about")
+
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn("Plan Full", html)
+        self.assertNotIn("Plan Pro</span>", html)
 
 
 if __name__ == "__main__":
