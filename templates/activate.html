@@ -15,7 +15,7 @@
           <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
             <div>
               <div class="text-muted small">Plan</div>
-              <div class="display-6 fw-bold mb-1">{{ license_summary.plan_activo }}</div>
+              <div class="display-6 fw-bold mb-1">{{ license_summary.plan_activo_label }}</div>
               <div class="small text-muted">
                 {% if is_demo %}
                   Periodo de prueba o modo lectura segun el estado actual.
@@ -46,7 +46,7 @@
             <div class="col-6">
               <div class="border rounded p-3 h-100">
                 <div class="small text-muted">Plan efectivo</div>
-                <div class="fw-semibold">{{ current_tier }}</div>
+                <div class="fw-semibold">{{ license_summary.plan_efectivo_label }}</div>
               </div>
             </div>
             {% endif %}
@@ -78,17 +78,17 @@
             </div>
             <div class="d-flex justify-content-between small mb-2">
               <span>Plan</span>
-              <strong>{{ license_summary.plan_activo }}</strong>
+              <strong>{{ license_summary.plan_activo_label }}</strong>
             </div>
             {% if license_summary.plan_activo != license_summary.plan_efectivo %}
             <div class="d-flex justify-content-between small mb-2">
               <span>Plan efectivo</span>
-              <strong>{{ license_summary.plan_efectivo }}</strong>
+              <strong>{{ license_summary.plan_efectivo_label }}</strong>
             </div>
             {% endif %}
             <div class="d-flex justify-content-between small mb-2">
               <span>Tipo</span>
-              <strong>{{ 'Plan pago' if license_summary.es_pago else 'Demo' }}</strong>
+              <strong>{{ license_summary.tipo_plan }}</strong>
             </div>
             <div class="d-flex justify-content-between small mb-2">
               <span>Activacion</span>
@@ -230,7 +230,8 @@
         <div class="card-body">
           {% if pending_checkout.activation_id and pending_checkout.request_type == 'alta_licencia' and not license_key_local %}
           <div class="alert alert-warning small">
-            Detectamos un checkout directo iniciado para <strong>{{ pending_checkout.plan or 'tu plan' }}</strong> con este equipo.
+            {% set pending_plan_label = 'Plan Básica' if pending_checkout.plan == 'BASICA' else 'Plan Pro' if pending_checkout.plan == 'PRO' else 'Plan Full' if pending_checkout.plan == 'FULL' else 'tu plan' %}
+            Detectamos un checkout directo iniciado para <strong>{{ pending_plan_label }}</strong> con este equipo.
             Si ya pagaste, usa <strong>Refrescar licencia</strong> para revisar el siguiente paso. Si todavia no recibiste tu clave,
             pegala apenas la tengas o gestioná la activacion por WhatsApp con tu ID <strong>{{ pending_checkout.activation_id }}</strong>.
           </div>
@@ -241,6 +242,7 @@
           </div>
           <div class="d-flex flex-wrap gap-2 mb-2">
             {% for plan in available_checkout_plans %}
+            {% set checkout_plan_label = 'Plan Básica' if plan == 'BASICA' else 'Plan Pro' if plan == 'PRO' else 'Plan Full' if plan == 'FULL' else plan %}
             <button
               type="button"
               class="btn {% if loop.first %}btn-primary{% else %}btn-outline-primary{% endif %} checkout-plan-button"
@@ -248,7 +250,7 @@
               data-open-url="{{ url_for('activate_checkout_open') }}"
               data-create-url="{{ url_for('activate_checkout') }}"
             >
-              <i class="bi bi-bag-check"></i> {{ plan }} · Pagar con Mercado Pago
+              <i class="bi bi-bag-check"></i> {{ checkout_plan_label }} · Pagar con Mercado Pago
             </button>
             {% endfor %}
           </div>
@@ -296,9 +298,9 @@
             <div class="col-md-6">
               <label class="form-label fw-semibold">Plan solicitado</label>
               <select id="manual-plan" name="plan" class="form-select">
-                <option value="BASICA" {% if current_tier == 'BASICA' %}selected{% endif %}>BASICA</option>
-                <option value="PRO" {% if license_summary.plan_activo == 'PRO' %}selected{% endif %}>PRO</option>
-                <option value="FULL" {% if license_summary.plan_activo == 'FULL' %}selected{% endif %}>FULL</option>
+                <option value="BASICA" {% if current_tier == 'BASICA' %}selected{% endif %}>Plan Básica</option>
+                <option value="PRO" {% if license_summary.plan_activo == 'PRO' %}selected{% endif %}>Plan Pro</option>
+                <option value="FULL" {% if license_summary.plan_activo == 'FULL' %}selected{% endif %}>Plan Full</option>
                 <option value="DEMO" {% if current_tier == 'DEMO' %}selected{% endif %}>DEMO</option>
               </select>
             </div>
