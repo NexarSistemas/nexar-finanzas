@@ -61,10 +61,11 @@ $PIP    = "$VENV_DIR\Scripts\pip.exe"
 & $PYTHON -m pip install --upgrade pip
 & $PIP install --upgrade pyinstaller
 
-if (Test-Path "requirements.txt") {
-    & $PIP install -r requirements.txt
+if (Test-Path "requirements-build.txt") {
+    & $PIP install -r requirements-build.txt
 } else {
-    & $PIP install flask pywebview pythonnet
+    Write-Host "[ERROR] No se encontro requirements-build.txt para el build" -ForegroundColor Red
+    exit 1
 }
 
 Write-Host "[OK] Dependencias listas" -ForegroundColor Green

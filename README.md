@@ -1,4 +1,4 @@
-# 💰 Nexar Finanzas v1.12.2
+# 💰 Nexar Finanzas v1.13.0
 
 Aplicación de gestión financiera personal para escritorio. Funciona completamente
 offline, utilizando base de datos SQLite local, y está optimizada para equipos
@@ -7,7 +7,7 @@ de gama media/baja.
 Estado actual:
 
 - Estado del repositorio: activo
-- Version actual: `1.12.2`
+- Version actual: `1.13.0`
 - Contexto central del ecosistema: repo externo `nexar-ai-context`, archivo `CONTEXTO_NEXAR.md`
 
 > Nota: los estándares de seguridad compartidos de Nexar se mantienen en `nexar-ai-context/standards/`.
@@ -25,7 +25,8 @@ finanzas_app/
 ├── services.py           → Lógica de negocio y reportes
 ├── demo_limits.py        → Control de tiers DEMO / BASICA / PRO / FULL
 ├── ai_service.py         → Módulo de inteligencia artificial
-├── requirements.txt      → Dependencias Python
+├── requirements.txt      → Dependencias Python para desarrollo/ejecución local
+├── requirements-build.txt → Dependencias de empaquetado PyInstaller
 ├── iniciar.bat           → Lanzador Windows
 ├── iniciar.sh            → Lanzador Linux/Mac
 ├── nexar_finanzas.ico    → Ícono de la aplicación (Windows)
@@ -68,6 +69,11 @@ El puerto se asigna dinámicamente — si el 5000 está libre se usa ese, si no 
 sistema elige uno disponible. El puerto real se muestra en la consola al iniciar.
 
 En la primera ejecución se te pedirá crear tu usuario administrador.
+
+`requirements.txt` no requiere acceso al repositorio privado del SDK de
+licencias. Los builds oficiales usan `requirements-build.txt`, que agrega
+`nexar_licencias` fijado a una release concreta para empaquetarlo dentro de los
+instaladores.
 
 ### Windows — doble clic
 

@@ -27,6 +27,3 @@ markdown>=3.6
 # (Instalar solo si el módulo de reportes está activo en el código)
 openpyxl>=3.1.5
 reportlab>=4.2.2
-
-# 🔑 SDK de licencias Nexar
-nexar-licencias @ git+ssh://git@github.com/rolojnb/nexar_licencias.git@v1.2.0
