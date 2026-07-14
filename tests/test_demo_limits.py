@@ -109,7 +109,11 @@ class DemoLimitsRuntimeTests(unittest.TestCase):
         self.assertTrue(status["is_demo"])
         self.assertFalse(status["is_paid"])
         self.assertTrue(status["is_expired"])
+        self.assertTrue(status["is_read_only"])
+        self.assertFalse(status["can_write_data"])
+        self.assertEqual(status["expired_reason"], "demo")
         self.assertEqual(status["tier"], "DEMO_EXPIRED")
+        self.assertFalse(status["can_investments_write"])
         _assert_capabilities(self, status, EXPECTED_CAPABILITIES["DEMO"])
 
     def test_basica_active_status(self):
@@ -210,6 +214,10 @@ class DemoLimitsRuntimeTests(unittest.TestCase):
 
         self.assertEqual(get_tier(db_path), "BASICA")
         self.assertTrue(is_pro_expired(db_path))
+        status = get_demo_status(db_path)
+        self.assertFalse(status["is_read_only"])
+        self.assertTrue(status["can_write_data"])
+        self.assertEqual(status["monthly_fallback_tier"], "BASICA")
 
     def test_full_expired_with_basica_degrades_to_basica(self):
         temp_dir, db_path = _create_db(
@@ -223,6 +231,10 @@ class DemoLimitsRuntimeTests(unittest.TestCase):
 
         self.assertEqual(get_tier(db_path), "BASICA")
         self.assertTrue(is_pro_expired(db_path))
+        status = get_demo_status(db_path)
+        self.assertFalse(status["is_read_only"])
+        self.assertTrue(status["can_write_data"])
+        self.assertEqual(status["monthly_fallback_tier"], "BASICA")
 
     def test_pro_expired_without_basica_becomes_demo_expired(self):
         temp_dir, db_path = _create_db(
@@ -240,6 +252,10 @@ class DemoLimitsRuntimeTests(unittest.TestCase):
         self.assertTrue(status["is_demo"])
         self.assertFalse(status["is_paid"])
         self.assertTrue(status["is_expired"])
+        self.assertTrue(status["is_read_only"])
+        self.assertFalse(status["can_write_data"])
+        self.assertEqual(status["expired_reason"], "subscription")
+        self.assertEqual(status["monthly_fallback_tier"], "DEMO_EXPIRED")
 
     def test_full_expired_without_basica_becomes_demo_expired(self):
         temp_dir, db_path = _create_db(
@@ -257,6 +273,10 @@ class DemoLimitsRuntimeTests(unittest.TestCase):
         self.assertTrue(status["is_demo"])
         self.assertFalse(status["is_paid"])
         self.assertTrue(status["is_expired"])
+        self.assertTrue(status["is_read_only"])
+        self.assertFalse(status["can_write_data"])
+        self.assertEqual(status["expired_reason"], "subscription")
+        self.assertEqual(status["monthly_fallback_tier"], "DEMO_EXPIRED")
 
 
 if __name__ == "__main__":

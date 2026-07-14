@@ -166,6 +166,28 @@ class ActivatePageTests(unittest.TestCase):
         self.assertIn("Plan Pro · Pagar con Mercado Pago", html)
         self.assertIn("Plan Full · Pagar con Mercado Pago", html)
 
+    def test_activate_page_explains_expired_monthly_without_basica_as_read_only(self):
+        client = self._make_client(
+            {
+                "license_tier": "FULL",
+                "license_plan": "FULL",
+                "license_key": "NXR-FIN-1234567890",
+                "license_expires_at": str(date.today() - timedelta(days=1)),
+                "basica_activada": "0",
+            }
+        )
+
+        response = client.get("/activate")
+
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn("Suscripcion vencida", html)
+        self.assertIn("modo lectura", html)
+        self.assertIn("Altas, ediciones y eliminaciones", html)
+        self.assertIn("Plan Básica · Pagar con Mercado Pago", html)
+        self.assertIn("Plan Pro · Pagar con Mercado Pago", html)
+        self.assertIn("Plan Full · Pagar con Mercado Pago", html)
+
     @patch("routes.webbrowser.open", return_value=True)
     @patch("routes.create_checkout_preference", return_value="https://mp.test/init")
     def test_activate_checkout_open_uses_activation_flow_without_license_key(

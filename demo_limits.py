@@ -452,6 +452,16 @@ def get_demo_status(db_path: str) -> dict:
         'export_excel': limits.get('export_excel', False),
         'export_pdf': limits.get('export_pdf', False),
     }
+    pro_expired = is_pro_expired(db_path)
+    is_read_only = tier == PLAN_DEMO_EXPIRED
+    try:
+        license_state = get_license_state(db_path)
+        monthly_fallback_tier = PLAN_BASICA if license_state.basica_activada else PLAN_DEMO_EXPIRED
+    except Exception:
+        monthly_fallback_tier = PLAN_DEMO_EXPIRED
+    expired_reason = ''
+    if is_read_only:
+        expired_reason = 'subscription' if pro_expired else 'demo'
 
     return {
         # Campos originales — compatibilidad garantizada
@@ -466,13 +476,17 @@ def get_demo_status(db_path: str) -> dict:
         'is_pro':         tier == PLAN_PRO,
         'is_full':        tier == PLAN_FULL,
         'is_paid':        tier in (PLAN_BASICA, PLAN_PRO, PLAN_FULL),
-        'pro_expired':    is_pro_expired(db_path),
+        'pro_expired':    pro_expired,
+        'expired_reason': expired_reason,
+        'is_read_only':   is_read_only,
+        'can_write_data': not is_read_only,
+        'monthly_fallback_tier': monthly_fallback_tier,
         'demo_days':      demo_days,          # int o None
         'pro_days':       pro_days,           # int o None
         'pro_expires_soon':     pro_days == 5,
         'pro_expires_tomorrow': pro_days == 1,
         'can_update':     limits.get('updates', False),
-        'can_investments_write': limits.get('investments_write', True),
+        'can_investments_write': False if is_read_only else limits.get('investments_write', True),
         'plan_capabilities': plan_capabilities,
         'can_advanced_reports': plan_capabilities['advanced_reports'],
         'can_cashflow_analysis': plan_capabilities['cashflow_analysis'],

@@ -138,7 +138,12 @@
     {% if demo_info.get('pro_expired') %}
     <div style="margin:0 8px 12px;background:#fff3e0;border-radius:6px;padding:6px 10px;font-size:.72rem;color:#e65100;border:1px solid #ffb74d;">
       <i class="bi bi-exclamation-triangle-fill me-1"></i>
-      <strong>Suscripción mensual vencida</strong> — Plan Básico activo<br>
+      <strong>Suscripción mensual vencida</strong> —
+      {% if demo_info.get('tier') == 'BASICA' %}
+        Plan Básica activo
+      {% else %}
+        modo lectura
+      {% endif %}<br>
       <a href="{{ url_for('activate') }}" style="color:#e65100;font-weight:700;">
         <i class="bi bi-arrow-repeat"></i> Renovar plan premium →
       </a>
@@ -159,13 +164,19 @@
 
     {# ── Banner de plan — diferenciado por estado ─────────── #}
     {% if demo_info.get('is_expired') %}
-    {# DEMO VENCIDA: modo lectura, no puede agregar nada #}
+    {# LICENCIA VENCIDA: modo lectura, no puede agregar nada #}
     <div class="alert alert-danger py-2 px-3 small d-flex justify-content-between align-items-center">
       <span>
         <i class="bi bi-lock-fill"></i>
-        <strong>Demo vencida</strong> — Podés ver tus datos pero no agregar nuevos registros.
+        {% if demo_info.get('expired_reason') == 'subscription' %}
+          <strong>Suscripción vencida</strong> — Tus datos siguen disponibles en modo lectura. Renovar o activar un plan permite volver a operar.
+        {% else %}
+          <strong>Demo vencida</strong> — Podés ver tus datos pero no agregar nuevos registros.
+        {% endif %}
       </span>
-      <a href="{{ url_for('activate') }}" class="btn btn-danger btn-sm py-0">Activar plan</a>
+      <a href="{{ url_for('activate') }}" class="btn btn-danger btn-sm py-0">
+        {% if demo_info.get('expired_reason') == 'subscription' %}Renovar plan{% else %}Activar plan{% endif %}
+      </a>
     </div>
     {% elif demo_info.is_demo %}
     {# DEMO activa: mostrar días restantes #}
@@ -212,7 +223,12 @@
       <div class="alert alert-warning py-2 px-3 small d-flex justify-content-between align-items-center mb-3">
         <span>
           <i class="bi bi-exclamation-triangle-fill"></i>
-          Tu suscripción <strong>{{ monthly_plan_name }}</strong> vence en 5 días. Renovala ahora para mantener todas tus funciones activas.
+          Tu suscripción <strong>{{ monthly_plan_name }}</strong> vence en 5 días.
+          {% if demo_info.get('monthly_fallback_tier') == 'BASICA' %}
+            Renovala ahora para mantener todas tus funciones activas.
+          {% else %}
+            Renovala ahora para evitar quedar en modo lectura.
+          {% endif %}
         </span>
         <a href="{{ url_for('activate') }}" class="btn btn-warning btn-sm py-0">Renovar ahora</a>
       </div>
@@ -223,7 +239,12 @@
       <div class="alert alert-danger py-2 px-3 small d-flex justify-content-between align-items-center mb-3">
         <span>
           <i class="bi bi-clock-fill"></i>
-          <strong>¡Atención!</strong> Tu suscripción {{ monthly_plan_name }} vence mañana. Renovala hoy para evitar que la cuenta baje al Plan Básico.
+          <strong>¡Atención!</strong> Tu suscripción {{ monthly_plan_name }} vence mañana.
+          {% if demo_info.get('monthly_fallback_tier') == 'BASICA' %}
+            Renovala hoy para evitar que la cuenta baje al Plan Básica.
+          {% else %}
+            Renovala hoy para evitar quedar en modo lectura.
+          {% endif %}
         </span>
         <a href="{{ url_for('activate') }}" class="btn btn-danger btn-sm py-0">Renovar {{ monthly_plan_name }}</a>
       </div>

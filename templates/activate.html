@@ -29,7 +29,11 @@
 
           {% if demo_status.get('is_expired') %}
           <div class="alert alert-danger small">
-            Tu demo de 30 dias termino. Podes consultar tus datos, pero necesitas activar un plan para volver a operar.
+            {% if demo_status.get('expired_reason') == 'subscription' %}
+              Tu licencia mensual vencio y no hay un Plan Basica previo para usar como plan efectivo. Podes consultar tus datos en modo lectura; renová o activá un plan para volver a operar.
+            {% else %}
+              Tu demo de 30 dias termino. Podes consultar tus datos, pero necesitas activar un plan para volver a operar.
+            {% endif %}
           </div>
           {% elif pro_expired and license_summary.plan_activo in ['PRO', 'FULL'] and current_tier == 'BASICA' %}
           <div class="alert alert-warning small">
