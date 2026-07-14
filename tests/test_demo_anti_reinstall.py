@@ -154,6 +154,36 @@ class DemoAntiReinstallTests(unittest.TestCase):
     def test_temporary_remote_error_preserves_paid_local_state(self):
         from licensing import check_license
 
+        for plan in ("BASICA", "PRO", "FULL"):
+            with self.subTest(plan=plan):
+                temp_dir = make_temp_dir()
+                self.addCleanup(temp_dir.cleanup)
+                os.environ["FINANZAS_DATA_DIR"] = temp_dir.name
+                db_path = str(Path(temp_dir.name) / "database.db")
+                init_db(db_path)
+                values = {
+                    "version": "FULL",
+                    "license_tier": plan,
+                    "license_plan": plan,
+                    "license_key": f"NXR-FIN-{plan}",
+                }
+                if plan in {"PRO", "FULL"}:
+                    values["license_expires_at"] = (date.today() + timedelta(days=10)).isoformat()
+                _write_config(db_path, values)
+
+                with patch(
+                    "licensing.license_sdk.validate_saved_license",
+                    return_value=(False, "Error validando licencia: timeout"),
+                ), patch("builtins.print"):
+                    result = check_license.check_license()
+
+                cfg = _read_config(db_path)
+                self.assertEqual(result, plan)
+                self.assertEqual(cfg["license_tier"], plan)
+
+    def test_structured_temporary_remote_error_preserves_paid_local_state(self):
+        from licensing import check_license
+
         temp_dir = make_temp_dir()
         self.addCleanup(temp_dir.cleanup)
         os.environ["FINANZAS_DATA_DIR"] = temp_dir.name
@@ -172,13 +202,71 @@ class DemoAntiReinstallTests(unittest.TestCase):
 
         with patch(
             "licensing.license_sdk.validate_saved_license",
-            return_value=(False, "Error validando licencia: timeout"),
+            return_value=(False, "temporary", {"reason": "timeout"}),
         ), patch("builtins.print"):
             result = check_license.check_license()
 
         cfg = _read_config(db_path)
-        self.assertEqual(result, "FULL")
+        self.assertEqual(result, "PRO")
         self.assertEqual(cfg["license_tier"], "PRO")
+
+    def test_non_validated_sdk_state_is_not_temporary_and_revokes(self):
+        from licensing import check_license
+
+        temp_dir = make_temp_dir()
+        self.addCleanup(temp_dir.cleanup)
+        os.environ["FINANZAS_DATA_DIR"] = temp_dir.name
+        db_path = str(Path(temp_dir.name) / "database.db")
+        init_db(db_path)
+        _write_config(
+            db_path,
+            {
+                "version": "FULL",
+                "license_tier": "PRO",
+                "license_plan": "PRO",
+                "license_key": "NXR-FIN-PRO",
+                "license_expires_at": (date.today() + timedelta(days=10)).isoformat(),
+            },
+        )
+
+        with patch(
+            "licensing.license_sdk.validate_saved_license",
+            return_value=(False, "No se pudo cargar el SDK nexar_licencias."),
+        ), patch("builtins.print"):
+            result = check_license.check_license()
+
+        cfg = _read_config(db_path)
+        self.assertEqual(result, "DEMO")
+        self.assertEqual(cfg["license_tier"], "DEMO")
+
+    def test_explicit_remote_rejection_keeps_revocation(self):
+        from licensing import check_license
+
+        temp_dir = make_temp_dir()
+        self.addCleanup(temp_dir.cleanup)
+        os.environ["FINANZAS_DATA_DIR"] = temp_dir.name
+        db_path = str(Path(temp_dir.name) / "database.db")
+        init_db(db_path)
+        _write_config(
+            db_path,
+            {
+                "version": "FULL",
+                "license_tier": "PRO",
+                "license_plan": "PRO",
+                "license_key": "NXR-FIN-PRO",
+                "license_expires_at": (date.today() + timedelta(days=10)).isoformat(),
+            },
+        )
+
+        with patch(
+            "licensing.license_sdk.validate_saved_license",
+            return_value=(False, "La licencia es invalida, expiro o fue revocada."),
+        ), patch("builtins.print"):
+            result = check_license.check_license()
+
+        cfg = _read_config(db_path)
+        self.assertEqual(result, "DEMO")
+        self.assertEqual(cfg["license_tier"], "DEMO")
 
 
 if __name__ == "__main__":
