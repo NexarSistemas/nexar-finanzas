@@ -119,8 +119,12 @@ function toggleApiKey() {
               <td class="text-muted">Versión del sistema</td>
               <td>
                 {% if demo_status.get('is_expired') %}
-                  <span class="badge bg-danger">DEMO VENCIDA</span>
-                  <a href="{{ url_for('activate') }}" class="btn btn-outline-danger btn-sm py-0 ms-2">Activar</a>
+                  <span class="badge bg-danger">
+                    {% if demo_status.get('expired_reason') == 'subscription' %}SUSCRIPCIÓN VENCIDA{% else %}DEMO VENCIDA{% endif %}
+                  </span>
+                  <a href="{{ url_for('activate') }}" class="btn btn-outline-danger btn-sm py-0 ms-2">
+                    {% if demo_status.get('expired_reason') == 'subscription' %}Renovar{% else %}Activar{% endif %}
+                  </a>
                 {% elif demo_status.get('is_demo') %}
                   <span class="badge bg-warning text-dark">DEMO</span>
                   <a href="{{ url_for('activate') }}" class="btn btn-outline-success btn-sm py-0 ms-2">Activar</a>

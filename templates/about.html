@@ -30,7 +30,9 @@
                 {% elif demo_info.get('tier') == 'BASICA' %}
                   <span class="basica-badge">Plan Básica</span>
                 {% elif demo_info.get('is_expired') %}
-                  <span class="demo-badge" style="background:#dc3545;">DEMO VENCIDA</span>
+                  <span class="demo-badge" style="background:#dc3545;">
+                    {% if demo_info.get('expired_reason') == 'subscription' %}SUSCRIPCIÓN VENCIDA{% else %}DEMO VENCIDA{% endif %}
+                  </span>
                 {% else %}
                   <span class="demo-badge">DEMO</span>
                 {% endif %}

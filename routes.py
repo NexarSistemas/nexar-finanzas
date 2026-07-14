@@ -233,6 +233,7 @@ def _mask_license_key(license_key: str) -> str:
 
 def _build_license_capabilities(demo_status: dict) -> tuple[list[dict], list[dict]]:
     can_investments_write = bool(demo_status.get("can_investments_write"))
+    is_read_only = bool(demo_status.get("is_read_only"))
     capabilities = [
         {
             "id": "reportes",
@@ -256,7 +257,11 @@ def _build_license_capabilities(demo_status: dict) -> tuple[list[dict], list[dic
             "id": "inversiones",
             "label": "Inversiones",
             "enabled": True,
-            "detail": "Escritura habilitada" if can_investments_write else "Solo lectura",
+            "detail": (
+                "Solo lectura por licencia vencida"
+                if is_read_only
+                else "Escritura habilitada" if can_investments_write else "Solo lectura"
+            ),
         },
         {
             "id": "excel",
@@ -292,7 +297,16 @@ def _build_license_capabilities(demo_status: dict) -> tuple[list[dict], list[dic
     if not can_investments_write:
         blocked.append({
             "label": "Inversiones en modo completo",
-            "message": "Disponible en planes superiores.",
+            "message": (
+                "Bloqueadas hasta activar o renovar un plan."
+                if is_read_only
+                else "Disponible en planes superiores."
+            ),
+        })
+    if is_read_only:
+        blocked.insert(0, {
+            "label": "Altas, ediciones y eliminaciones",
+            "message": "Bloqueadas hasta activar o renovar un plan.",
         })
 
     return capabilities, blocked
@@ -305,7 +319,7 @@ def _build_license_summary(cfg: dict[str, str], tier_actual: str, demo_status: d
     is_demo = bool(demo_status.get("is_demo"))
 
     if demo_status.get("is_expired"):
-        estado = "Demo vencida"
+        estado = "Suscripcion vencida" if demo_status.get("expired_reason") == "subscription" else "Demo vencida"
         estado_clase = "danger"
     elif pro_expired and plan_activo in {"PRO", "FULL"} and plan_efectivo == "BASICA":
         estado = "Suscripcion vencida"
@@ -640,6 +654,25 @@ def _require_capability(capability_key: str, message: str, redirect_factory=None
     if redirect_factory is not None:
         return redirect_factory()
     return redirect(url_for('dashboard'))
+
+
+def _read_only_license_redirect(target_endpoint: str, **values):
+    demo_status = get_demo_status(get_db_path())
+    if not demo_status.get('is_read_only'):
+        return None
+
+    if demo_status.get('expired_reason') == 'subscription':
+        message = (
+            'Tu suscripción mensual venció y no hay Plan Básica previo. '
+            'Tus datos siguen disponibles en modo lectura; renová o activá un plan desde Mi plan para volver a operar.'
+        )
+    else:
+        message = (
+            'Tu demo venció. Tus datos siguen disponibles en modo lectura; '
+            'activá un plan desde Mi plan para volver a operar.'
+        )
+    flash(message, 'warning')
+    return redirect(url_for(target_endpoint, **values))
 
 
 def _require_json_capability(capability_key: str, message: str, error_code: str):
@@ -1122,6 +1155,11 @@ def register_routes(app):
             return redirect(url_for('accounts'))
 
         if request.method == 'POST':
+            read_only_response = _read_only_license_redirect('accounts')
+            if read_only_response is not None:
+                db.close()
+                return read_only_response
+
             name     = request.form.get('name', '').strip()
             currency = request.form.get('currency', 'ARS')
             permite_descubierto = _parse_checkbox('permite_descubierto')
@@ -1156,6 +1194,10 @@ def register_routes(app):
     @app.route('/accounts/<int:acc_id>/delete', methods=['POST'])
     @login_required
     def account_delete(acc_id):
+        read_only_response = _read_only_license_redirect('accounts')
+        if read_only_response is not None:
+            return read_only_response
+
         db = get_db(get_db_path())
         db.execute("UPDATE accounts SET active=0 WHERE id=?", (acc_id,))
         db.commit()
@@ -1172,6 +1214,11 @@ def register_routes(app):
         ).fetchall()
 
         if request.method == 'POST':
+            read_only_response = _read_only_license_redirect('accounts')
+            if read_only_response is not None:
+                db.close()
+                return read_only_response
+
             from_id  = int(request.form.get('from_account_id', 0))
             to_id    = int(request.form.get('to_account_id', 0))
             amount   = float(request.form.get('amount', 0) or 0)
@@ -1349,6 +1396,11 @@ def register_routes(app):
         old_account_id = tx['account_id']
 
         if request.method == 'POST':
+            read_only_response = _read_only_license_redirect('transactions')
+            if read_only_response is not None:
+                db.close()
+                return read_only_response
+
             tx_type  = request.form.get('type', tx['type'])
             amount   = float(request.form.get('amount', 0) or 0)
             currency = request.form.get('currency', 'ARS')
@@ -1432,6 +1484,10 @@ def register_routes(app):
     @app.route('/transactions/<int:tx_id>/delete', methods=['POST'])
     @login_required
     def transaction_delete(tx_id):
+        read_only_response = _read_only_license_redirect('transactions')
+        if read_only_response is not None:
+            return read_only_response
+
         db = get_db(get_db_path())
         tx = db.execute("SELECT account_id FROM transactions WHERE id=?", (tx_id,)).fetchone()
         db.execute("DELETE FROM transactions WHERE id=?", (tx_id,))
@@ -1459,6 +1515,10 @@ def register_routes(app):
     @app.route('/categories/new', methods=['POST'])
     @login_required
     def category_new():
+        read_only_response = _read_only_license_redirect('categories')
+        if read_only_response is not None:
+            return read_only_response
+
         name         = request.form.get('name', '').strip()
         cat_type     = request.form.get('type', 'expense')
         es_necesario = int(request.form.get('es_necesario', 1))
@@ -1480,6 +1540,10 @@ def register_routes(app):
     @app.route('/categories/<int:cat_id>/toggle-necesario', methods=['POST'])
     @login_required
     def category_toggle_necesario(cat_id):
+        read_only_response = _read_only_license_redirect('categories')
+        if read_only_response is not None:
+            return read_only_response
+
         db  = get_db(get_db_path())
         cat = db.execute("SELECT * FROM categories WHERE id=?", (cat_id,)).fetchone()
         if cat:
@@ -1492,6 +1556,10 @@ def register_routes(app):
     @app.route('/categories/<int:cat_id>/delete', methods=['POST'])
     @login_required
     def category_delete(cat_id):
+        read_only_response = _read_only_license_redirect('categories')
+        if read_only_response is not None:
+            return read_only_response
+
         db = get_db(get_db_path())
         db.execute("UPDATE categories SET active=0 WHERE id=?", (cat_id,))
         db.commit()
@@ -1564,6 +1632,10 @@ def register_routes(app):
     @app.route('/budgets/<int:budget_id>/delete', methods=['POST'])
     @login_required
     def budget_delete(budget_id):
+        read_only_response = _read_only_license_redirect('budgets')
+        if read_only_response is not None:
+            return read_only_response
+
         db = get_db(get_db_path())
         b = db.execute("SELECT year, month FROM budgets WHERE id=?", (budget_id,)).fetchone()
         db.execute("DELETE FROM budgets WHERE id=?", (budget_id,))
@@ -1750,6 +1822,10 @@ def register_routes(app):
     @app.route('/investments/<int:inv_id>/delete', methods=['POST'])
     @login_required
     def investment_delete(inv_id):
+        read_only_response = _read_only_license_redirect('investments')
+        if read_only_response is not None:
+            return read_only_response
+
         check = check_limit(get_db_path(), 'investments', 0)
         if not check['allowed']:
             flash('Las inversiones son de solo lectura en el Plan Básico.', 'warning')

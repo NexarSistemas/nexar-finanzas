@@ -67,6 +67,53 @@ Cuando vence una licencia `PRO` o `FULL`:
 
 Esto evita regalar una `BASICA` a usuarios que solo compraron un mensual.
 
+## Comportamiento funcional ante vencimientos
+
+### DEMO activa
+
+- Puede registrar movimientos, cuentas, presupuestos e inversiones dentro de los
+  limites del plan.
+- Puede consultar reportes y datos existentes.
+- Puede activar, solicitar o comprar `BASICA`, `PRO` o `FULL` desde Mi plan.
+
+### DEMO vencida
+
+- El tier efectivo es `DEMO_EXPIRED`.
+- Los datos existentes se conservan y quedan disponibles en modo lectura.
+- Se bloquean altas, ediciones y eliminaciones de datos financieros.
+- Mi plan mantiene activacion manual, refresh si corresponde, solicitud manual y
+  checkout para `BASICA`, `PRO` y `FULL`.
+
+### BASICA activa
+
+- No vence.
+- Mantiene movimientos ilimitados, limites propios de cuentas/presupuestos e
+  inversiones en solo lectura.
+- Puede solicitar o comprar upgrade a `PRO` o `FULL`.
+
+### PRO o FULL activo
+
+- Mantiene las capacidades de su plan hasta `license_expires_at`.
+- La UI avisa antes del vencimiento.
+- Si `basica_activada == "1"`, el aviso indica fallback a `BASICA`.
+- Si `basica_activada != "1"`, el aviso indica fallback a modo lectura.
+
+### PRO o FULL vencido con `basica_activada == "1"`
+
+- El tier efectivo pasa a `BASICA`.
+- No se eliminan movimientos, cuentas, presupuestos, inversiones ni datos
+  existentes.
+- La app sigue operando con las capacidades y limites de `BASICA`.
+- Mi plan ofrece renovar el plan mensual o cambiar a un plan superior disponible.
+
+### PRO o FULL vencido sin `basica_activada`
+
+- El tier efectivo pasa a `DEMO_EXPIRED`.
+- Los datos existentes se conservan y quedan disponibles en modo lectura.
+- Se bloquean altas, ediciones y eliminaciones de datos financieros.
+- Mi plan permite renovar o activar `BASICA`, `PRO` o `FULL` por checkout,
+  activacion manual o solicitud manual.
+
 ## Capacidades por plan
 
 ### DEMO
