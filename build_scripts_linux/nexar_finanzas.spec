@@ -5,11 +5,31 @@
 # ROOT     = raiz del proyecto (un nivel arriba)
 
 import os
+import fnmatch
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 block_cipher = None
 
 ROOT = os.path.abspath(os.path.join(SPECPATH, '..'))
+
+SYSTEM_NATIVE_LIB_PATTERNS = [
+    'libglib-2.0.so*',
+    'libgio-2.0.so*',
+    'libgobject-2.0.so*',
+    'libgmodule-2.0.so*',
+    'libgthread-2.0.so*',
+    'libffi.so*',
+    'libsecret-1.so*',
+    'libmount.so*',
+    'libblkid.so*',
+    'libgtk-3.so*',
+    'libgdk-3.so*',
+    'libgdk_pixbuf-2.0.so*',
+    'libpango*.so*',
+    'libfontconfig.so*',
+    'libwebkit2gtk*.so*',
+    'libjavascriptcoregtk*.so*',
+]
 
 
 def collect_optional_submodules(package):
@@ -17,6 +37,21 @@ def collect_optional_submodules(package):
         return collect_submodules(package)
     except Exception:
         return []
+
+
+def is_system_native_stack_binary(toc_entry):
+    dest_name = os.path.basename(toc_entry[0])
+    source_name = os.path.basename(toc_entry[1])
+    names = (dest_name, source_name)
+    return any(
+        fnmatch.fnmatch(name, pattern)
+        for name in names
+        for pattern in SYSTEM_NATIVE_LIB_PATTERNS
+    )
+
+
+def filter_system_native_stack(binaries):
+    return [entry for entry in binaries if not is_system_native_stack_binary(entry)]
 
 
 added_files = [
@@ -49,15 +84,18 @@ hidden_imports = [
     'requests',
     'requests.adapters',
     'urllib3',
-    # webview en Linux usa GTK o Qt según la plataforma
+    # pywebview en Linux usa Qt/PySide6 como backend principal.
     'webview',
-    'webview.platforms.gtk',
     'webview.platforms.qt',
-    'gi',
-    'gi.repository.Gdk',
-    'gi.repository.GLib',
-    'gi.repository.Gtk',
-    'gi.repository.WebKit2',
+    'qtpy',
+    'PySide6',
+    'PySide6.QtCore',
+    'PySide6.QtGui',
+    'PySide6.QtWidgets',
+    'PySide6.QtNetwork',
+    'PySide6.QtWebChannel',
+    'PySide6.QtWebEngineCore',
+    'PySide6.QtWebEngineWidgets',
     'hmac',
     'hashlib',
     'base64',
@@ -100,7 +138,12 @@ a = Analysis(
         'pydoc',
         # módulos exclusivos de Windows
         'webview.platforms.winforms',
+        'webview.platforms.edgechromium',
+        # GTK/WebKitGTK no es backend principal en Linux
+        'webview.platforms.gtk',
+        'gi',
         'clr',
+        'pythonnet',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
@@ -130,7 +173,7 @@ exe = EXE(
 
 coll = COLLECT(
     exe,
-    a.binaries,
+    filter_system_native_stack(a.binaries),
     a.zipfiles,
     a.datas,
     strip=True,

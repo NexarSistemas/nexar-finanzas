@@ -262,6 +262,16 @@ APP_VERSION = get_version()
 app.config['APP_VERSION'] = APP_VERSION
 
 
+def _pywebview_start_kwargs():
+    kwargs = {
+        'debug': False,
+        'http_server': False,
+    }
+    if sys.platform.startswith('linux'):
+        kwargs['gui'] = 'qt'
+    return kwargs
+
+
 class DesktopBridge:
     """Puente nativo para operaciones que pywebview no maneja como descarga web."""
 
@@ -530,7 +540,7 @@ if __name__ == '__main__':
         )
 
         app.config['WEBVIEW_WINDOW'] = window
-        webview.start(debug=False, http_server=False)
+        webview.start(**_pywebview_start_kwargs())
 
         _webview_ok = True
 
