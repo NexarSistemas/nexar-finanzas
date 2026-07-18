@@ -4,6 +4,7 @@
 # SPECPATH = carpeta del .spec (build_scripts_linux/)
 # ROOT     = raiz del proyecto (un nivel arriba)
 
+import fnmatch
 import os
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
@@ -17,6 +18,39 @@ def collect_optional_submodules(package):
         return collect_submodules(package)
     except Exception:
         return []
+
+
+LINUX_SYSTEM_LIBRARY_PATTERNS = (
+    'libglib-2.0.so*',
+    'libgio-2.0.so*',
+    'libgobject-2.0.so*',
+    'libgmodule-2.0.so*',
+    'libffi.so*',
+    'libsecret-1.so*',
+    'libwebkit2gtk-4.1.so*',
+    'libjavascriptcoregtk-4.1.so*',
+)
+
+
+def _toc_entry_paths(entry):
+    if isinstance(entry, (tuple, list)):
+        return [str(value) for value in entry[:2] if value]
+    return [str(entry)]
+
+
+def _is_system_gio_module(path):
+    normalized = path.replace('\\', '/')
+    return '/gio_modules/' in normalized or normalized.startswith('gio_modules/')
+
+
+def _is_linux_system_library(path):
+    basename = os.path.basename(path)
+    return any(fnmatch.fnmatchcase(basename, pattern) for pattern in LINUX_SYSTEM_LIBRARY_PATTERNS)
+
+
+def _keep_linux_binary(entry):
+    paths = _toc_entry_paths(entry)
+    return not any(_is_linux_system_library(path) or _is_system_gio_module(path) for path in paths)
 
 
 added_files = [
@@ -107,6 +141,24 @@ a = Analysis(
     cipher=block_cipher,
     noarchive=False,
 )
+
+original_binary_count = len(a.binaries)
+a.binaries = [entry for entry in a.binaries if _keep_linux_binary(entry)]
+removed_binary_count = original_binary_count - len(a.binaries)
+if removed_binary_count:
+    print(
+        "Excluidas librerias nativas del sistema Linux/GIO del bundle: "
+        f"{removed_binary_count}"
+    )
+
+original_data_count = len(a.datas)
+a.datas = [entry for entry in a.datas if _keep_linux_binary(entry)]
+removed_data_count = original_data_count - len(a.datas)
+if removed_data_count:
+    print(
+        "Excluidos datos/modulos GIO del sistema Linux del bundle: "
+        f"{removed_data_count}"
+    )
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 

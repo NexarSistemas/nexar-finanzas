@@ -5,6 +5,27 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
+## [Unreleased]
+
+### Corregido
+- El build Linux deja de empaquetar copias privadas incompatibles de
+  GLib/GIO/GObject/libffi/libsecret/WebKitGTK/JavaScriptCoreGTK y modulos
+  `gio_modules`, evitando mezcla ABI con WebKitGTK del sistema en instalaciones
+  limpias.
+
+### Cambiado
+- El `.deb` declara dependencias graficas nativas de GTK/WebKitGTK 4.1 para que
+  APT las instale automaticamente, sin requerir Python, pip ni configuracion
+  manual por parte del usuario.
+- El workflow Linux compila sobre `ubuntu-24.04`, base minima soportada para el
+  paquete WebKitGTK 4.1 del proyecto.
+
+### Agregado
+- Validacion de artefactos Linux que falla si `dist` o el `.deb` contienen
+  bibliotecas nativas prohibidas o `gio_modules` privados.
+- Documentacion de causa raiz, dependencias Debian y matriz de validacion Linux.
+
+---
 ## [1.13.0] - 2026-07-14
 
 ### Corregido
