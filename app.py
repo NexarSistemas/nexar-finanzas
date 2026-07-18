@@ -10,11 +10,13 @@ import os
 import sys
 import base64
 import logging
+import subprocess
 import traceback
 import threading
 import time
 import secrets
 import socket as _socket
+import webbrowser
 from pathlib import Path
 from flask import Flask, render_template, session, redirect, url_for
 from dotenv import load_dotenv
@@ -260,6 +262,52 @@ def get_version():
 
 APP_VERSION = get_version()
 app.config['APP_VERSION'] = APP_VERSION
+
+
+def _is_pyinstaller_linux():
+    return getattr(sys, 'frozen', False) and sys.platform.startswith('linux')
+
+
+def _clean_external_process_env(source_env=None):
+    clean_env = dict(os.environ if source_env is None else source_env)
+    if _is_pyinstaller_linux():
+        original_library_path = clean_env.get('LD_LIBRARY_PATH_ORIG')
+        if original_library_path:
+            clean_env['LD_LIBRARY_PATH'] = original_library_path
+        else:
+            clean_env.pop('LD_LIBRARY_PATH', None)
+    return clean_env
+
+
+def open_external_url(url):
+    clean_env = _clean_external_process_env()
+
+    if sys.platform.startswith('linux'):
+        try:
+            subprocess.Popen(
+                ['xdg-open', url],
+                env=clean_env,
+                start_new_session=True,
+            )
+            logging.info("Navegador externo iniciado con xdg-open: %s", url)
+            return True
+        except FileNotFoundError:
+            logging.warning("xdg-open no disponible; intentando webbrowser.open.")
+        except Exception as exc:
+            logging.error("No se pudo iniciar xdg-open para %s: %s", url, exc, exc_info=True)
+            return False
+
+    try:
+        opened = webbrowser.open(url)
+    except Exception as exc:
+        logging.error("No se pudo abrir navegador externo para %s: %s", url, exc, exc_info=True)
+        return False
+
+    if opened:
+        logging.info("Navegador externo iniciado con webbrowser: %s", url)
+    else:
+        logging.error("webbrowser.open no pudo abrir: %s", url)
+    return bool(opened)
 
 
 class DesktopBridge:
@@ -548,17 +596,17 @@ if __name__ == '__main__':
 
     if not _webview_ok:
 
-        import webbrowser
+        if open_external_url(URL):
+            print(f"  Navegador abierto en: {URL}")
+            print("  Cerrá esta ventana para detener la app.")
 
-        webbrowser.open(URL)
-
-        print(f"  Navegador abierto en: {URL}")
-        print("  Cerrá esta ventana para detener la app.")
-
-        try:
-            flask_thread.join()
-        except KeyboardInterrupt:
-            print("\n  Cerrando...")
+            try:
+                flask_thread.join()
+            except KeyboardInterrupt:
+                print("\n  Cerrando...")
+        else:
+            print(f"  [ERROR] No se pudo abrir el navegador en: {URL}")
+            logging.error("Fallback al navegador falló para %s", URL)
 
     os._exit(0)
     

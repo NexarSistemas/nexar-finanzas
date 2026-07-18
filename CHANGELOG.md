@@ -15,6 +15,13 @@ Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
   GLib/GIO/GObject/libffi/libsecret/WebKitGTK/JavaScriptCoreGTK y modulos
   `gio_modules`, evitando mezcla ABI con WebKitGTK del sistema en instalaciones
   limpias.
+- El build Linux tambien excluye el cierre transitivo util-linux/GTK/GIO
+  (`libmount`, `libblkid`, `libselinux`, `libpcre2-8`, `libzstd`, `liblzma`,
+  `libsystemd` y librerias GTK/GDK/Pango privadas) para evitar errores ABI como
+  `MOUNT_2_40 not found`.
+- El fallback al navegador en Linux restaura `LD_LIBRARY_PATH_ORIG` o elimina
+  `LD_LIBRARY_PATH` al lanzar `xdg-open`, evitando que Brave u otros navegadores
+  hereden `_internal` desde PyInstaller.
 
 ### Cambiado
 - El `.deb` declara dependencias graficas nativas de GTK/WebKitGTK 4.1 para que

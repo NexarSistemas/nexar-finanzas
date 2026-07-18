@@ -14,7 +14,23 @@ FORBIDDEN_PATTERNS=(
     'libgobject-2.0.so*'
     'libgmodule-2.0.so*'
     'libffi.so*'
+    'libmount.so*'
+    'libblkid.so*'
+    'libselinux.so*'
+    'libpcre2-8.so*'
+    'libzstd.so*'
+    'liblzma.so*'
+    'libsystemd.so*'
+    'libudev.so*'
     'libsecret-1.so*'
+    'libgtk-3.so*'
+    'libgdk-3.so*'
+    'libgdk_pixbuf-2.0.so*'
+    'libgirepository-1.0.so*'
+    'libpango*.so*'
+    'libatk*.so*'
+    'libatspi.so*'
+    'libcairo*.so*'
     'libwebkit2gtk-4.1.so*'
     'libjavascriptcoregtk-4.1.so*'
 )
@@ -27,8 +43,17 @@ REQUIRED_DEB_DEPENDS=(
     'libjavascriptcoregtk-4.1-0'
     'libgirepository-1.0-1'
     'libffi8'
+    'libmount1'
+    'libblkid1'
+    'libselinux1'
+    'libpcre2-8-0'
+    'libzstd1'
+    'liblzma5'
+    'libsystemd0'
     'libsecret-1-0'
 )
+
+FORBIDDEN_LDD_RE='_internal/.*/?(libglib-2\.0|libgio-2\.0|libgobject-2\.0|libgmodule-2\.0|libffi|libmount|libblkid|libselinux|libpcre2-8|libzstd|liblzma|libsystemd|libudev|libsecret-1|libgtk-3|libgdk-3|libgdk_pixbuf-2\.0|libgirepository-1\.0|libpango[^/]*|libatk[^/]*|libatspi|libcairo[^/]*|libwebkit2gtk-4\.1|libjavascriptcoregtk-4\.1)\.so'
 
 TMP_DIR=""
 LDD_OUTPUT=""
@@ -106,6 +131,18 @@ for internal in "${INTERNAL_DIRS[@]}"; do
         find "$internal/gio_modules" -mindepth 1 -maxdepth 1 -print >&2
         FOUND_FORBIDDEN=1
     fi
+
+    if [ -d "$internal/lib/gdk-pixbuf/loaders" ]; then
+        echo "[ERROR] El artefacto contiene loaders privados de GDK Pixbuf: $internal/lib/gdk-pixbuf/loaders" >&2
+        find "$internal/lib/gdk-pixbuf/loaders" -mindepth 1 -maxdepth 1 -print >&2
+        FOUND_FORBIDDEN=1
+    fi
+
+    if [ -d "$internal/gi_typelibs" ]; then
+        echo "[ERROR] El artefacto contiene typelibs GI privados del stack GTK/GLib/GIO: $internal/gi_typelibs" >&2
+        find "$internal/gi_typelibs" -mindepth 1 -maxdepth 1 -print >&2
+        FOUND_FORBIDDEN=1
+    fi
 done
 
 if [ "$FOUND_FORBIDDEN" -ne 0 ]; then
@@ -115,15 +152,20 @@ fi
 echo "[INFO] Revisando ldd de ejecutable y extensiones nativas"
 LDD_OUTPUT="$(mktemp)"
 LDD_FAILURES="$(mktemp)"
+LDD_LIBRARY_PATHS=()
+for internal in "${INTERNAL_DIRS[@]}"; do
+    LDD_LIBRARY_PATHS+=("$internal")
+done
+LDD_LIBRARY_PATH="$(IFS=:; echo "${LDD_LIBRARY_PATHS[*]}")"
 while IFS= read -r -d '' native; do
-    if ! ldd "$native" >> "$LDD_OUTPUT" 2>> "$LDD_FAILURES"; then
+    if ! LD_LIBRARY_PATH="$LDD_LIBRARY_PATH:${LD_LIBRARY_PATH:-}" ldd "$native" >> "$LDD_OUTPUT" 2>> "$LDD_FAILURES"; then
         echo "[WARN] ldd no pudo inspeccionar: $native" >&2
     fi
-done < <(find "$SCAN_ROOT" -type f \( -name 'NexarFinanzas' -o -name '*.so' \) -print0)
+done < <(find "$SCAN_ROOT" -type f \( -name 'NexarFinanzas' -o -name '*.so' -o -name '*.so.*' \) -print0)
 
-if grep -E '_internal/.*/?(libglib-2\.0|libgio-2\.0|libgobject-2\.0|libgmodule-2\.0|libffi|libsecret-1|libwebkit2gtk-4\.1|libjavascriptcoregtk-4\.1)\.so' "$LDD_OUTPUT" >/dev/null; then
+if grep -E "$FORBIDDEN_LDD_RE" "$LDD_OUTPUT" >/dev/null; then
     echo "[ERROR] ldd resolvio bibliotecas prohibidas desde _internal:" >&2
-    grep -E '_internal/.*/?(libglib-2\.0|libgio-2\.0|libgobject-2\.0|libgmodule-2\.0|libffi|libsecret-1|libwebkit2gtk-4\.1|libjavascriptcoregtk-4\.1)\.so' "$LDD_OUTPUT" >&2
+    grep -E "$FORBIDDEN_LDD_RE" "$LDD_OUTPUT" >&2
     exit 1
 fi
 

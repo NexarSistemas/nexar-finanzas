@@ -196,7 +196,7 @@ Version: ${APP_VERSION}
 Architecture: ${DEB_ARCH}
 Maintainer: Nexar Sistemas
 Installed-Size: ${INSTALLED_KB}
-Depends: gir1.2-gtk-3.0, gir1.2-webkit2-4.1, libgtk-3-0 | libgtk-3-0t64, libwebkit2gtk-4.1-0, libjavascriptcoregtk-4.1-0, libgirepository-1.0-1, libffi8, libsecret-1-0, libegl1, libgl1, libxcb-cursor0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-render-util0, libxcb-shape0, libxcb-xinerama0, libxkbcommon-x11-0
+Depends: gir1.2-gtk-3.0, gir1.2-webkit2-4.1, libgtk-3-0 | libgtk-3-0t64, libwebkit2gtk-4.1-0, libjavascriptcoregtk-4.1-0, libgirepository-1.0-1, libffi8, libmount1, libblkid1, libselinux1, libpcre2-8-0, libzstd1, liblzma5, libsystemd0, libsecret-1-0, libegl1, libgl1, libxcb-cursor0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-render-util0, libxcb-shape0, libxcb-xinerama0, libxkbcommon-x11-0
 Section: misc
 Priority: optional
 Description: Nexar Finanzas

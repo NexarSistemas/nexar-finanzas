@@ -21,12 +21,30 @@ def collect_optional_submodules(package):
 
 
 LINUX_SYSTEM_LIBRARY_PATTERNS = (
+    # GLib/GIO/GObject and util-linux closure must come from the target system.
     'libglib-2.0.so*',
     'libgio-2.0.so*',
     'libgobject-2.0.so*',
     'libgmodule-2.0.so*',
     'libffi.so*',
+    'libmount.so*',
+    'libblkid.so*',
+    'libselinux.so*',
+    'libpcre2-8.so*',
+    'libzstd.so*',
+    'liblzma.so*',
+    'libsystemd.so*',
+    'libudev.so*',
+    # GTK/WebKitGTK native stack is declared as Debian dependencies.
     'libsecret-1.so*',
+    'libgtk-3.so*',
+    'libgdk-3.so*',
+    'libgdk_pixbuf-2.0.so*',
+    'libgirepository-1.0.so*',
+    'libpango*.so*',
+    'libatk*.so*',
+    'libatspi.so*',
+    'libcairo*.so*',
     'libwebkit2gtk-4.1.so*',
     'libjavascriptcoregtk-4.1.so*',
 )
@@ -40,7 +58,14 @@ def _toc_entry_paths(entry):
 
 def _is_system_gio_module(path):
     normalized = path.replace('\\', '/')
-    return '/gio_modules/' in normalized or normalized.startswith('gio_modules/')
+    return (
+        '/gio_modules/' in normalized
+        or normalized.startswith('gio_modules/')
+        or '/gdk-pixbuf/loaders/' in normalized
+        or normalized.startswith('gdk-pixbuf/loaders/')
+        or '/gi_typelibs/' in normalized
+        or normalized.startswith('gi_typelibs/')
+    )
 
 
 def _is_linux_system_library(path):
