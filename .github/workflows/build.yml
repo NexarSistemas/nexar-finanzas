@@ -1,8 +1,11 @@
 name: Build & Release Nexar Finanzas
 
 on:
+  pull_request:
+    branches: [ main ]
   push:
     branches: [ main ]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -41,6 +44,9 @@ jobs:
   build-linux:
     needs: check
     runs-on: ubuntu-24.04
+    # Los PRs desde forks no reciben secretos de GitHub; se evita ejecutar el
+    # build oficial porque necesita el SDK privado y credenciales de licencias.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
 
     env:
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
@@ -98,6 +104,7 @@ jobs:
   build-windows:
     needs: check
     runs-on: windows-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     env:
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
@@ -157,6 +164,7 @@ jobs:
   package:
     needs: [check, build-linux, build-windows]
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
       - uses: actions/download-artifact@v4
@@ -220,6 +228,7 @@ jobs:
   release:
     needs: [check, package]
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
       - uses: actions/checkout@v4

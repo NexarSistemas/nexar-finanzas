@@ -7,6 +7,9 @@ Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 ---
 ## [Unreleased]
 
+---
+## [1.13.1] - 2026-07-17
+
 ### Corregido
 - El build Linux deja de empaquetar copias privadas incompatibles de
   GLib/GIO/GObject/libffi/libsecret/WebKitGTK/JavaScriptCoreGTK y modulos
