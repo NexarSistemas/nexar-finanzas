@@ -196,7 +196,7 @@ Version: ${APP_VERSION}
 Architecture: ${DEB_ARCH}
 Maintainer: Nexar Sistemas
 Installed-Size: ${INSTALLED_KB}
-Depends: libegl1, libgl1, libxcb-cursor0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-render-util0, libxcb-shape0, libxcb-xinerama0, libxkbcommon-x11-0
+Depends: libegl1, libgl1, libglib2.0-0t64 | libglib2.0-0, libfontconfig1, libffi8, libxcb-cursor0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-render-util0, libxcb-shape0, libxcb-xinerama0, libxkbcommon-x11-0
 Recommends: fonts-liberation
 Section: misc
 Priority: optional

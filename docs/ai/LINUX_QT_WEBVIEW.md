@@ -34,6 +34,14 @@ El `.deb` deja de declarar GTK/PyGObject/WebKitGTK como dependencias principales
 del backend nativo. Conserva dependencias nativas X11/OpenGL requeridas por
 Qt/PySide6, alineadas con Nexar Tienda.
 
+PyInstaller puede arrastrar bibliotecas del stack GTK/GLib/GIO como cierre
+transitivo aunque el backend sea Qt. El `.spec` las filtra antes de `COLLECT`
+para evitar mezcla ABI con las bibliotecas del sistema. En particular no se
+empaquetan copias privadas de GLib, GIO, GObject, GModule, GThread, libffi,
+libsecret, libmount, libblkid, GTK, GDK, GdkPixbuf, Pango, Fontconfig,
+WebKitGTK ni JavaScriptCoreGTK. Cuando Qt necesita GLib o Fontconfig, se
+resuelven desde el sistema mediante dependencias Debian.
+
 ## Diferencias con Nexar Tienda
 
 Solo se replica la estrategia de backend Qt y empaquetado. No se copia logica de
@@ -46,5 +54,5 @@ sesion.
 
 - no encuentra PySide6/Qt WebEngine dentro del artefacto;
 - el `.deb` declara dependencias GTK/PyGObject/WebKitGTK como backend principal;
-- aparecen bibliotecas GTK/WebKitGTK privadas inesperadas;
+- aparecen bibliotecas privadas del stack GTK/GLib/GIO/Pango/Fontconfig;
 - aparecen typelibs o modulos GI privados que indiquen inicializacion GTK.

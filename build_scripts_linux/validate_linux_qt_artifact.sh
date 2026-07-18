@@ -56,6 +56,25 @@ if [ "${#INTERNAL_DIRS[@]}" -eq 0 ]; then
 fi
 
 FOUND_ERROR=0
+FORBIDDEN_NATIVE_LIB_PATTERNS=(
+    -name 'libglib-2.0.so*' -o
+    -name 'libgio-2.0.so*' -o
+    -name 'libgobject-2.0.so*' -o
+    -name 'libgmodule-2.0.so*' -o
+    -name 'libgthread-2.0.so*' -o
+    -name 'libffi.so*' -o
+    -name 'libsecret-1.so*' -o
+    -name 'libmount.so*' -o
+    -name 'libblkid.so*' -o
+    -name 'libgtk-3.so*' -o
+    -name 'libgdk-3.so*' -o
+    -name 'libgdk_pixbuf-2.0.so*' -o
+    -name 'libpango*.so*' -o
+    -name 'libfontconfig.so*' -o
+    -name 'libwebkit2gtk*.so*' -o
+    -name 'libjavascriptcoregtk*.so*'
+)
+
 for internal in "${INTERNAL_DIRS[@]}"; do
     echo "[INFO] Validando backend Qt en $internal"
 
@@ -69,9 +88,9 @@ for internal in "${INTERNAL_DIRS[@]}"; do
         FOUND_ERROR=1
     fi
 
-    if find "$internal" \( -name 'libgtk-3.so*' -o -name 'libgdk-3.so*' -o -name 'libwebkit2gtk*.so*' -o -name 'libjavascriptcoregtk*.so*' \) -print -quit | grep -q .; then
-        echo "[ERROR] El artefacto contiene bibliotecas GTK/WebKitGTK inesperadas:" >&2
-        find "$internal" \( -name 'libgtk-3.so*' -o -name 'libgdk-3.so*' -o -name 'libwebkit2gtk*.so*' -o -name 'libjavascriptcoregtk*.so*' \) -print >&2
+    if find "$internal" \( "${FORBIDDEN_NATIVE_LIB_PATTERNS[@]}" \) -print -quit | grep -q .; then
+        echo "[ERROR] El artefacto contiene bibliotecas nativas del stack GTK/GLib/GIO no empaquetables:" >&2
+        find "$internal" \( "${FORBIDDEN_NATIVE_LIB_PATTERNS[@]}" \) -print >&2
         FOUND_ERROR=1
     fi
 
