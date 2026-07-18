@@ -8,6 +8,8 @@ Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 ## [1.13.1] - 2026-07-18
 
 ### Corregido
+- Se corrige el arranque nativo de Nexar Finanzas en Ubuntu/Debian mediante
+  backend Qt/PySide6.
 - El arranque nativo Linux usa explicitamente el backend Qt/PySide6 de
   pywebview, evitando la inicializacion GTK que fallaba con Pango/Fontconfig en
   Ubuntu/Debian.
