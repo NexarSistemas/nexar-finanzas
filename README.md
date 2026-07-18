@@ -1,4 +1,4 @@
-# 💰 Nexar Finanzas v1.13.0
+# 💰 Nexar Finanzas v1.13.1
 
 Aplicación de gestión financiera personal para escritorio. Funciona completamente
 offline, utilizando base de datos SQLite local, y está optimizada para equipos
@@ -7,7 +7,7 @@ de gama media/baja.
 Estado actual:
 
 - Estado del repositorio: activo
-- Version actual: `1.13.0`
+- Version actual: `1.13.1`
 - Contexto central del ecosistema: repo externo `nexar-ai-context`, archivo `CONTEXTO_NEXAR.md`
 
 > Nota: los estándares de seguridad compartidos de Nexar se mantienen en `nexar-ai-context/standards/`.
@@ -87,14 +87,9 @@ chmod +x iniciar.sh
 ./iniciar.sh
 ```
 
-> **Linux — ventana nativa:** para que pywebview funcione se necesitan las
-> librerías GTK/WebKit:
->
-> ```bash
-> sudo apt install python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.1
-> ```
->
-> Si no están instaladas, la app abre en el navegador del sistema igualmente.
+> **Linux — ventana nativa:** los builds oficiales usan Qt/PySide6 empaquetado
+> dentro de la aplicación. Si la ventana nativa falla, la app abre en el
+> navegador del sistema igualmente.
 
 ---
 

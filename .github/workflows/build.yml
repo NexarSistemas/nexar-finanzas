@@ -1,8 +1,11 @@
 name: Build & Release Nexar Finanzas
 
 on:
+  pull_request:
+    branches: [ main ]
   push:
     branches: [ main ]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -41,6 +44,7 @@ jobs:
   build-linux:
     needs: check
     runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
 
     env:
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
@@ -65,7 +69,7 @@ jobs:
       - name: Instalar dependencias
         run: |
           sudo apt update
-          sudo apt install -y fakeroot dpkg python3-gi python3-gi-cairo gir1.2-webkit2-4.1
+          sudo apt install -y fakeroot dpkg
 
       - name: Configurar acceso SSH a nexar_licencias
         uses: webfactory/ssh-agent@v0.9.0
@@ -98,6 +102,7 @@ jobs:
   build-windows:
     needs: check
     runs-on: windows-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     env:
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
@@ -157,6 +162,7 @@ jobs:
   package:
     needs: [check, build-linux, build-windows]
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
       - uses: actions/download-artifact@v4
@@ -220,6 +226,7 @@ jobs:
   release:
     needs: [check, package]
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
       - uses: actions/checkout@v4

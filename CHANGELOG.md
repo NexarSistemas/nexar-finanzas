@@ -5,6 +5,20 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
+## [1.13.1] - 2026-07-18
+
+### Corregido
+- El arranque nativo Linux usa explicitamente el backend Qt/PySide6 de
+  pywebview, evitando la inicializacion GTK que fallaba con Pango/Fontconfig en
+  Ubuntu/Debian.
+
+### Cambiado
+- El build Linux empaqueta PySide6/Qt WebEngine y deja de declarar
+  GTK/PyGObject/WebKitGTK como dependencias principales del `.deb`.
+- El workflow permite construir artefactos desde PR/manual sin publicar release;
+  la publicacion queda restringida a push en `main`.
+
+---
 ## [1.13.0] - 2026-07-14
 
 ### Corregido
