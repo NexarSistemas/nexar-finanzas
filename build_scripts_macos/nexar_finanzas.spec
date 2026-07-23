@@ -55,7 +55,7 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz, a.scripts, [], exclude_binaries=True, name='NexarFinanzas',
     debug=False, bootloader_ignore_signals=False, strip=False, upx=False,
-    console=False, target_arch=None, codesign_identity=None, entitlements_file=None,
+    console=False, target_arch='x86_64', codesign_identity=None, entitlements_file=None,
 )
 coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name='NexarFinanzas')
 app = BUNDLE(

@@ -12,8 +12,10 @@ cd "$(dirname "$SCRIPT_DIR")"
 
 [[ "$APP_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "ERROR: versión inválida: $APP_VERSION"; exit 1; }
 [[ "$(uname -s)" == "Darwin" ]] || { echo "ERROR: este script solo puede ejecutarse en macOS"; exit 1; }
+[[ "$(uname -m)" == "x86_64" ]] || { echo "ERROR: el build macOS MVP requiere un runner Intel x86_64"; exit 1; }
 command -v ditto >/dev/null || { echo "ERROR: no se encontró ditto"; exit 1; }
 command -v hdiutil >/dev/null || { echo "ERROR: no se encontró hdiutil"; exit 1; }
+command -v lipo >/dev/null || { echo "ERROR: no se encontró lipo"; exit 1; }
 
 python3 -m venv "$VENV_DIR"
 "$VENV_DIR/bin/python" -m pip install --upgrade pip pyinstaller
@@ -36,6 +38,12 @@ rm -rf build dist "$OUTPUT_DIR"
 
 APP_PATH="dist/${APP_NAME}.app"
 [[ -d "$APP_PATH/Contents/MacOS" ]] || { echo "ERROR: PyInstaller no generó ${APP_NAME}.app"; exit 1; }
+APP_EXECUTABLE="$APP_PATH/Contents/MacOS/$APP_NAME"
+[[ -f "$APP_EXECUTABLE" ]] || { echo "ERROR: no se encontró el ejecutable macOS"; exit 1; }
+[[ "$(lipo -archs "$APP_EXECUTABLE")" == "x86_64" ]] || {
+  echo "ERROR: el ejecutable macOS no es exclusivamente x86_64"
+  exit 1
+}
 mkdir -p "$OUTPUT_DIR"
 cp -R "$APP_PATH" "$OUTPUT_DIR/"
 

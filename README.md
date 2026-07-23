@@ -123,10 +123,11 @@ git tag -a vX.Y.Z -m "Nexar Finanzas vX.Y.Z"
 git push origin vX.Y.Z
 ```
 
-El build de macOS se genera inicialmente sin firma ni notarización. La aplicación
-es utilizable, pero Gatekeeper puede mostrar una advertencia. Firmar y notarizar
-requiere certificados válidos y una cuenta Apple Developer; su ausencia no
-impide generar los Artifacts de prueba.
+El build de macOS se genera para Intel `x86_64`, inicialmente sin firma ni
+notarización. En Apple Silicon requiere Rosetta 2. La aplicación es utilizable,
+pero Gatekeeper puede mostrar una advertencia. Firmar y notarizar requiere
+certificados válidos y una cuenta Apple Developer; su ausencia no impide generar
+los Artifacts de prueba.
 
 La actualización automática dentro de la aplicación sigue disponible en Linux
 y Windows. En macOS está desactivada temporalmente: la app puede informar que

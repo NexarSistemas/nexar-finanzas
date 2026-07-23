@@ -152,13 +152,17 @@ jobs:
   build-macos:
     name: Build macOS
     needs: check
-    runs-on: macos-latest
+    runs-on: macos-15-intel
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     env:
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
       VERSION: ${{ needs.check.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+      - name: Verificar runner macOS Intel
+        run: |
+          test "$(uname -s)" = "Darwin"
+          test "$(uname -m)" = "x86_64"
       - name: Verificar secretos requeridos
         env:
           SDK_DEPLOY_KEY: ${{ secrets.NEXAR_LICENCIAS_DEPLOY_KEY }}
@@ -187,6 +191,7 @@ jobs:
           test -d "release/NexarFinanzas.app"
           test -f "release/NexarFinanzas_v${VERSION}_macos.zip"
           test -f "release/NexarFinanzas_v${VERSION}_macos.dmg"
+          test "$(lipo -archs release/NexarFinanzas.app/Contents/MacOS/NexarFinanzas)" = "x86_64"
       - uses: actions/upload-artifact@v4
         with:
           name: nexar-finanzas-macos-${{ needs.check.outputs.version }}
