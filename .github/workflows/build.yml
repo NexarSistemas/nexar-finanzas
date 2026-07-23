@@ -2,316 +2,317 @@ name: Build & Release Nexar Finanzas
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
   push:
-    branches: [ main ]
+    branches: [main]
+    tags:
+      - "v*.*.*"
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: release-${{ github.workflow }}-${{ github.ref }}
+  group: build-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-
-  # 🔍 VERSION
   check:
+    name: Validar versión y changelog
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.ver.outputs.VERSION }}
-
+      version: ${{ steps.version.outputs.VERSION }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Obtener versión desde VERSION
-        id: ver
+      - name: Validar VERSION, CHANGELOG y tag
+        id: version
+        shell: bash
         run: |
+          set -euo pipefail
           VERSION="$(tr -d '\r\n' < VERSION)"
           if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "❌ VERSION debe tener formato semver X.Y.Z"
+            echo "ERROR: VERSION debe tener formato SemVer X.Y.Z (recibido: '$VERSION')"
             exit 1
           fi
-          if ! grep -q "^## \[$VERSION\]" CHANGELOG.md; then
-            echo "❌ CHANGELOG.md no tiene entrada ## [$VERSION]"
+          if ! grep -Fqx "## [$VERSION]" CHANGELOG.md && ! grep -q "^## \[$VERSION\]" CHANGELOG.md; then
+            echo "ERROR: CHANGELOG.md no contiene una entrada para [$VERSION]"
             exit 1
           fi
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "Versión detectada: $VERSION"
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            EXPECTED_TAG="v$VERSION"
+            if [[ "$GITHUB_REF_NAME" != "$EXPECTED_TAG" ]]; then
+              echo "ERROR: el tag '$GITHUB_REF_NAME' no coincide con VERSION='$VERSION' (esperado: '$EXPECTED_TAG')"
+              exit 1
+            fi
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Versión validada: $VERSION"
 
-  # 🐧 BUILD LINUX
   build-linux:
+    name: Build Linux
     needs: check
     runs-on: ubuntu-latest
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-
     env:
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
       VERSION: ${{ needs.check.outputs.version }}
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Verificar secretos de build
+      - name: Verificar secretos requeridos
         env:
           SDK_DEPLOY_KEY: ${{ secrets.NEXAR_LICENCIAS_DEPLOY_KEY }}
         run: |
-          if [ -z "$SECRET_KEY" ]; then
-            echo "❌ SECRET_KEY no está definida"
-            exit 1
-          fi
-          if [ -z "$SDK_DEPLOY_KEY" ]; then
-            echo "❌ NEXAR_LICENCIAS_DEPLOY_KEY no está definida"
-            exit 1
-          fi
-
-      - name: Instalar dependencias
+          test -n "$SECRET_KEY" || { echo "ERROR: falta SECRET_KEY"; exit 1; }
+          test -n "$SDK_DEPLOY_KEY" || { echo "ERROR: falta NEXAR_LICENCIAS_DEPLOY_KEY"; exit 1; }
+      - name: Instalar dependencias del sistema
         run: |
-          sudo apt update
-          sudo apt install -y \
-            fakeroot \
-            dpkg \
-            libegl1 \
-            libgl1 \
-            libxcb-cursor0 \
-            libxcb-icccm4 \
-            libxcb-image0 \
-            libxcb-keysyms1 \
-            libxcb-render-util0 \
-            libxcb-shape0 \
-            libxcb-xinerama0 \
-            libxkbcommon-x11-0
-
-      - name: Configurar acceso SSH a nexar_licencias
+          sudo apt-get update
+          sudo apt-get install -y fakeroot dpkg libegl1 libgl1 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxkbcommon-x11-0
+      - name: Configurar acceso SSH al SDK
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.NEXAR_LICENCIAS_DEPLOY_KEY }}
-
-      - name: Confiar en github.com para dependencias SSH
+      - name: Registrar github.com
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan github.com >> ~/.ssh/known_hosts
-
-      - name: Build Linux
+      - name: Compilar Linux
         env:
           PUBLIC_KEY: ${{ secrets.PUBLIC_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          VERSION: ${{ needs.check.outputs.version }}
+        run: bash build_scripts_linux/build.sh
+      - name: Validar archivos Linux
         run: |
-          chmod +x build_scripts_linux/build.sh
-          bash build_scripts_linux/build.sh
-
+          test -f "release/NexarFinanzas_v${VERSION}_linux_amd64.deb"
+          test -f "release/NexarFinanzas_v${VERSION}_portable_linux.tar.gz"
       - uses: actions/upload-artifact@v4
         with:
-          name: linux
-          path: release/**/*
+          name: nexar-finanzas-linux-${{ needs.check.outputs.version }}
+          path: |
+            release/*.deb
+            release/*.tar.gz
+            release/SHA256SUMS_linux.txt
           if-no-files-found: error
-          retention-days: 2
+          retention-days: 14
 
-  # 🪟 BUILD WINDOWS
   build-windows:
+    name: Build Windows
     needs: check
     runs-on: windows-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     env:
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
       VERSION: ${{ needs.check.outputs.version }}
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Verificar secretos de build
+      - name: Verificar secretos requeridos
         shell: bash
         env:
           SDK_DEPLOY_KEY: ${{ secrets.NEXAR_LICENCIAS_DEPLOY_KEY }}
         run: |
-          if [ -z "$SECRET_KEY" ]; then
-            echo "❌ SECRET_KEY no está definida"
-            exit 1
-          fi
-          if [ -z "$SDK_DEPLOY_KEY" ]; then
-            echo "❌ NEXAR_LICENCIAS_DEPLOY_KEY no está definida"
-            exit 1
-          fi
-
+          test -n "$SECRET_KEY" || { echo "ERROR: falta SECRET_KEY"; exit 1; }
+          test -n "$SDK_DEPLOY_KEY" || { echo "ERROR: falta NEXAR_LICENCIAS_DEPLOY_KEY"; exit 1; }
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-
+          python-version: "3.11"
       - name: Instalar Inno Setup
         run: choco install innosetup -y
-
-      - name: Configurar acceso SSH a nexar_licencias
+      - name: Configurar acceso SSH al SDK
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.NEXAR_LICENCIAS_DEPLOY_KEY }}
-
-      - name: Confiar en github.com para dependencias SSH
+      - name: Registrar github.com
         shell: bash
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan github.com >> ~/.ssh/known_hosts
-
-      - name: Build Windows
+      - name: Compilar Windows
         env:
           PUBLIC_KEY: ${{ secrets.PUBLIC_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          VERSION: ${{ needs.check.outputs.version }}
         run: powershell -ExecutionPolicy Bypass -File build_scripts_windows/build.ps1
-
+      - name: Validar archivos Windows
+        shell: bash
+        run: |
+          test -f "release/NexarFinanzas_v${VERSION}_setup.exe"
+          test -f "release/NexarFinanzas_v${VERSION}_portable_windows.zip"
       - uses: actions/upload-artifact@v4
         with:
-          name: windows
-          path: release/**/*
+          name: nexar-finanzas-windows-${{ needs.check.outputs.version }}
+          path: |
+            release/*.exe
+            release/*.zip
+            release/SHA256SUMS_windows.txt
           if-no-files-found: error
-          retention-days: 2
+          retention-days: 14
 
-  # 📦 PACKAGE + SHA256 + FIRMA
-  package:
-    needs: [check, build-linux, build-windows]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          path: artifacts/
-
-      - name: Unificar artefactos
-        run: |
-          mkdir -p dist/release/artifacts
-          find artifacts -type f -exec cp {} dist/release/artifacts/ \;
-
-      - name: Validar instaladores
-        run: |
-          shopt -s nullglob
-          installers=(dist/release/artifacts/*.deb dist/release/artifacts/*.exe dist/release/artifacts/*.zip dist/release/artifacts/*.tar.gz)
-          if [ ${#installers[@]} -eq 0 ]; then
-            echo "❌ No se encontraron instaladores en dist/release/artifacts"
-            exit 1
-          fi
-          printf '✅ Instaladores encontrados:\n'
-          printf ' - %s\n' "${installers[@]}"
-
-      - name: Limpiar basura legacy (CRÍTICO)
-        run: |
-          rm -f dist/release/artifacts/SHA256SUMS_*.txt
-          rm -f dist/release/artifacts/SHA256SUMS-*.txt
-          rm -f dist/release/artifacts/*.sha256
-
-      - name: Generar SHA256 único
-        run: |
-          cd dist/release/artifacts
-          sha256sum * > SHA256SUMS.txt
-
-      - name: Configurar GPG
-        run: |
-          mkdir -p ~/.gnupg
-          echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
-          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
-          gpgconf --kill gpg-agent
-
-      - name: Importar clave GPG
-        run: |
-          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
-
-      - name: Firmar archivos
-        run: |
-          find dist/release/artifacts -type f ! -name "*.sig" -exec \
-          gpg --batch --yes \
-              --pinentry-mode loopback \
-              --passphrase "${{ secrets.GPG_PASSPHRASE }}" \
-              --detach-sign {} \;
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: final
-          path: dist/release/artifacts/*
-          if-no-files-found: error
-          retention-days: 2
-
-  # 🚀 RELEASE
-  release:
-    needs: [check, package]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
+  build-macos:
+    name: Build macOS
+    needs: check
+    runs-on: macos-15-intel
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    env:
+      SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      VERSION: ${{ needs.check.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+      - name: Verificar runner macOS Intel
+        run: |
+          test "$(uname -s)" = "Darwin"
+          test "$(uname -m)" = "x86_64"
+      - name: Verificar secretos requeridos
+        env:
+          SDK_DEPLOY_KEY: ${{ secrets.NEXAR_LICENCIAS_DEPLOY_KEY }}
+        run: |
+          test -n "$SECRET_KEY" || { echo "ERROR: falta SECRET_KEY"; exit 1; }
+          test -n "$SDK_DEPLOY_KEY" || { echo "ERROR: falta NEXAR_LICENCIAS_DEPLOY_KEY"; exit 1; }
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Configurar acceso SSH al SDK
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.NEXAR_LICENCIAS_DEPLOY_KEY }}
+      - name: Registrar github.com
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+      - name: Compilar macOS sin firma
+        env:
+          PUBLIC_KEY: ${{ secrets.PUBLIC_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: bash build_scripts_macos/build.sh
+      - name: Validar archivos macOS
+        run: |
+          test -d "release/NexarFinanzas.app"
+          test -f "release/NexarFinanzas_v${VERSION}_macos.zip"
+          test -f "release/NexarFinanzas_v${VERSION}_macos.dmg"
+          test "$(lipo -archs release/NexarFinanzas.app/Contents/MacOS/NexarFinanzas)" = "x86_64"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nexar-finanzas-macos-${{ needs.check.outputs.version }}
+          path: |
+            release/NexarFinanzas.app
+            release/*.zip
+            release/*.dmg
+            release/SHA256SUMS_macos.txt
+          if-no-files-found: error
+          retention-days: 14
 
+  package:
+    name: Unificar, generar hashes y firmar
+    needs: [check, build-linux, build-windows, build-macos]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
+      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+    steps:
       - uses: actions/download-artifact@v4
         with:
-          name: final
-          path: dist/release/artifacts/
-
-      - name: Validar instaladores antes de publicar
+          path: artifacts
+      - name: Reunir solo archivos de distribución
         run: |
+          set -euo pipefail
+          mkdir -p dist/release/artifacts
+          while IFS= read -r -d '' file; do
+            cp "$file" dist/release/artifacts/
+          done < <(
+            find artifacts \
+              -mindepth 2 \
+              -maxdepth 2 \
+              -type f \
+              \( -name '*.deb' -o -name '*.exe' -o -name '*.zip' -o -name '*.tar.gz' -o -name '*.dmg' \) \
+              -print0
+          )
           shopt -s nullglob
-          installers=(dist/release/artifacts/*.deb dist/release/artifacts/*.exe dist/release/artifacts/*.zip dist/release/artifacts/*.tar.gz)
-          if [ ${#installers[@]} -eq 0 ]; then
-            echo "❌ No se encontraron instaladores en dist/release/artifacts; no se creará una release vacía"
+          files=(dist/release/artifacts/*)
+          if (( ${#files[@]} == 0 )); then
+            echo "ERROR: no se encontraron archivos de distribución"
             exit 1
           fi
-          printf '✅ Instaladores listos para publicar:\n'
-          printf ' - %s\n' "${installers[@]}"
-
-      - name: Instalar GitHub CLI
-        run: sudo apt-get update && sudo apt-get install -y gh
-
-      # 🔍 Check release existente (PRO)
-      - name: Check release exists
-        id: release_check
-        run: |
-          TAG="v${{ needs.check.outputs.version }}"
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Generar descripción desde CHANGELOG
-        run: |
-          VER="${{ needs.check.outputs.version }}"
-          awk -v ver="$VER" '
-          $0 ~ "## \\["ver"\\]" {flag=1; next}
-          /^## \[/ && flag {exit}
-          flag
-          ' CHANGELOG.md > release.md
-          if [ ! -s release.md ]; then
-            echo "❌ release.md quedó vacío; revisar formato de CHANGELOG.md"
-            exit 1
-          fi
-
-      - name: Crear release
-        if: steps.release_check.outputs.exists == 'false'
-        run: |
-          TAG="v${{ needs.check.outputs.version }}"
-
-          gh release create "$TAG" \
-            --title "Nexar Finanzas v${{ needs.check.outputs.version }}" \
-            --notes-file release.md \
-            --latest \
-            --target $GITHUB_SHA
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Subir assets (robusto sin conflictos)
-        run: |
-          TAG="v${{ needs.check.outputs.version }}"
-
-          for file in dist/release/artifacts/*; do
-            name=$(basename "$file")
-
-            echo "Procesando $name..."
-
-            gh release delete-asset "$TAG" "$name" -y 2>/dev/null || true
-            gh release upload "$TAG" "$file"
+          printf 'Paquetes finales:\n'
+          printf '  %s\n' "${files[@]}"
+          for file in "${files[@]}"; do
+            name="$(basename "$file")"
+            case "$name" in
+              NexarFinanzas_v*.deb|NexarFinanzas_v*.exe|NexarFinanzas_v*.zip|NexarFinanzas_v*.tar.gz|NexarFinanzas_v*.dmg) ;;
+              *)
+                echo "ERROR: archivo inesperado en el artifact final: $name"
+                exit 1
+                ;;
+            esac
           done
+          if find dist/release/artifacts -maxdepth 1 -type f \
+              \( -name 'base_library.zip' -o -name 'python*.zip' \) -print -quit | grep -q .; then
+            echo "ERROR: se encontró un archivo interno del bundle en el artifact final"
+            exit 1
+          fi
+      - name: Generar SHA256
+        working-directory: dist/release/artifacts
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          packages=(*.deb *.exe *.zip *.tar.gz *.dmg)
+          (( ${#packages[@]} > 0 )) || { echo "ERROR: no hay paquetes para generar SHA256"; exit 1; }
+          sha256sum "${packages[@]}" > SHA256SUMS.txt
+      - name: Firmar con GPG cuando estén disponibles ambos secretos
+        if: env.GPG_PRIVATE_KEY != '' && env.GPG_PASSPHRASE != ''
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.gnupg
+          chmod 700 ~/.gnupg
+          printf '%s' "$GPG_PRIVATE_KEY" | gpg --batch --import
+          find dist/release/artifacts -maxdepth 1 -type f ! -name '*.sig' -print0 | while IFS= read -r -d '' file; do
+            gpg --batch --yes --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" --detach-sign --output "${file}.sig" "$file"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nexar-finanzas-final-${{ needs.check.outputs.version }}
+          path: dist/release/artifacts/*
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publicar GitHub Release
+    needs: [check, package]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: nexar-finanzas-final-${{ needs.check.outputs.version }}
+          path: dist/release/artifacts
+      - name: Validar assets y preparar notas
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          assets=(dist/release/artifacts/*.deb dist/release/artifacts/*.exe dist/release/artifacts/*.zip dist/release/artifacts/*.tar.gz dist/release/artifacts/*.dmg)
+          if (( ${#assets[@]} == 0 )); then
+            echo "ERROR: no se publicará una Release vacía"
+            exit 1
+          fi
+          awk -v ver="$VERSION" '$0 ~ "^## \\[" ver "\\]" {found=1; next} /^## \\[/ && found {exit} found' CHANGELOG.md > release.md
+          test -s release.md || { echo "ERROR: no se pudieron generar notas desde CHANGELOG.md"; exit 1; }
+      - name: Crear o actualizar Release y assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          set -euo pipefail
+          TAG="v${VERSION}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "Nexar Finanzas $TAG" --notes-file release.md --latest
+          else
+            gh release create "$TAG" --verify-tag --title "Nexar Finanzas $TAG" --notes-file release.md --latest
+          fi
+          gh release upload "$TAG" dist/release/artifacts/* --clobber

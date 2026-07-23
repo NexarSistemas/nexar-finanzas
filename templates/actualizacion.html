@@ -66,13 +66,22 @@
         </form>
       {% elif update_info and update_info.available %}
         <p class="mb-2"><strong>Disponible v{{ update_info.latest }}</strong></p>
-        <p class="text-muted small mb-3">Se descargará el instalador compatible con este sistema y se creará un respaldo antes de hacerlo.</p>
+        {% if update_info.install_mode == 'manual' or update_info.platform == 'unsupported' %}
+          <div class="state-box bg-info-subtle text-info-emphasis mb-3">
+            {{ update_info.install_message }}
+          </div>
+        {% else %}
+          <p class="text-muted small mb-3">Se descargará el instalador compatible con este sistema y se creará un respaldo antes de hacerlo.</p>
+        {% endif %}
         <div class="d-flex gap-2 flex-wrap">
-          <form method="post" action="{{ url_for('actualizacion_descargar') }}">
-            <button class="btn btn-success"><i class="bi bi-download"></i> Descargar actualización</button>
-          </form>
+          {% if update_info.install_mode != 'manual' and update_info.platform != 'unsupported' %}
+            <form method="post" action="{{ url_for('actualizacion_descargar') }}">
+              <button class="btn btn-success"><i class="bi bi-download"></i> Descargar actualización</button>
+            </form>
+          {% endif %}
           <a class="btn btn-outline-secondary" href="{{ update_info.url }}" target="_blank" rel="noopener">
-            <i class="bi bi-box-arrow-up-right"></i> Ver release
+            <i class="bi bi-box-arrow-up-right"></i>
+            {{ 'Descargar desde la release' if update_info.install_mode == 'manual' else 'Ver release' }}
           </a>
         </div>
       {% else %}
@@ -118,7 +127,7 @@
       {% set steps = [
         ('Buscar', 'La app consulta la última release publicada en GitHub.'),
         ('Descargar', 'Antes de guardar el instalador crea un respaldo local.'),
-        ('Instalar', 'Windows abre el setup; Linux intenta usar pkexec apt install.'),
+        ('Instalar', 'Windows abre el setup; Linux usa pkexec apt install; macOS requiere instalación manual desde la release.'),
         ('Cerrar', 'Al finalizar, cerrá la app y volvé a abrirla para cargar la versión nueva.')
       ] %}
       {% for title, desc in steps %}

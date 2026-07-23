@@ -5,6 +5,20 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 
 ---
+## [Unreleased]
+
+### Agregado
+- Build no firmado de macOS con aplicación `.app`, archivo `.zip` e imagen
+  `.dmg` generados con PyInstaller y herramientas nativas de macOS.
+
+### Cambiado
+- Los builds de Linux, Windows y macOS se publican como GitHub Actions Artifacts
+  durante 14 días en ejecuciones internas, manuales y pushes a `main`.
+- El build macOS MVP se fija a un runner Intel y valida que la aplicación
+  resultante sea exclusivamente `x86_64`.
+- Las GitHub Releases se crean exclusivamente al publicar un tag SemVer que
+  coincida con `VERSION` y tenga entrada en este changelog.
+
 ## [1.13.1] - 2026-07-18
 
 ### Corregido

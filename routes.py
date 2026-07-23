@@ -41,7 +41,7 @@ from licensing.license_service import (
     validate_saved_license,
 )
 from licensing.supabase_license_api import create_license_request, generate_activation_id, is_configured
-from update_checker import download_release_asset, get_cached_update_info
+from update_checker import download_release_asset, get_cached_update_info, get_update_platform
 from services import financial_health
 import services
 from services.mercadopago_checkout import (
@@ -713,11 +713,16 @@ def _update_list() -> list[dict]:
     update_dir = _update_dir()
     update_dir.mkdir(parents=True, exist_ok=True)
     items = []
-    candidates = [
-        *update_dir.glob("NexarFinanzas_v*_linux_amd64.deb"),
-        *update_dir.glob("NexarFinanzas_v*_setup.exe"),
-        *update_dir.glob("NexarFinanzas_v*_Setup.exe"),
-    ]
+    current_platform = get_update_platform()
+    if current_platform == "windows":
+        candidates = [
+            *update_dir.glob("NexarFinanzas_v*_setup.exe"),
+            *update_dir.glob("NexarFinanzas_v*_Setup.exe"),
+        ]
+    elif current_platform == "linux":
+        candidates = [*update_dir.glob("NexarFinanzas_v*_linux_amd64.deb")]
+    else:
+        candidates = []
     for path in sorted(candidates, key=lambda p: p.stat().st_mtime, reverse=True):
         installer_version = _installer_version(path.name)
         if installer_version and _version_tuple(installer_version) <= _version_tuple(current_version):
@@ -737,7 +742,12 @@ def _update_list() -> list[dict]:
 
 def _update_file(nombre: str) -> Path:
     safe_name = Path(nombre or "").name
-    valid = bool(_installer_version(safe_name))
+    current_platform = get_update_platform()
+    valid = (
+        (current_platform == "windows" and safe_name.lower().endswith(".exe"))
+        or (current_platform == "linux" and safe_name.lower().endswith(".deb"))
+    )
+    valid = valid and bool(_installer_version(safe_name))
     if safe_name != nombre or not valid:
         raise FileNotFoundError("Instalador invalido.")
     update_dir = _update_dir()
@@ -2257,6 +2267,18 @@ def register_routes(app):
             flash("Las actualizaciones están disponibles solo para los planes mensuales.", "warning")
             return redirect(url_for("actualizacion"))
 
+        current_platform = get_update_platform()
+        if current_platform == "macos":
+            flash(
+                "La actualización automática no está disponible en macOS. "
+                "Descargá e instalá manualmente el archivo .dmg o .zip desde la release.",
+                "info",
+            )
+            return redirect(url_for("actualizacion"))
+        if current_platform == "unsupported":
+            flash("La actualización automática no está disponible para esta plataforma.", "warning")
+            return redirect(url_for("actualizacion"))
+
         update_info = get_cached_update_info(current_app, current_app.config.get("APP_VERSION", "0.0.0"))
         if not update_info.get("available"):
             flash("No hay una actualizacion nueva disponible.", "info")
@@ -2299,6 +2321,12 @@ def register_routes(app):
                 flash("Carpeta de actualizaciones abierta.", "success")
             except Exception as exc:
                 flash(f"No se pudo abrir la carpeta: {exc}", "warning")
+        elif get_update_platform() == "macos":
+            try:
+                subprocess.Popen(["open", str(update_dir)])
+                flash("Carpeta de actualizaciones abierta.", "success")
+            except Exception as exc:
+                flash(f"No se pudo abrir la carpeta: {exc}", "warning")
         else:
             flash(f"Carpeta de actualizaciones: {update_dir}", "info")
         return redirect(url_for("actualizacion"))
@@ -2309,6 +2337,18 @@ def register_routes(app):
         demo_status = get_demo_status(get_db_path())
         if not demo_status.get('can_update'):
             flash("Las actualizaciones están disponibles solo para los planes mensuales.", "warning")
+            return redirect(url_for("actualizacion"))
+
+        current_platform = get_update_platform()
+        if current_platform == "macos":
+            flash(
+                "La instalación automática no está disponible en macOS. "
+                "Instalá manualmente el archivo .dmg o .zip descargado desde la release.",
+                "info",
+            )
+            return redirect(url_for("actualizacion"))
+        if current_platform == "unsupported":
+            flash("La instalación automática no está disponible para esta plataforma.", "warning")
             return redirect(url_for("actualizacion"))
 
         try:
@@ -2341,7 +2381,7 @@ def register_routes(app):
         is_windows_installer = installer.suffix.lower() == ".exe"
         command = str(installer) if is_windows_installer else f"sudo apt install /tmp/nexar-finanzas-updates/{installer.name}"
 
-        if sys.platform.startswith("win") and is_windows_installer:
+        if current_platform == "windows" and is_windows_installer:
             try:
                 process = subprocess.Popen([str(installer)])
                 _track_update_process(target_version, process)
@@ -2355,12 +2395,9 @@ def register_routes(app):
                 flash(f"No se pudo iniciar el instalador: {exc}. Ejecuta manualmente: {command}", "warning")
             return redirect(url_for("actualizacion"))
 
-        if not sys.platform.startswith("linux"):
-            _set_config_values({
-                "update_install_status": "ready_restart",
-                "update_finished_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
-            })
-            flash(f"Respaldo creado ({backup.get('archivo')}). Instala manualmente: {command}", "info")
+        if current_platform != "linux" or installer.suffix.lower() != ".deb":
+            _set_config_values({"update_install_status": "install_failed"})
+            flash("El instalador no corresponde a la plataforma actual.", "danger")
             return redirect(url_for("actualizacion"))
 
         try:

@@ -91,6 +91,49 @@ chmod +x iniciar.sh
 > dentro de la aplicación. Si la ventana nativa falla, la app abre en el
 > navegador del sistema igualmente.
 
+## Builds y publicación
+
+El workflow **Build & Release Nexar Finanzas** compila Linux, Windows y macOS.
+Para generar builds de prueba, abrí **Actions**, elegí el workflow y usá **Run
+workflow**. La ejecución manual no crea tags ni Releases. Los resultados se
+descargan desde la sección **Artifacts** de la ejecución y se conservan 14 días:
+
+- `nexar-finanzas-linux-X.Y.Z`: `.deb` y portable `.tar.gz`.
+- `nexar-finanzas-windows-X.Y.Z`: instalador `.exe` y portable `.zip`.
+- `nexar-finanzas-macos-X.Y.Z`: aplicación `.app`, `.zip` y `.dmg`.
+- `nexar-finanzas-final-X.Y.Z`: paquetes de las tres plataformas, hashes SHA256
+  y firmas `.sig` cuando están configurados los secretos GPG.
+
+Los pull requests internos y los pushes a `main` también generan Artifacts, pero
+nunca publican una Release. En PR provenientes de forks se ejecuta la validación
+de versión y changelog, mientras que los builds se omiten de forma segura porque
+GitHub no entrega los secretos ni la Deploy Key requeridos por el SDK privado.
+
+Una Release oficial se publica únicamente al hacer push de un tag SemVer. Antes,
+`VERSION` debe contener `X.Y.Z` y `CHANGELOG.md` debe incluir `## [X.Y.Z]`; ambos
+cambios deben estar mergeados en `main`. El tag debe coincidir exactamente:
+
+```bash
+git checkout main
+git pull origin main
+
+# Verificar VERSION y CHANGELOG.md
+
+git tag -a vX.Y.Z -m "Nexar Finanzas vX.Y.Z"
+git push origin vX.Y.Z
+```
+
+El build de macOS se genera para Intel `x86_64`, inicialmente sin firma ni
+notarización. En Apple Silicon requiere Rosetta 2. La aplicación es utilizable,
+pero Gatekeeper puede mostrar una advertencia. Firmar y notarizar requiere
+certificados válidos y una cuenta Apple Developer; su ausencia no impide generar
+los Artifacts de prueba.
+
+La actualización automática dentro de la aplicación sigue disponible en Linux
+y Windows. En macOS está desactivada temporalmente: la app puede informar que
+existe una versión nueva, pero el usuario debe descargar e instalar manualmente
+el `.dmg` o `.zip` desde la Release.
+
 ---
 
 ## 🔄 Actualizar una versión existente
