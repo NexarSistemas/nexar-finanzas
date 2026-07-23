@@ -214,16 +214,47 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist/release/artifacts
-          find artifacts -type f \( -name '*.deb' -o -name '*.exe' -o -name '*.zip' -o -name '*.tar.gz' -o -name '*.dmg' \) -exec cp {} dist/release/artifacts/ \;
+          while IFS= read -r -d '' file; do
+            cp "$file" dist/release/artifacts/
+          done < <(
+            find artifacts \
+              -mindepth 2 \
+              -maxdepth 2 \
+              -type f \
+              \( -name '*.deb' -o -name '*.exe' -o -name '*.zip' -o -name '*.tar.gz' -o -name '*.dmg' \) \
+              -print0
+          )
           shopt -s nullglob
           files=(dist/release/artifacts/*)
           if (( ${#files[@]} == 0 )); then
             echo "ERROR: no se encontraron archivos de distribución"
             exit 1
           fi
+          printf 'Paquetes finales:\n'
+          printf '  %s\n' "${files[@]}"
+          for file in "${files[@]}"; do
+            name="$(basename "$file")"
+            case "$name" in
+              NexarFinanzas_v*.deb|NexarFinanzas_v*.exe|NexarFinanzas_v*.zip|NexarFinanzas_v*.tar.gz|NexarFinanzas_v*.dmg) ;;
+              *)
+                echo "ERROR: archivo inesperado en el artifact final: $name"
+                exit 1
+                ;;
+            esac
+          done
+          if find dist/release/artifacts -maxdepth 1 -type f \
+              \( -name 'base_library.zip' -o -name 'python*.zip' \) -print -quit | grep -q .; then
+            echo "ERROR: se encontró un archivo interno del bundle en el artifact final"
+            exit 1
+          fi
       - name: Generar SHA256
         working-directory: dist/release/artifacts
-        run: sha256sum * > SHA256SUMS.txt
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          packages=(*.deb *.exe *.zip *.tar.gz *.dmg)
+          (( ${#packages[@]} > 0 )) || { echo "ERROR: no hay paquetes para generar SHA256"; exit 1; }
+          sha256sum "${packages[@]}" > SHA256SUMS.txt
       - name: Firmar con GPG cuando estén disponibles ambos secretos
         if: env.GPG_PRIVATE_KEY != '' && env.GPG_PASSPHRASE != ''
         run: |

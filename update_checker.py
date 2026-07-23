@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-import sys
+import platform
 import time
 from pathlib import Path
 from typing import Any
@@ -29,15 +29,25 @@ def _release_api_url() -> str:
     return f"https://api.github.com/repos/{repo}/releases/latest"
 
 
-def _is_windows() -> bool:
-    return sys.platform.startswith("win")
+def get_update_platform() -> str:
+    system = platform.system()
+    if system == "Windows":
+        return "windows"
+    if system == "Linux":
+        return "linux"
+    if system == "Darwin":
+        return "macos"
+    return "unsupported"
 
 
 def _asset_matches_platform(name: str) -> bool:
     normalized = name.lower()
-    if _is_windows():
+    current_platform = get_update_platform()
+    if current_platform == "windows":
         return normalized.startswith("nexarfinanzas_v") and normalized.endswith("_setup.exe")
-    return normalized.startswith("nexarfinanzas_v") and normalized.endswith("_linux_amd64.deb")
+    if current_platform == "linux":
+        return normalized.startswith("nexarfinanzas_v") and normalized.endswith("_linux_amd64.deb")
+    return False
 
 
 def _installer_kind(asset_name: str) -> str:
@@ -73,6 +83,8 @@ def check_latest_release(current_version: str) -> dict[str, Any]:
         None,
     )
     asset_name = installer_asset.get("name") if installer_asset else ""
+    current_platform = get_update_platform()
+    manual_install = current_platform == "macos"
     return {
         "available": available,
         "current": current_version,
@@ -82,6 +94,22 @@ def check_latest_release(current_version: str) -> dict[str, Any]:
         "asset_name": asset_name,
         "asset_url": installer_asset.get("browser_download_url") if installer_asset else "",
         "asset_kind": _installer_kind(asset_name),
+        "platform": current_platform,
+        "install_mode": (
+            "manual"
+            if manual_install
+            else ("unsupported" if current_platform == "unsupported" else "automatic")
+        ),
+        "install_message": (
+            "La actualización automática no está disponible en macOS. "
+            "Descargá e instalá manualmente el archivo .dmg o .zip desde la release."
+            if manual_install
+            else (
+                "La actualización automática no está disponible para esta plataforma."
+                if current_platform == "unsupported"
+                else ""
+            )
+        ),
     }
 
 

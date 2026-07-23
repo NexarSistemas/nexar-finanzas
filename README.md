@@ -128,6 +128,11 @@ es utilizable, pero Gatekeeper puede mostrar una advertencia. Firmar y notarizar
 requiere certificados válidos y una cuenta Apple Developer; su ausencia no
 impide generar los Artifacts de prueba.
 
+La actualización automática dentro de la aplicación sigue disponible en Linux
+y Windows. En macOS está desactivada temporalmente: la app puede informar que
+existe una versión nueva, pero el usuario debe descargar e instalar manualmente
+el `.dmg` o `.zip` desde la Release.
+
 ---
 
 ## 🔄 Actualizar una versión existente
