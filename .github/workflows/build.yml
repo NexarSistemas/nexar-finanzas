@@ -301,7 +301,7 @@ jobs:
             echo "ERROR: no se publicará una Release vacía"
             exit 1
           fi
-          awk -v ver="$VERSION" '$0 ~ "^## \\[" ver "\\]" {found=1; next} /^## \\[/ && found {exit} found' CHANGELOG.md > release.md
+          awk -v ver="$VERSION" '$0 ~ "^## \\[" ver "\\]" {found=1; next} /^## \[/ && found {exit} found' CHANGELOG.md > release.md
           test -s release.md || { echo "ERROR: no se pudieron generar notas desde CHANGELOG.md"; exit 1; }
       - name: Crear o actualizar Release y assets
         env:
