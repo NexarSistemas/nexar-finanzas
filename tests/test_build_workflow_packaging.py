@@ -3,6 +3,22 @@ from pathlib import Path
 
 
 class BuildWorkflowPackagingTests(unittest.TestCase):
+    def test_release_version_sources_match(self):
+        version = Path("VERSION").read_text(encoding="utf-8").strip()
+
+        self.assertEqual(version, "1.13.2")
+        self.assertIn(f"Nexar Finanzas v{version}", Path("README.md").read_text(encoding="utf-8"))
+        self.assertIn(f"Nexar Finanzas v{version}", Path("app.py").read_text(encoding="utf-8"))
+        self.assertIn(f'APP_VERSION="{version}"', Path("iniciar.sh").read_text(encoding="utf-8"))
+        self.assertIn(f"v{version}", Path("iniciar.bat").read_text(encoding="utf-8"))
+        self.assertIn(
+            f'!define APP_VERSION    "{version}"',
+            Path("build_scripts_windows/finanzas_hogar.nsi").read_text(encoding="utf-8"),
+        )
+        version_info = Path("build_scripts_windows/version_info.txt").read_text(encoding="utf-8")
+        self.assertIn("filevers=(1, 13, 2, 0)", version_info)
+        self.assertIn("prodvers=(1, 13, 2, 0)", version_info)
+
     def test_final_artifact_search_is_depth_limited_and_validated(self):
         workflow = Path(".github/workflows/build.yml").read_text(encoding="utf-8")
         self.assertIn("-mindepth 2", workflow)
@@ -25,7 +41,16 @@ class BuildWorkflowPackagingTests(unittest.TestCase):
         )
         self.assertIn('[[ "$(uname -m)" == "x86_64" ]]', build_script)
         self.assertIn('lipo -archs "$APP_EXECUTABLE"', build_script)
+        self.assertIn("_macos_x86_64.zip", build_script)
+        self.assertIn("_macos_x86_64.dmg", build_script)
+        self.assertIn("nexar-finanzas-macos-x86_64-", workflow)
         self.assertIn("target_arch='x86_64'", spec)
+
+    def test_frozen_logging_does_not_write_inside_the_installation(self):
+        app_source = Path("app.py").read_text(encoding="utf-8")
+
+        self.assertIn("log_dir = str(get_user_data_dir())", app_source)
+        self.assertNotIn("log_dir = os.path.dirname(sys.executable)", app_source)
 
 
 if __name__ == "__main__":

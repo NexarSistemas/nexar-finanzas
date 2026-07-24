@@ -25,12 +25,12 @@ def _release_response():
                 "browser_download_url": "https://example.test/NexarFinanzas_v9.9.9_linux_amd64.deb",
             },
             {
-                "name": "NexarFinanzas_v9.9.9_macos.dmg",
-                "browser_download_url": "https://example.test/NexarFinanzas_v9.9.9_macos.dmg",
+                "name": "NexarFinanzas_v9.9.9_macos_x86_64.dmg",
+                "browser_download_url": "https://example.test/NexarFinanzas_v9.9.9_macos_x86_64.dmg",
             },
             {
-                "name": "NexarFinanzas_v9.9.9_macos.zip",
-                "browser_download_url": "https://example.test/NexarFinanzas_v9.9.9_macos.zip",
+                "name": "NexarFinanzas_v9.9.9_macos_x86_64.zip",
+                "browser_download_url": "https://example.test/NexarFinanzas_v9.9.9_macos_x86_64.zip",
             },
         ],
     }

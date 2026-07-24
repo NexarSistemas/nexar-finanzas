@@ -1,4 +1,4 @@
-# 💰 Nexar Finanzas v1.13.1
+# 💰 Nexar Finanzas v1.13.2
 
 Aplicación de gestión financiera personal para escritorio. Funciona completamente
 offline, utilizando base de datos SQLite local, y está optimizada para equipos
@@ -7,7 +7,7 @@ de gama media/baja.
 Estado actual:
 
 - Estado del repositorio: activo
-- Version actual: `1.13.1`
+- Version actual: `1.13.2`
 - Contexto central del ecosistema: repo externo `nexar-ai-context`, archivo `CONTEXTO_NEXAR.md`
 
 > Nota: los estándares de seguridad compartidos de Nexar se mantienen en `nexar-ai-context/standards/`.
@@ -90,6 +90,10 @@ chmod +x iniciar.sh
 > **Linux — ventana nativa:** los builds oficiales usan Qt/PySide6 empaquetado
 > dentro de la aplicación. Si la ventana nativa falla, la app abre en el
 > navegador del sistema igualmente.
+>
+> La carpeta de instalación se considera de solo lectura. Nexar Finanzas debe
+> ejecutarse con el usuario habitual, sin `root`, `sudo` ni permisos de
+> administrador.
 
 ## Builds y publicación
 
@@ -100,7 +104,8 @@ descargan desde la sección **Artifacts** de la ejecución y se conservan 14 dí
 
 - `nexar-finanzas-linux-X.Y.Z`: `.deb` y portable `.tar.gz`.
 - `nexar-finanzas-windows-X.Y.Z`: instalador `.exe` y portable `.zip`.
-- `nexar-finanzas-macos-X.Y.Z`: aplicación `.app`, `.zip` y `.dmg`.
+- `nexar-finanzas-macos-x86_64-X.Y.Z`: aplicación `.app`, `.zip` y `.dmg`
+  Intel con nombres `macos_x86_64`.
 - `nexar-finanzas-final-X.Y.Z`: paquetes de las tres plataformas, hashes SHA256
   y firmas `.sig` cuando están configurados los secretos GPG.
 
@@ -193,6 +198,21 @@ resistente a reinstalaciones — se guarda fuera de la base de datos.
 
 La activación inicial requiere conexión para validar la clave y vincular el
 equipo. Después queda cache local para continuidad offline.
+
+### Datos locales de licencia
+
+El caché mutable de licencias nunca se guarda en la carpeta de instalación, el
+directorio de trabajo ni el contenido de la aplicación macOS. Su ubicación es:
+
+- Linux: `${XDG_DATA_HOME:-~/.local/share}/NexarFinanzas/license_cache.json`
+- Windows: `%LOCALAPPDATA%\NexarFinanzas\license_cache.json`
+- macOS: `~/Library/Application Support/NexarFinanzas/license_cache.json`
+
+Al actualizar desde una versión anterior, si todavía no existe el nuevo caché,
+la aplicación busca únicamente `license_cache.json` en ubicaciones legacy
+conocidas de Nexar Finanzas. Solo migra JSON legible, no sobrescribe un caché
+nuevo y no reutiliza datos de Nexar Comercio/Tienda. Un fallo de migración se
+registra y no modifica las reglas ni los estados de licencia.
 
 Flujos válidos de activación:
 
@@ -339,6 +359,7 @@ a tus datos reales — transacciones, cuentas, presupuestos e inversiones.
 
 | Versión | Cambios principales |
 |---|---|
+| **v1.13.2** | Caché de licencias multiplataforma en el directorio de datos del usuario, con migración segura y escritura atómica |
 | **v1.12.0** | Salud Financiera Fase 1 y Reportes completos con ahorro, balance y tasa de ahorro |
 | **v1.11.0** | Bloque funcional de descubierto bancario: soporte, UX visual y reportes básicos |
 | **v1.10.16** | Inicio sin aviso previo de demo/activacion y ventana nativa maximizada |

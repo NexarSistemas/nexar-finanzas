@@ -101,6 +101,31 @@ Ante fallas temporales de validacion remota, el arranque conserva una licencia
 paga local vigente en vez de revocarla automaticamente. Las revocaciones quedan
 reservadas para rechazos explicitos del servidor o del SDK.
 
+## Cache de licencias pagas
+
+`licensing/license_cache.py` es el unico helper que resuelve y prepara la ruta
+del cache mutable usado por la fachada y por `nexar_licencias`:
+
+- Linux: `${XDG_DATA_HOME:-~/.local/share}/NexarFinanzas/license_cache.json`.
+- Windows: `%LOCALAPPDATA%\NexarFinanzas\license_cache.json`.
+- macOS: `~/Library/Application Support/NexarFinanzas/license_cache.json`.
+
+La ruta es absoluta y no depende del `cwd`, `sys._MEIPASS`, el ejecutable, el
+repositorio ni la carpeta de instalacion. El directorio padre se crea bajo el
+usuario actual; la aplicacion no debe ejecutarse como `root` o administrador
+para resolver permisos de datos.
+
+El SDK `v1.2.0` permite configurar `cache_file`, pero su escritor abre el destino
+directamente. Finanzas conserva ese SDK y encapsula la validacion en un archivo
+temporal dentro del directorio de datos. Solo promueve un JSON valido al destino
+canonico mediante reemplazo atomico. Si la escritura o promocion falla, la
+activacion no se sincroniza en SQLite y se informa el error (fail-closed).
+
+Si el destino nuevo no existe, se inspeccionan solamente ubicaciones legacy
+conocidas de `license_cache.json`. La migracion exige JSON legible, conserva el
+origen, no sobrescribe el destino y rechaza caches identificados como
+Nexar Comercio/Tienda. Los errores se registran sin alterar reglas de validacion.
+
 ## Estado efectivo
 
 `license_service.get_license_state(db_path)` devuelve:

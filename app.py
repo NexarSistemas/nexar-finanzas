@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 app.py
-Punto de entrada principal — Nexar Finanzas v1.10.8
+Punto de entrada principal — Nexar Finanzas v1.13.2
 Modo de visualización: pywebview (ventana nativa) con fallback
 al navegador SOLO si pywebview falla o no está disponible.
 """
@@ -73,21 +73,24 @@ except Exception as e:
 # ─── Log de errores a archivo ─────────────────────────────────
 
 def _setup_logging():
-    if getattr(sys, 'frozen', False):
-        log_dir = os.path.dirname(sys.executable)
-    else:
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        if os.access(script_dir, os.W_OK):
-            log_dir = script_dir
-        else:
-            log_dir = os.path.join(
-                os.environ.get('HOME', os.path.expanduser('~')),
-                '.local', 'share', 'nexar-finanzas'
-            )
-            os.makedirs(log_dir, exist_ok=True)
-
-    log_path = os.path.join(log_dir, 'finanzas_error.log')
     try:
+        if getattr(sys, 'frozen', False):
+            from licensing.license_cache import get_user_data_dir
+
+            log_dir = str(get_user_data_dir())
+            os.makedirs(log_dir, exist_ok=True)
+        else:
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            if os.access(script_dir, os.W_OK):
+                log_dir = script_dir
+            else:
+                log_dir = os.path.join(
+                    os.environ.get('HOME', os.path.expanduser('~')),
+                    '.local', 'share', 'nexar-finanzas'
+                )
+                os.makedirs(log_dir, exist_ok=True)
+
+        log_path = os.path.join(log_dir, 'finanzas_error.log')
         logging.basicConfig(
             filename=log_path,
             level=logging.DEBUG,
