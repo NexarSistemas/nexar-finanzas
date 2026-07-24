@@ -10,6 +10,13 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+from .license_cache import (
+    atomic_save_license_cache,
+    get_license_cache_path,
+    migrate_legacy_license_cache,
+    sdk_cache_transaction,
+)
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 VENDORED_SDK_PACKAGE = BASE_DIR / "nexar_licencias"
@@ -246,9 +253,12 @@ def get_license_product() -> str:
 def get_sdk_config(overrides: dict[str, Any] | None = None):
     module = _import_module("nexar_licencias")
     sdk_config_cls = getattr(module, "SDKConfig")
+    cache_path = get_license_cache_path()
+    migrate_legacy_license_cache(cache_path)
     values = {
         "validation_url": _env_first("NEXAR_LICENSES_VALIDATION_URL", "SUPABASE_URL"),
         "supabase_key": _env_first("NEXAR_LICENSES_SUPABASE_KEY", "SUPABASE_KEY", "SUPABASE_ANON_KEY"),
+        "cache_file": str(cache_path),
     }
     values.update(overrides or {})
     return sdk_config_cls.from_env(**{k: v for k, v in values.items() if v})
@@ -288,20 +298,15 @@ def get_current_hwid() -> str:
 def _save_sdk_cache(license_data: dict, config=None) -> None:
     if not license_data:
         return
-    save_cache = None
     try:
-        cache_module = _import_module("nexar_licencias.cache")
-        save_cache = getattr(cache_module, "save_cache", None)
-        if callable(save_cache):
-            save_cache(license_data, config=config)
-    except TypeError:
-        try:
-            if callable(save_cache):
-                save_cache(license_data)
-        except Exception:
-            pass
-    except Exception:
-        pass
+        destination = (
+            Path(config.resolved_cache_file)
+            if config is not None and hasattr(config, "resolved_cache_file")
+            else get_license_cache_path()
+        )
+        atomic_save_license_cache(license_data, destination=destination)
+    except (PermissionError, OSError, ValueError) as exc:
+        raise OSError(f"No se pudo guardar el cache de licencia en el directorio de datos del usuario: {exc}") from exc
 
 
 def _activate_license_without_sdk(license_key: str) -> tuple[bool, str, dict[str, Any] | None]:
@@ -354,12 +359,19 @@ def validate_license_key(license_key: str, db_path: str | None = None, debug: bo
     if sdk_config is None and (validar_detalle is not None or validar_licencia is not None):
         try:
             sdk_config = get_sdk_config()
-        except Exception:
-            sdk_config = None
+        except Exception as exc:
+            return False, (
+                "No se pudo preparar el cache de licencia en el directorio "
+                f"de datos del usuario: {exc}"
+            )
 
     if validar_detalle is None and validar_licencia is None:
         fallback_ok, fallback_msg, fallback_data = _activate_license_without_sdk(license_key)
         if fallback_ok and fallback_data:
+            try:
+                _save_sdk_cache(fallback_data)
+            except OSError as exc:
+                return False, str(exc)
             ok_sync, sync_msg = _sync_license_data(db_path, fallback_data)
             if not ok_sync:
                 return False, sync_msg
@@ -367,6 +379,16 @@ def validate_license_key(license_key: str, db_path: str | None = None, debug: bo
         return False, fallback_msg or "No se pudo cargar el SDK nexar_licencias."
 
     result = {}
+    cache_commit = None
+    cache_context = None
+    canonical_sdk_config = sdk_config
+    if sdk_config is not None and hasattr(sdk_config, "resolved_cache_file"):
+        try:
+            cache_context = sdk_cache_transaction(sdk_config)
+            sdk_config, cache_commit = cache_context.__enter__()
+        except (PermissionError, OSError, ValueError) as exc:
+            return False, f"No se pudo preparar el cache de licencia en el directorio de datos del usuario: {exc}"
+
     try:
         if validar_detalle is not None:
             result = validar_detalle(
@@ -387,28 +409,24 @@ def validate_license_key(license_key: str, db_path: str | None = None, debug: bo
                 config=sdk_config,
             ))
             license_data = {"license_key": license_key}
-    except TypeError:
-        try:
-            if validar_detalle is not None:
-                result = validar_detalle(
-                    {"license_key": license_key},
-                    load_public_key(),
-                    get_license_product(),
-                    debug=debug,
-                )
-                ok = bool(result.get("ok"))
-                license_data = result.get("license") or {}
-            else:
-                ok = bool(validar_licencia(
-                    {"license_key": license_key},
-                    load_public_key(),
-                    get_license_product(),
-                    debug=debug,
-                ))
-                license_data = {"license_key": license_key}
-        except Exception as ex:
+    except TypeError as ex:
+        if cache_context is not None:
+            cache_context.__exit__(None, None, None)
+            cache_context = None
+            cache_commit = None
+            sdk_config = canonical_sdk_config
+        type_error_message = str(ex).lower()
+        if "unexpected keyword argument" not in type_error_message or "config" not in type_error_message:
             return False, f"Error validando licencia: {ex}"
+        fallback_ok, fallback_msg, fallback_data = _activate_license_without_sdk(license_key)
+        if not fallback_ok or not fallback_data:
+            return False, fallback_msg
+        ok = True
+        license_data = fallback_data
+        result = {"ok": True, "source": "online", "license": license_data}
     except Exception as ex:
+        if cache_context is not None:
+            cache_context.__exit__(type(ex), ex, ex.__traceback__)
         return False, f"Error validando licencia: {ex}"
 
     if not ok:
@@ -418,11 +436,19 @@ def validate_license_key(license_key: str, db_path: str | None = None, debug: bo
             if fallback_ok and fallback_data:
                 ok = True
                 license_data = fallback_data
-                _save_sdk_cache(license_data, config=sdk_config)
+                if cache_context is not None:
+                    cache_context.__exit__(None, None, None)
+                    cache_context = None
+                    cache_commit = None
+                    sdk_config = canonical_sdk_config
             else:
+                if cache_context is not None:
+                    cache_context.__exit__(None, None, None)
                 return False, fallback_msg
 
     if not ok:
+        if cache_context is not None:
+            cache_context.__exit__(None, None, None)
         reason = result.get("reason") if validar_detalle is not None else ""
         messages = {
             "expirada": "La licencia expiro. Pedi la renovacion al desarrollador.",
@@ -434,7 +460,17 @@ def validate_license_key(license_key: str, db_path: str | None = None, debug: bo
         }
         return False, messages.get(reason, "La licencia es invalida, expiro o fue revocada.")
 
-    _save_sdk_cache(license_data, config=sdk_config)
+    try:
+        if cache_commit is not None:
+            cache_commit()
+        else:
+            _save_sdk_cache(license_data, config=sdk_config)
+    except (PermissionError, OSError, ValueError, json.JSONDecodeError) as exc:
+        if cache_context is not None:
+            cache_context.__exit__(type(exc), exc, exc.__traceback__)
+        return False, f"Licencia valida, pero no se pudo guardar el cache de licencia: {exc}"
+    if cache_context is not None:
+        cache_context.__exit__(None, None, None)
 
     ok_sync, sync_msg = _sync_license_data(db_path, license_data)
     if not ok_sync:
@@ -443,7 +479,13 @@ def validate_license_key(license_key: str, db_path: str | None = None, debug: bo
     return True, "Licencia validada correctamente."
 
 
-def validate_saved_license(db_path: str, debug: bool = False, config=None) -> tuple[bool, str]:
+def validate_saved_license(
+    db_path: str,
+    debug: bool = False,
+    config=None,
+    *,
+    include_details: bool = False,
+):
     try:
         license_key = read_config(db_path).get("license_key", "")
     except Exception:
@@ -452,4 +494,14 @@ def validate_saved_license(db_path: str, debug: bool = False, config=None) -> tu
     if not license_key:
         return False, "No hay licencia guardada."
 
-    return validate_license_key(license_key, db_path=db_path, debug=debug, config=config)
+    result = validate_license_key(license_key, db_path=db_path, debug=debug, config=config)
+    if include_details and not result[0]:
+        message = result[1].lower()
+        if "cache de licencia" in message or "directorio de datos del usuario" in message:
+            return result + (
+                {
+                    "temporary": True,
+                    "reason": "cache_persistence_error",
+                },
+            )
+    return result

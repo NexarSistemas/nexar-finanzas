@@ -19,6 +19,22 @@ Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 - Las GitHub Releases se crean exclusivamente al publicar un tag SemVer que
   coincida con `VERSION` y tenga entrada en este changelog.
 
+## [1.13.2] - 2026-07-24
+
+### Corregido
+- Se corrige el `PermissionError` al validar licencias desde instalaciones Linux
+  de solo lectura, como `/opt/NexarFinanzas`.
+- El caché de licencias se guarda en el directorio de datos escribible del
+  usuario con rutas nativas para Windows, Linux y macOS.
+- La migración del caché relativo legacy valida el JSON, no sobrescribe un caché
+  nuevo y evita mezclar datos de Nexar Comercio/Tienda.
+- La escritura del caché usa un archivo temporal y reemplazo atómico para no
+  dejar JSON parcial.
+
+### Sin cambios funcionales
+- No cambian las reglas comerciales, la duración, los planes ni los estados de
+  licencia `DEMO`, `BASICA`, `PRO` y `FULL`.
+
 ## [1.13.1] - 2026-07-18
 
 ### Corregido

@@ -6,7 +6,7 @@ Aplicación de escritorio para gestión financiera personal, con operación loca
 
 ## Estado confirmado
 
-- Repositorio activo; versión documentada: `1.13.1`.
+- Repositorio activo; versión documentada: `1.13.2`.
 - La aplicación funciona offline para la gestión cotidiana y utiliza validación online/cache para licencias.
 - La DEMO de Nexar Finanzas dura 30 días; esta regla es propia del producto y no debe confundirse con los 14 días de Nexar Comercio.
 - BASICA es permanente; PRO y FULL son mensuales.

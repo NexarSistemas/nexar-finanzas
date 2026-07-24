@@ -202,13 +202,22 @@ class DemoAntiReinstallTests(unittest.TestCase):
 
         with patch(
             "licensing.license_sdk.validate_saved_license",
-            return_value=(False, "temporary", {"reason": "timeout"}),
-        ), patch("builtins.print"):
+            return_value=(
+                False,
+                "Licencia valida, pero no se pudo guardar el cache de licencia.",
+                {"temporary": True, "reason": "cache_persistence_error"},
+            ),
+        ) as validate_saved, patch("builtins.print"):
             result = check_license.check_license()
 
         cfg = _read_config(db_path)
         self.assertEqual(result, "PRO")
         self.assertEqual(cfg["license_tier"], "PRO")
+        validate_saved.assert_called_once_with(
+            db_path,
+            debug=True,
+            include_details=True,
+        )
 
     def test_non_validated_sdk_state_is_not_temporary_and_revokes(self):
         from licensing import check_license

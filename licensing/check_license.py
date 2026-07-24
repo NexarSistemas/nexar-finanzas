@@ -122,7 +122,11 @@ def check_license():
             try:
                 from .license_sdk import validate_saved_license
 
-                validation_result = validate_saved_license(_get_db_path(), debug=True)
+                validation_result = validate_saved_license(
+                    _get_db_path(),
+                    debug=True,
+                    include_details=True,
+                )
                 ok, msg = validation_result[:2]
                 if not ok:
                     print(f"[LICENSE] {msg}")

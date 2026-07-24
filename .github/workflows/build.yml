@@ -189,17 +189,17 @@ jobs:
       - name: Validar archivos macOS
         run: |
           test -d "release/NexarFinanzas.app"
-          test -f "release/NexarFinanzas_v${VERSION}_macos.zip"
-          test -f "release/NexarFinanzas_v${VERSION}_macos.dmg"
+          test -f "release/NexarFinanzas_v${VERSION}_macos_x86_64.zip"
+          test -f "release/NexarFinanzas_v${VERSION}_macos_x86_64.dmg"
           test "$(lipo -archs release/NexarFinanzas.app/Contents/MacOS/NexarFinanzas)" = "x86_64"
       - uses: actions/upload-artifact@v4
         with:
-          name: nexar-finanzas-macos-${{ needs.check.outputs.version }}
+          name: nexar-finanzas-macos-x86_64-${{ needs.check.outputs.version }}
           path: |
             release/NexarFinanzas.app
             release/*.zip
             release/*.dmg
-            release/SHA256SUMS_macos.txt
+            release/SHA256SUMS_macos_x86_64.txt
           if-no-files-found: error
           retention-days: 14
 
