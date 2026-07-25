@@ -52,6 +52,12 @@ class BuildWorkflowPackagingTests(unittest.TestCase):
         self.assertIn("log_dir = str(get_user_data_dir())", app_source)
         self.assertNotIn("log_dir = os.path.dirname(sys.executable)", app_source)
 
+    def test_release_notes_awk_regex_is_well_formed(self):
+        workflow = Path(".github/workflows/build.yml").read_text(encoding="utf-8")
+
+        self.assertIn(r"/^## \[/ && found", workflow)
+        self.assertNotIn(r"/^## \\[/ && found", workflow)
+
 
 if __name__ == "__main__":
     unittest.main()
