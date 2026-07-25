@@ -210,9 +210,12 @@ directorio de trabajo ni el contenido de la aplicación macOS. Su ubicación es:
 
 Al actualizar desde una versión anterior, si todavía no existe el nuevo caché,
 la aplicación busca únicamente `license_cache.json` en ubicaciones legacy
-conocidas de Nexar Finanzas. Solo migra JSON legible, no sobrescribe un caché
-nuevo y no reutiliza datos de Nexar Comercio/Tienda. Un fallo de migración se
-registra y no modifica las reglas ni los estados de licencia.
+conocidas de Nexar Finanzas y el archivo previamente indicado por
+`NEXAR_LICENSES_CACHE_FILE` o su alias `NEXAR_CACHE_FILE`. Esas variables se
+usan solo como origen de migración: las escrituras continúan en el directorio
+nativo del usuario. Solo migra JSON legible, no sobrescribe un caché nuevo y no
+reutiliza datos de Nexar Comercio/Tienda. Un fallo de migración se registra y no
+modifica las reglas ni los estados de licencia.
 
 Flujos válidos de activación:
 
