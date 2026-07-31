@@ -149,6 +149,37 @@ class LicenseCachePathTests(unittest.TestCase):
         self.assertEqual(json.loads(destination.read_text(encoding="utf-8")), payload)
         self.assertTrue(legacy.exists())
 
+    def test_ignores_unexpandable_legacy_environment_override_and_checks_known_paths(self):
+        temp_dir = make_temp_dir()
+        self.addCleanup(temp_dir.cleanup)
+        root = Path(temp_dir.name)
+        legacy = root / "license_cache.json"
+        destination = root / "user-data" / "NexarFinanzas" / "license_cache.json"
+        payload = {
+            "data": {"license_key": "NXR-FIN-CWD", "product": "nexar-finanzas"},
+            "last_check": "2026-07-24T10:00:00",
+        }
+        legacy.write_text(json.dumps(payload), encoding="utf-8")
+
+        original_cwd = Path.cwd()
+        original_expanduser = Path.expanduser
+
+        def expanduser(path):
+            if str(path).startswith("~former_user"):
+                raise RuntimeError("Could not determine home directory.")
+            return original_expanduser(path)
+
+        try:
+            os.chdir(root)
+            with patch.dict(os.environ, {"NEXAR_CACHE_FILE": "~former_user/cache.json"}, clear=True):
+                with patch.object(Path, "expanduser", expanduser):
+                    migrated = migrate_legacy_license_cache(destination)
+        finally:
+            os.chdir(original_cwd)
+
+        self.assertTrue(migrated)
+        self.assertEqual(json.loads(destination.read_text(encoding="utf-8")), payload)
+
     def test_resolves_relative_environment_override_only_as_legacy_source(self):
         temp_dir = make_temp_dir()
         self.addCleanup(temp_dir.cleanup)

@@ -66,10 +66,19 @@ def _configured_legacy_cache_paths(environ: dict[str, str] | None = None) -> tup
     if not configured_file:
         return ()
 
-    candidate = Path(configured_file).expanduser()
+    try:
+        candidate = Path(configured_file).expanduser()
+    except RuntimeError as exc:
+        logging.warning("[LICENSE] Ruta legacy de cache ignorada por usuario invalido: %s", exc)
+        return ()
     if not candidate.is_absolute():
         configured_dir = env.get(_ENV_CACHE_DIR_NAME, "").strip()
-        candidate = Path(configured_dir).expanduser() / candidate if configured_dir else candidate
+        if configured_dir:
+            try:
+                candidate = Path(configured_dir).expanduser() / candidate
+            except RuntimeError as exc:
+                logging.warning("[LICENSE] Directorio legacy de cache ignorado por usuario invalido: %s", exc)
+                return ()
         candidate = Path.cwd() / candidate
     return (candidate,)
 

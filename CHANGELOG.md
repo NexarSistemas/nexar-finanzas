@@ -19,6 +19,10 @@ Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 - Las GitHub Releases se crean exclusivamente al publicar un tag SemVer que
   coincida con `VERSION` y tenga entrada en este changelog.
 
+### Corregido
+- La migracion del cache reconoce `NEXAR_LICENSES_CACHE_FILE` y
+  `NEXAR_CACHE_FILE` solo como origen legacy.
+
 ## [1.13.2] - 2026-07-24
 
 ### Corregido
