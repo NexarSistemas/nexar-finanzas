@@ -17,6 +17,8 @@ from typing import Callable, Iterable, Iterator
 APP_DATA_DIR_NAME = "NexarFinanzas"
 CACHE_FILE_NAME = "license_cache.json"
 _FINANZAS_PRODUCT_NAMES = {"nexar-finanzas", "nexar_finanzas", "nexarfinanzas"}
+_ENV_CACHE_FILE_NAMES = ("NEXAR_LICENSES_CACHE_FILE", "NEXAR_CACHE_FILE")
+_ENV_CACHE_DIR_NAME = "NEXAR_LICENSES_CACHE_DIR"
 
 
 def get_user_data_dir(
@@ -55,8 +57,34 @@ def ensure_license_cache_directory(cache_path: Path | None = None) -> Path:
     return destination
 
 
+def _configured_legacy_cache_paths(environ: dict[str, str] | None = None) -> tuple[Path, ...]:
+    env = os.environ if environ is None else environ
+    configured_file = next(
+        (env.get(name, "").strip() for name in _ENV_CACHE_FILE_NAMES if env.get(name, "").strip()),
+        "",
+    )
+    if not configured_file:
+        return ()
+
+    try:
+        candidate = Path(configured_file).expanduser()
+    except RuntimeError as exc:
+        logging.warning("[LICENSE] Ruta legacy de cache ignorada por usuario invalido: %s", exc)
+        return ()
+    if not candidate.is_absolute():
+        configured_dir = env.get(_ENV_CACHE_DIR_NAME, "").strip()
+        if configured_dir:
+            try:
+                candidate = Path(configured_dir).expanduser() / candidate
+            except RuntimeError as exc:
+                logging.warning("[LICENSE] Directorio legacy de cache ignorado por usuario invalido: %s", exc)
+                return ()
+        candidate = Path.cwd() / candidate
+    return (candidate,)
+
+
 def _known_legacy_cache_paths() -> tuple[Path, ...]:
-    candidates = [Path.cwd() / CACHE_FILE_NAME]
+    candidates = [*_configured_legacy_cache_paths(), Path.cwd() / CACHE_FILE_NAME]
     source_root = Path(__file__).resolve().parent.parent
     candidates.append(source_root / CACHE_FILE_NAME)
     if getattr(sys, "frozen", False):

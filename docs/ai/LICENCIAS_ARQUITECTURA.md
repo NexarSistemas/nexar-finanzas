@@ -122,9 +122,12 @@ canonico mediante reemplazo atomico. Si la escritura o promocion falla, la
 activacion no se sincroniza en SQLite y se informa el error (fail-closed).
 
 Si el destino nuevo no existe, se inspeccionan solamente ubicaciones legacy
-conocidas de `license_cache.json`. La migracion exige JSON legible, conserva el
-origen, no sobrescribe el destino y rechaza caches identificados como
-Nexar Comercio/Tienda. Los errores se registran sin alterar reglas de validacion.
+conocidas de `license_cache.json` y la ruta configurada previamente mediante
+`NEXAR_LICENSES_CACHE_FILE` o `NEXAR_CACHE_FILE`. Esos valores se aceptan solo
+como origen de migracion; nunca reemplazan el destino canonico del directorio de
+datos del usuario. La migracion exige JSON legible, conserva el origen, no
+sobrescribe el destino y rechaza caches identificados como Nexar
+Comercio/Tienda. Los errores se registran sin alterar reglas de validacion.
 
 ## Estado efectivo
 
@@ -156,7 +159,8 @@ La integracion con `nexar_licencias` se hace desde `license_service.py`.
   `nexar_licencias`; no debe apuntar a `main` ni a una carpeta editable local.
 - Se prefieren variables `NEXAR_LICENSES_*`.
 - Se mantienen aliases legacy: `SUPABASE_URL`, `SUPABASE_KEY`,
-  `SUPABASE_ANON_KEY`, `NEXAR_CACHE_FILE`, `NEXAR_CACHE_DAYS`.
+  `SUPABASE_ANON_KEY` y `NEXAR_CACHE_DAYS`. `NEXAR_CACHE_FILE` se reconoce
+  exclusivamente como origen de migracion hacia la ruta canonica escribible.
 - La validacion usa `validar_licencia_detalle` cuando existe y conserva fallback
   online directo contra Supabase para instalaciones empaquetadas donde el SDK no
   pueda importarse.
