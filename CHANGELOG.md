@@ -10,6 +10,11 @@ Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 ### Agregado
 - Build no firmado de macOS con aplicación `.app`, archivo `.zip` e imagen
   `.dmg` generados con PyInstaller y herramientas nativas de macOS.
+- Monitoreo opcional de errores no controlados mediante Sentry, habilitado con
+  `SENTRY_DSN` y configurable por entorno mediante `NEXAR_ENV`.
+- La integración utiliza únicamente Error Monitoring y excluye logging,
+  tracing, profiling, PII, solicitudes, formularios, cookies, usuarios,
+  breadcrumbs y variables locales.
 
 ### Cambiado
 - Los builds de Linux, Windows y macOS se publican como GitHub Actions Artifacts
