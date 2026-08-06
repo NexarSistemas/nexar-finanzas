@@ -265,6 +265,12 @@ APP_VERSION = get_version()
 app.config['APP_VERSION'] = APP_VERSION
 
 
+# ─── Error Monitoring opcional ───────────────────────────────
+
+from sentry_monitoring import initialize_sentry
+initialize_sentry(APP_VERSION)
+
+
 def _pywebview_start_kwargs():
     kwargs = {
         'debug': False,
