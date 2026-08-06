@@ -49,6 +49,7 @@ def initialize_sentry(app_version: str) -> bool:
             environment=_get_environment(),
             release=f"nexar-finanzas@{app_version}",
             integrations=[flask_integration()],
+            default_integrations=False,
             traces_sample_rate=0,
             profiles_sample_rate=0,
             send_default_pii=False,

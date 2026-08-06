@@ -35,6 +35,7 @@ class SentryMonitoringTests(unittest.TestCase):
             environment="test",
             release="nexar-finanzas@1.13.2",
             integrations=["flask-integration"],
+            default_integrations=False,
             traces_sample_rate=0,
             profiles_sample_rate=0,
             send_default_pii=False,
