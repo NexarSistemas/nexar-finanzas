@@ -75,6 +75,16 @@ licencias. Los builds oficiales usan `requirements-build.txt`, que agrega
 `nexar_licencias` fijado a una release concreta para empaquetarlo dentro de los
 instaladores.
 
+### Monitoreo de errores opcional
+
+Para habilitar el reporte de errores no controlados a Sentry, configurá
+`SENTRY_DSN` en el entorno o en `.env.finanzas`. También podés indicar
+`NEXAR_ENV` (por ejemplo, `staging`); si se omite, la aplicación usa
+`development` desde código fuente y `production` en los ejecutables empaquetados.
+No se inicia Sentry si `SENTRY_DSN` no está definido. La integración no habilita
+tracing ni profiling, no envía PII por defecto y excluye datos de solicitudes,
+formularios, cookies y usuarios de los eventos.
+
 ### Windows — doble clic
 
 Ejecutá `iniciar.bat`. Verifica Python, instala dependencias si hace falta y
