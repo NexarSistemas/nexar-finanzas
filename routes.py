@@ -1259,11 +1259,20 @@ def register_routes(app):
                         db.commit()
                         flash('Transferencia registrada correctamente.', 'success')
                         db.close()
-                        return redirect(url_for('accounts'))
+                        return redirect(url_for('transfer'))
 
+        transfers = db.execute("""
+            SELECT t.id, t.amount, t.currency, t.date, t.description,
+                   source.name AS from_account_name,
+                   destination.name AS to_account_name
+            FROM transfers t
+            JOIN accounts source ON source.id = t.from_account_id
+            JOIN accounts destination ON destination.id = t.to_account_id
+            ORDER BY t.date DESC, t.id DESC
+        """).fetchall()
         db.close()
         return render_template('transfer_form.html', accounts=accounts_list,
-                               today=date.today().isoformat())
+                               transfers=transfers, today=date.today().isoformat())
 
     # ══════════════════════════════════════════════════════════════════════════
     # TRANSACCIONES
