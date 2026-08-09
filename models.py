@@ -395,6 +395,7 @@ def init_db(db_path: str):
     cur.execute("CREATE INDEX IF NOT EXISTS idx_tx_type      ON transactions(type)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_tx_category  ON transactions(category_id)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_tx_account   ON transactions(account_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_transfers_date_id ON transfers(date DESC, id DESC)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_budget_month ON budgets(year, month)")
 
     # ── Datos iniciales ────────────────────────────────────────────────────────
