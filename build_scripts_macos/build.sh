@@ -47,8 +47,8 @@ APP_EXECUTABLE="$APP_PATH/Contents/MacOS/$APP_NAME"
 mkdir -p "$OUTPUT_DIR"
 cp -R "$APP_PATH" "$OUTPUT_DIR/"
 
-ZIP_FILE="$OUTPUT_DIR/${APP_NAME}_v${APP_VERSION}_macos_x86_64.zip"
-DMG_FILE="$OUTPUT_DIR/${APP_NAME}_v${APP_VERSION}_macos_x86_64.dmg"
+ZIP_FILE="$OUTPUT_DIR/Nexar_Finanzas_macOS_x86_64.zip"
+DMG_FILE="$OUTPUT_DIR/Nexar_Finanzas_macOS_x86_64.dmg"
 ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$ZIP_FILE"
 
 DMG_SOURCE="$(mktemp -d)"
@@ -57,5 +57,5 @@ cp -R "$APP_PATH" "$DMG_SOURCE/"
 ln -s /Applications "$DMG_SOURCE/Applications"
 hdiutil create -volname "Nexar Finanzas ${APP_VERSION}" -srcfolder "$DMG_SOURCE" -ov -format UDZO "$DMG_FILE"
 
-(cd "$OUTPUT_DIR" && shasum -a 256 "${APP_NAME}_v${APP_VERSION}_macos_x86_64.zip" "${APP_NAME}_v${APP_VERSION}_macos_x86_64.dmg" > SHA256SUMS_macos_x86_64.txt)
+(cd "$OUTPUT_DIR" && shasum -a 256 Nexar_Finanzas_macOS_x86_64.zip Nexar_Finanzas_macOS_x86_64.dmg > SHA256SUMS_macos_x86_64.txt)
 echo "Build macOS sin firma generado en $OUTPUT_DIR"

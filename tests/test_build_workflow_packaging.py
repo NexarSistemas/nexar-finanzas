@@ -41,10 +41,35 @@ class BuildWorkflowPackagingTests(unittest.TestCase):
         )
         self.assertIn('[[ "$(uname -m)" == "x86_64" ]]', build_script)
         self.assertIn('lipo -archs "$APP_EXECUTABLE"', build_script)
-        self.assertIn("_macos_x86_64.zip", build_script)
-        self.assertIn("_macos_x86_64.dmg", build_script)
+        self.assertIn("Nexar_Finanzas_macOS_x86_64.zip", build_script)
+        self.assertIn("Nexar_Finanzas_macOS_x86_64.dmg", build_script)
         self.assertIn("nexar-finanzas-macos-x86_64-", workflow)
         self.assertIn("target_arch='x86_64'", spec)
+
+    def test_public_release_asset_names_are_stable_and_release_is_tag_only(self):
+        workflow = Path(".github/workflows/build.yml").read_text(encoding="utf-8")
+        build_sources = "\n".join([
+            workflow,
+            Path("build_scripts_windows/build.ps1").read_text(encoding="utf-8"),
+            Path("build_scripts_windows/installer.iss").read_text(encoding="utf-8"),
+            Path("build_scripts_windows/finanzas_hogar.nsi").read_text(encoding="utf-8"),
+            Path("build_scripts_linux/build.sh").read_text(encoding="utf-8"),
+            Path("build_scripts_macos/build.sh").read_text(encoding="utf-8"),
+        ])
+        expected_assets = (
+            "Nexar_Finanzas_Windows_Setup.exe",
+            "Nexar_Finanzas_Windows_Portable.zip",
+            "Nexar_Finanzas_Linux_amd64.deb",
+            "Nexar_Finanzas_Linux_Portable.tar.gz",
+            "Nexar_Finanzas_macOS_x86_64.zip",
+            "Nexar_Finanzas_macOS_x86_64.dmg",
+        )
+
+        for asset in expected_assets:
+            self.assertIn(asset, build_sources)
+        self.assertNotIn("NexarFinanzas_v", build_sources)
+        self.assertIn('- "v*.*.*"', workflow)
+        self.assertIn("github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')", workflow)
 
     def test_frozen_logging_does_not_write_inside_the_installation(self):
         app_source = Path("app.py").read_text(encoding="utf-8")

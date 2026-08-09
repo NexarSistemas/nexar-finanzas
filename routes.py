@@ -41,7 +41,14 @@ from licensing.license_service import (
     validate_saved_license,
 )
 from licensing.supabase_license_api import create_license_request, generate_activation_id, is_configured
-from update_checker import download_release_asset, get_cached_update_info, get_update_platform
+from update_checker import (
+    LINUX_INSTALLER,
+    WINDOWS_INSTALLER,
+    download_release_asset,
+    get_cached_update_info,
+    get_update_platform,
+    normalize_release_version,
+)
 from services import financial_health
 import services
 from services.mercadopago_checkout import (
@@ -695,7 +702,7 @@ def _version_tuple(version: str) -> tuple[int, int, int]:
     return tuple(parts)
 
 
-def _installer_version(filename: str) -> str:
+def _installer_version(filename: str, release_version: str = "") -> str:
     patterns = (
         r"^NexarFinanzas_v(?P<version>[0-9]+(?:\.[0-9]+){1,2})_linux_amd64\.deb$",
         r"^NexarFinanzas_v(?P<version>[0-9]+(?:\.[0-9]+){1,2})_setup\.exe$",
@@ -705,7 +712,29 @@ def _installer_version(filename: str) -> str:
         match = re.match(pattern, filename or "")
         if match:
             return match.group("version")
+    if filename in {WINDOWS_INSTALLER, LINUX_INSTALLER}:
+        return normalize_release_version(release_version)
     return ""
+
+
+def _is_update_installer(filename: str, current_platform: str) -> bool:
+    if current_platform == "windows":
+        return filename == WINDOWS_INSTALLER or bool(re.fullmatch(
+            r"NexarFinanzas_v\d+(?:\.\d+){1,2}_(?:setup|Setup)\.exe", filename or ""
+        ))
+    if current_platform == "linux":
+        return filename == LINUX_INSTALLER or bool(re.fullmatch(
+            r"NexarFinanzas_v\d+(?:\.\d+){1,2}_linux_amd64\.deb", filename or ""
+        ))
+    return False
+
+
+def _downloaded_installer_version(path: Path) -> str:
+    version_file = path.parent / f"{path.name}.version"
+    try:
+        return normalize_release_version(version_file.read_text(encoding="utf-8"))
+    except OSError:
+        return ""
 
 
 def _update_list() -> list[dict]:
@@ -716,15 +745,16 @@ def _update_list() -> list[dict]:
     current_platform = get_update_platform()
     if current_platform == "windows":
         candidates = [
+            update_dir / WINDOWS_INSTALLER,
             *update_dir.glob("NexarFinanzas_v*_setup.exe"),
             *update_dir.glob("NexarFinanzas_v*_Setup.exe"),
         ]
     elif current_platform == "linux":
-        candidates = [*update_dir.glob("NexarFinanzas_v*_linux_amd64.deb")]
+        candidates = [update_dir / LINUX_INSTALLER, *update_dir.glob("NexarFinanzas_v*_linux_amd64.deb")]
     else:
         candidates = []
-    for path in sorted(candidates, key=lambda p: p.stat().st_mtime, reverse=True):
-        installer_version = _installer_version(path.name)
+    for path in sorted((path for path in candidates if path.exists()), key=lambda p: p.stat().st_mtime, reverse=True):
+        installer_version = _installer_version(path.name, _downloaded_installer_version(path))
         if installer_version and _version_tuple(installer_version) <= _version_tuple(current_version):
             continue
         stat = path.stat()
@@ -743,11 +773,7 @@ def _update_list() -> list[dict]:
 def _update_file(nombre: str) -> Path:
     safe_name = Path(nombre or "").name
     current_platform = get_update_platform()
-    valid = (
-        (current_platform == "windows" and safe_name.lower().endswith(".exe"))
-        or (current_platform == "linux" and safe_name.lower().endswith(".deb"))
-    )
-    valid = valid and bool(_installer_version(safe_name))
+    valid = _is_update_installer(safe_name, current_platform)
     if safe_name != nombre or not valid:
         raise FileNotFoundError("Instalador invalido.")
     update_dir = _update_dir()
@@ -2309,7 +2335,9 @@ def register_routes(app):
             return redirect(url_for("actualizacion"))
 
         try:
-            target = download_release_asset(update_info["asset_url"], _update_dir())
+            target = download_release_asset(
+                update_info["asset_url"], _update_dir(), update_info.get("latest", "")
+            )
         except Exception as exc:
             flash(f"No se pudo descargar la actualizacion: {exc}", "danger")
             return redirect(url_for("actualizacion"))
@@ -2373,7 +2401,7 @@ def register_routes(app):
             flash(str(exc), "danger")
             return redirect(url_for("actualizacion"))
 
-        target_version = _installer_version(installer.name)
+        target_version = _installer_version(installer.name, _downloaded_installer_version(installer))
         if not target_version:
             flash("No se pudo identificar la version del instalador.", "warning")
             return redirect(url_for("actualizacion"))

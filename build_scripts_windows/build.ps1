@@ -2,8 +2,8 @@
 # Autor: Rolando Navarta
 #
 # Genera dos artefactos en la carpeta release\:
-#   - NexarFinanzas_vX.Y.Z_portable_windows.zip  (portable con launcher)
-#   - NexarFinanzas_vX.Y.Z_setup.exe             (instalador Inno Setup)
+#   - Nexar_Finanzas_Windows_Portable.zip  (portable con launcher)
+#   - Nexar_Finanzas_Windows_Setup.exe     (instalador Inno Setup)
 #
 # Uso:
 #   Ejecutar desde la carpeta raiz del proyecto (donde esta app.py):
@@ -123,7 +123,7 @@ if (-not (Test-Path $OUTPUT_DIR)) {
 }
 
 # FIX: separador \ entre $OUTPUT_DIR y $APP_NAME para que el path sea valido
-$portableZip = "$OUTPUT_DIR\${APP_NAME}_v${APP_VERSION}_portable_windows.zip"
+$portableZip = "$OUTPUT_DIR\Nexar_Finanzas_Windows_Portable.zip"
 
 Compress-Archive -Path "$DIST_DIR\*" -DestinationPath $portableZip -Force
 
@@ -170,8 +170,8 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "[OK] Instalador generado" -ForegroundColor Green
 
 # Mover el installer desde dist_installer\ a release\ para centralizar artefactos
-$installerSrc = "build_scripts_windows\dist_installer\${APP_NAME}_v${APP_VERSION}_setup.exe"
-$installerDst = "$OUTPUT_DIR\${APP_NAME}_v${APP_VERSION}_setup.exe"
+$installerSrc = "build_scripts_windows\dist_installer\Nexar_Finanzas_Windows_Setup.exe"
+$installerDst = "$OUTPUT_DIR\Nexar_Finanzas_Windows_Setup.exe"
 
 if (Test-Path $installerSrc) {
     Move-Item $installerSrc $installerDst -Force

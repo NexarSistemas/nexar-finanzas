@@ -19,6 +19,8 @@ Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
   logging, tracing, profiling, breadcrumbs y variables locales.
 
 ### Cambiado
+- Se normalizan los nombres públicos de los paquetes de Release para permitir
+  enlaces estables a la última versión.
 - Los builds de Linux, Windows y macOS se publican como GitHub Actions Artifacts
   durante 14 días en ejecuciones internas, manuales y pushes a `main`.
 - El build macOS MVP se fija a un runner Intel y valida que la aplicación
