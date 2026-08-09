@@ -7,6 +7,8 @@ Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 ---
 ## [Unreleased]
 
+## [1.14.0] - 2026-08-08
+
 ### Agregado
 - La pantalla Transferencias muestra el historial de transferencias entre
   cuentas.

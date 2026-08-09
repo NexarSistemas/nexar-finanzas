@@ -6,7 +6,7 @@ class BuildWorkflowPackagingTests(unittest.TestCase):
     def test_release_version_sources_match(self):
         version = Path("VERSION").read_text(encoding="utf-8").strip()
 
-        self.assertEqual(version, "1.13.2")
+        self.assertEqual(version, "1.14.0")
         self.assertIn(f"Nexar Finanzas v{version}", Path("README.md").read_text(encoding="utf-8"))
         self.assertIn(f"Nexar Finanzas v{version}", Path("app.py").read_text(encoding="utf-8"))
         self.assertIn(f'APP_VERSION="{version}"', Path("iniciar.sh").read_text(encoding="utf-8"))
@@ -16,8 +16,8 @@ class BuildWorkflowPackagingTests(unittest.TestCase):
             Path("build_scripts_windows/finanzas_hogar.nsi").read_text(encoding="utf-8"),
         )
         version_info = Path("build_scripts_windows/version_info.txt").read_text(encoding="utf-8")
-        self.assertIn("filevers=(1, 13, 2, 0)", version_info)
-        self.assertIn("prodvers=(1, 13, 2, 0)", version_info)
+        self.assertIn("filevers=(1, 14, 0, 0)", version_info)
+        self.assertIn("prodvers=(1, 14, 0, 0)", version_info)
 
     def test_final_artifact_search_is_depth_limited_and_validated(self):
         workflow = Path(".github/workflows/build.yml").read_text(encoding="utf-8")

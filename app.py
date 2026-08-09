@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 app.py
-Punto de entrada principal — Nexar Finanzas v1.13.2
+Punto de entrada principal — Nexar Finanzas v1.14.0
 Modo de visualización: pywebview (ventana nativa) con fallback
 al navegador SOLO si pywebview falla o no está disponible.
 """
