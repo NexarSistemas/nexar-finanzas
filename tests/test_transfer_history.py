@@ -72,6 +72,20 @@ class TransferHistoryTests(unittest.TestCase):
             self.assertEqual(response.status_code, 302)
         return self._account_id("Cuenta origen"), self._account_id("Cuenta destino")
 
+    def _create_transfers(self, from_id, to_id, count):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            conn.executemany("""
+                INSERT INTO transfers (from_account_id, to_account_id, amount, currency, date, description)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, [
+                (from_id, to_id, 100 + index, "ARS", "2026-08-01", f"Transferencia {index:02d}")
+                for index in range(count)
+            ])
+            conn.commit()
+        finally:
+            conn.close()
+
     def test_empty_history_is_clear(self):
         response = self.client.get("/transfers")
 
@@ -118,6 +132,38 @@ class TransferHistoryTests(unittest.TestCase):
 
         body = self.client.get("/transfers").get_data(as_text=True)
         self.assertLess(body.index("Transferencia reciente"), body.index("Transferencia anterior"))
+
+    def test_history_paginates_transfers_and_navigates_between_pages(self):
+        from_id, to_id = self._create_accounts()
+        self._create_transfers(from_id, to_id, 21)
+
+        first_page = self.client.get("/transfers")
+        first_body = first_page.get_data(as_text=True)
+        self.assertEqual(first_page.status_code, 200)
+        self.assertIn("Transferencia 20", first_body)
+        self.assertNotIn("Transferencia 00", first_body)
+        self.assertIn('href="/transfers?page=2"', first_body)
+
+        second_page = self.client.get("/transfers?page=2")
+        second_body = second_page.get_data(as_text=True)
+        self.assertEqual(second_page.status_code, 200)
+        self.assertIn("Transferencia 00", second_body)
+        self.assertNotIn("Transferencia 20", second_body)
+
+    def test_new_transfer_redirects_to_first_page(self):
+        from_id, to_id = self._create_accounts()
+        self._create_transfers(from_id, to_id, 20)
+
+        response = self.client.post("/transfers?page=2", data={
+            "from_account_id": str(from_id), "to_account_id": str(to_id),
+            "amount": "250", "currency": "ARS", "date": "2026-08-02",
+            "description": "Transferencia nueva",
+        }, follow_redirects=True)
+
+        body = response.get_data(as_text=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Transferencia nueva", body)
+        self.assertNotIn("Transferencia 00", body)
 
 
 if __name__ == "__main__":

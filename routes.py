@@ -1219,6 +1219,9 @@ def register_routes(app):
     @login_required
     def transfer():
         db = get_db(get_db_path())
+        page = int(request.args.get('page', 1))
+        limit = 20
+        offset = (page - 1) * limit
         accounts_list = db.execute(
             "SELECT * FROM accounts WHERE active=1 ORDER BY name"
         ).fetchall()
@@ -1261,6 +1264,7 @@ def register_routes(app):
                         db.close()
                         return redirect(url_for('transfer'))
 
+        total = db.execute("SELECT COUNT(*) as n FROM transfers").fetchone()['n']
         transfers = db.execute("""
             SELECT t.id, t.amount, t.currency, t.date, t.description,
                    source.name AS from_account_name,
@@ -1269,10 +1273,13 @@ def register_routes(app):
             JOIN accounts source ON source.id = t.from_account_id
             JOIN accounts destination ON destination.id = t.to_account_id
             ORDER BY t.date DESC, t.id DESC
-        """).fetchall()
+            LIMIT ? OFFSET ?
+        """, (limit, offset)).fetchall()
         db.close()
+        total_pages = (total + limit - 1) // limit
         return render_template('transfer_form.html', accounts=accounts_list,
-                               transfers=transfers, today=date.today().isoformat())
+                               transfers=transfers, today=date.today().isoformat(),
+                               page=page, total_pages=total_pages)
 
     # ══════════════════════════════════════════════════════════════════════════
     # TRANSACCIONES

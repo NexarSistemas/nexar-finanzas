@@ -111,6 +111,19 @@
     Todavía no registraste transferencias entre cuentas.
   </div>
   {% endif %}
+  {% if total_pages > 1 %}
+  <div class="card-footer py-2">
+    <nav>
+      <ul class="pagination pagination-sm mb-0 justify-content-center">
+        {% for p in range(1, total_pages + 1) %}
+        <li class="page-item {% if p == page %}active{% endif %}">
+          <a class="page-link" href="{{ url_for('transfer', page=p) }}">{{ p }}</a>
+        </li>
+        {% endfor %}
+      </ul>
+    </nav>
+  </div>
+  {% endif %}
 </div>
 
 {% endblock %}
