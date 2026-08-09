@@ -124,7 +124,7 @@ echo -e "${YELLOW}[4/5] Creando portable...${NC}"
 
 mkdir -p "$OUTPUT_DIR"
 
-PORTABLE_FILE="${OUTPUT_DIR}/${APP_NAME}_v${APP_VERSION}_portable_linux.tar.gz"
+PORTABLE_FILE="${OUTPUT_DIR}/Nexar_Finanzas_Linux_Portable.tar.gz"
 
 tar -czf "$PORTABLE_FILE" -C "dist" "$APP_NAME"
 
@@ -135,7 +135,7 @@ echo -e "${YELLOW}[5/5] Creando .deb...${NC}"
 
 DEB_DIR="/tmp/${APP_NAME}_deb_build"
 DEB_INSTALL_DIR="${DEB_DIR}/opt/${APP_NAME}"
-DEB_FILE="${OUTPUT_DIR}/${APP_NAME}_v${APP_VERSION}_linux_${DEB_ARCH}.deb"
+DEB_FILE="${OUTPUT_DIR}/Nexar_Finanzas_Linux_${DEB_ARCH}.deb"
 
 rm -rf "$DEB_DIR"
 mkdir -p "$DEB_INSTALL_DIR" "${DEB_DIR}/DEBIAN"

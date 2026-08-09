@@ -119,6 +119,13 @@ descargan desde la sección **Artifacts** de la ejecución y se conservan 14 dí
 - `nexar-finanzas-final-X.Y.Z`: paquetes de las tres plataformas, hashes SHA256
   y firmas `.sig` cuando están configurados los secretos GPG.
 
+Los assets públicos de cada GitHub Release usan nombres estables para enlaces
+`/releases/latest/download/<asset>`: `Nexar_Finanzas_Windows_Setup.exe`,
+`Nexar_Finanzas_Windows_Portable.zip`, `Nexar_Finanzas_Linux_amd64.deb`,
+`Nexar_Finanzas_Linux_Portable.tar.gz`, `Nexar_Finanzas_macOS_x86_64.zip`,
+`Nexar_Finanzas_macOS_x86_64.dmg` y `SHA256SUMS.txt` (más sus `.sig` cuando
+corresponda).
+
 Los pull requests internos y los pushes a `main` también generan Artifacts, pero
 nunca publican una Release. En PR provenientes de forks se ejecuta la validación
 de versión y changelog, mientras que los builds se omiten de forma segura porque

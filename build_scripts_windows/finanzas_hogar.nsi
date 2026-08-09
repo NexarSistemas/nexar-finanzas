@@ -24,7 +24,7 @@ Unicode True
 !define WEBVIEW2_HKCU  "Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
 
 Name               "${APP_NAME} v${APP_VERSION}"
-OutFile            "${ROOT}\release\NexarFinanzas_v${APP_VERSION}_Setup.exe"
+OutFile            "${ROOT}\release\Nexar_Finanzas_Windows_Setup.exe"
 InstallDir         "${INSTALL_DIR}"
 InstallDirRegKey   HKLM "${UNINSTALL_KEY}" "InstallLocation"
 RequestExecutionLevel admin

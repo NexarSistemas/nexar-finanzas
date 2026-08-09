@@ -85,8 +85,8 @@ jobs:
         run: bash build_scripts_linux/build.sh
       - name: Validar archivos Linux
         run: |
-          test -f "release/NexarFinanzas_v${VERSION}_linux_amd64.deb"
-          test -f "release/NexarFinanzas_v${VERSION}_portable_linux.tar.gz"
+          test -f "release/Nexar_Finanzas_Linux_amd64.deb"
+          test -f "release/Nexar_Finanzas_Linux_Portable.tar.gz"
       - uses: actions/upload-artifact@v4
         with:
           name: nexar-finanzas-linux-${{ needs.check.outputs.version }}
@@ -137,8 +137,8 @@ jobs:
       - name: Validar archivos Windows
         shell: bash
         run: |
-          test -f "release/NexarFinanzas_v${VERSION}_setup.exe"
-          test -f "release/NexarFinanzas_v${VERSION}_portable_windows.zip"
+          test -f "release/Nexar_Finanzas_Windows_Setup.exe"
+          test -f "release/Nexar_Finanzas_Windows_Portable.zip"
       - uses: actions/upload-artifact@v4
         with:
           name: nexar-finanzas-windows-${{ needs.check.outputs.version }}
@@ -189,8 +189,8 @@ jobs:
       - name: Validar archivos macOS
         run: |
           test -d "release/NexarFinanzas.app"
-          test -f "release/NexarFinanzas_v${VERSION}_macos_x86_64.zip"
-          test -f "release/NexarFinanzas_v${VERSION}_macos_x86_64.dmg"
+          test -f "release/Nexar_Finanzas_macOS_x86_64.zip"
+          test -f "release/Nexar_Finanzas_macOS_x86_64.dmg"
           test "$(lipo -archs release/NexarFinanzas.app/Contents/MacOS/NexarFinanzas)" = "x86_64"
       - uses: actions/upload-artifact@v4
         with:
@@ -240,7 +240,7 @@ jobs:
           for file in "${files[@]}"; do
             name="$(basename "$file")"
             case "$name" in
-              NexarFinanzas_v*.deb|NexarFinanzas_v*.exe|NexarFinanzas_v*.zip|NexarFinanzas_v*.tar.gz|NexarFinanzas_v*.dmg) ;;
+              Nexar_Finanzas_Windows_Setup.exe|Nexar_Finanzas_Windows_Portable.zip|Nexar_Finanzas_Linux_amd64.deb|Nexar_Finanzas_Linux_Portable.tar.gz|Nexar_Finanzas_macOS_x86_64.zip|Nexar_Finanzas_macOS_x86_64.dmg) ;;
               *)
                 echo "ERROR: archivo inesperado en el artifact final: $name"
                 exit 1
