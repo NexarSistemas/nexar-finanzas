@@ -12,7 +12,7 @@
 set -euo pipefail
  
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_VERSION="1.13.2"
+APP_VERSION="1.14.0"
 PORT="${PORT:-5000}"
 
 echo ""
