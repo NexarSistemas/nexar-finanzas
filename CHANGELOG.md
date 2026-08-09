@@ -8,6 +8,8 @@ Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Agregado
+- La pantalla Transferencias muestra el historial de transferencias entre
+  cuentas.
 - Build no firmado de macOS con aplicación `.app`, archivo `.zip` e imagen
   `.dmg` generados con PyInstaller y herramientas nativas de macOS.
 - Monitoreo opcional de errores no controlados mediante Sentry, habilitado con
