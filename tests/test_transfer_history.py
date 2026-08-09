@@ -133,6 +133,30 @@ class TransferHistoryTests(unittest.TestCase):
         body = self.client.get("/transfers").get_data(as_text=True)
         self.assertLess(body.index("Transferencia reciente"), body.index("Transferencia anterior"))
 
+    def test_history_query_uses_ordering_index_without_temp_b_tree(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            indexes = conn.execute("PRAGMA index_list('transfers')").fetchall()
+            self.assertIn("idx_transfers_date_id", [index[1] for index in indexes])
+
+            plan = conn.execute("""
+                EXPLAIN QUERY PLAN
+                SELECT t.id, t.amount, t.currency, t.date, t.description,
+                       source.name AS from_account_name,
+                       destination.name AS to_account_name
+                FROM transfers t
+                JOIN accounts source ON source.id = t.from_account_id
+                JOIN accounts destination ON destination.id = t.to_account_id
+                ORDER BY t.date DESC, t.id DESC
+                LIMIT ? OFFSET ?
+            """, (20, 0)).fetchall()
+        finally:
+            conn.close()
+
+        plan_details = " ".join(step[3] for step in plan)
+        self.assertIn("idx_transfers_date_id", plan_details)
+        self.assertNotIn("USE TEMP B-TREE FOR ORDER BY", plan_details)
+
     def test_history_paginates_transfers_and_navigates_between_pages(self):
         from_id, to_id = self._create_accounts()
         self._create_transfers(from_id, to_id, 21)
