@@ -1979,8 +1979,10 @@ def register_routes(app):
 
             if action == 'save_marketing_preference':
                 cfg = _load_activate_checkout_config(db_path)
-                email = request.form.get('marketing_email', '').strip().lower()
-                email = email or cfg.get('license_owner_email', '')
+                if 'marketing_email' in request.form:
+                    email = request.form.get('marketing_email', '').strip().lower()
+                else:
+                    email = cfg.get('license_owner_email', '')
                 marketing_opt_in = request.form.get('marketing_opt_in', '') == '1'
                 _set_config_values({
                     'license_owner_email': email,

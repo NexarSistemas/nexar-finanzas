@@ -271,6 +271,36 @@ class ActivatePageTests(unittest.TestCase):
         html = response.get_data(as_text=True)
         self.assertNotIn('id="marketing-opt-in" value="1" checked', html)
 
+    @patch("routes.sync_marketing_preference", return_value=False)
+    def test_marketing_email_can_be_explicitly_cleared(self, _mock_sync):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+                "license_owner_email": "demo@example.com",
+            }
+        )
+
+        response = client.post(
+            "/activate",
+            data={
+                "action": "save_marketing_preference",
+                "marketing_email": "",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        conn = sqlite3.connect(client.application.config["DB_PATH"])
+        row = conn.execute(
+            "SELECT value FROM config WHERE key = 'license_owner_email'"
+        ).fetchone()
+        conn.close()
+        self.assertEqual(row[0], "")
+
+        response = client.get("/activate")
+        self.assertNotIn('value="demo@example.com"', response.get_data(as_text=True))
+
     def test_marketing_preference_is_loaded_from_existing_config(self):
         client = self._make_client(
             {
