@@ -299,6 +299,14 @@
               <label class="form-label fw-semibold">WhatsApp</label>
               <input id="holder-whatsapp" name="whatsapp" class="form-control">
             </div>
+            <div class="col-12">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="marketing_opt_in" id="marketing-opt-in" value="1" {% if marketing_opt_in %}checked{% endif %}>
+                <label class="form-check-label" for="marketing-opt-in">
+                  Quiero recibir ofertas y novedades.
+                </label>
+              </div>
+            </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Plan solicitado</label>
               <select id="manual-plan" name="plan" class="form-select">

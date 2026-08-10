@@ -2,13 +2,14 @@ import sqlite3
 import unittest
 from datetime import date, timedelta
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from flask import Flask
 
 from demo_limits import get_demo_status
 from routes import register_routes
 from tempdir_compat import make_temp_dir
+from licensing import supabase_license_api
 
 
 def _create_db(config_values):
@@ -147,6 +148,102 @@ class ActivatePageTests(unittest.TestCase):
         self.assertIn("Plan Básica · Pagar con Mercado Pago", html)
         self.assertIn("Plan Pro · Pagar con Mercado Pago", html)
         self.assertIn("Plan Full · Pagar con Mercado Pago", html)
+
+    def test_marketing_consent_is_unchecked_when_config_is_absent(self):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+            }
+        )
+
+        response = client.get("/activate")
+
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn('id="marketing-opt-in"', html)
+        self.assertNotIn('id="marketing-opt-in" value="1" checked', html)
+
+    @patch("routes.create_license_request", return_value=(True, "Solicitud enviada.", None))
+    def test_marketing_consent_checked_is_persisted_and_sent(self, mock_create_request):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+            }
+        )
+
+        response = client.post(
+            "/activate",
+            data={
+                "action": "request_license",
+                "nombre": "Titular Demo",
+                "email": "demo@example.com",
+                "marketing_opt_in": "1",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(mock_create_request.call_args.kwargs["marketing_opt_in"])
+        conn = sqlite3.connect(client.application.config["DB_PATH"])
+        row = conn.execute(
+            "SELECT value FROM config WHERE key = 'license_marketing_opt_in'"
+        ).fetchone()
+        conn.close()
+        self.assertEqual(row[0], "1")
+
+    @patch("routes.create_license_request", return_value=(True, "Solicitud enviada.", None))
+    def test_marketing_consent_absent_is_persisted_as_false(self, mock_create_request):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+                "license_marketing_opt_in": "1",
+            }
+        )
+
+        response = client.post(
+            "/activate",
+            data={
+                "action": "request_license",
+                "nombre": "Titular Demo",
+                "email": "demo@example.com",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(mock_create_request.call_args.kwargs["marketing_opt_in"])
+        conn = sqlite3.connect(client.application.config["DB_PATH"])
+        row = conn.execute(
+            "SELECT value FROM config WHERE key = 'license_marketing_opt_in'"
+        ).fetchone()
+        conn.close()
+        self.assertEqual(row[0], "0")
+
+    @patch("routes.create_license_request", return_value=(False, "No se pudo sincronizar.", None))
+    def test_marketing_sync_failure_does_not_break_license_request_flow(self, _mock_create_request):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+            }
+        )
+
+        response = client.post(
+            "/activate",
+            data={
+                "action": "request_license",
+                "nombre": "Titular Demo",
+                "email": "demo@example.com",
+                "marketing_opt_in": "1",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
 
     def test_activate_page_shows_checkout_buttons_for_expired_demo(self):
         client = self._make_client(
@@ -380,6 +477,41 @@ class ActivatePageTests(unittest.TestCase):
         html = response.get_data(as_text=True)
         self.assertIn("Plan Full", html)
         self.assertNotIn("Plan Pro</span>", html)
+
+class MarketingConsentSupabaseTests(unittest.TestCase):
+    @patch("licensing.supabase_license_api.is_configured", return_value=True)
+    @patch("licensing.supabase_license_api.requests.post")
+    def test_license_request_payload_includes_marketing_opt_in(self, mock_post, _mock_configured):
+        response = Mock(status_code=201)
+        mock_post.return_value = response
+
+        ok, _message, _data = supabase_license_api.create_license_request(
+            nombre="Titular Demo",
+            email="DEMO@example.com",
+            activation_id="HWID-DEMO-001",
+            marketing_opt_in=True,
+            machine_details={"hardware_id": "local-hwid"},
+        )
+
+        self.assertTrue(ok)
+        payload = mock_post.call_args.kwargs["json"]
+        self.assertEqual(payload["email"], "demo@example.com")
+        self.assertTrue(payload["machine_details"]["marketing_opt_in"])
+
+    @patch("licensing.supabase_license_api.is_configured", return_value=True)
+    @patch(
+        "licensing.supabase_license_api.requests.post",
+        side_effect=supabase_license_api.requests.ConnectionError,
+    )
+    def test_sync_connection_failure_returns_a_safe_result(self, _mock_post, _mock_configured):
+        ok, _message, _data = supabase_license_api.create_license_request(
+            nombre="Titular Demo",
+            email="demo@example.com",
+            activation_id="HWID-DEMO-001",
+            marketing_opt_in=True,
+        )
+
+        self.assertFalse(ok)
 
 
 if __name__ == "__main__":

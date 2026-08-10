@@ -105,6 +105,7 @@ def create_license_request(
     nombre: str,
     email: str,
     whatsapp: str = "",
+    marketing_opt_in: bool = False,
     activation_id: str,
     producto: str = PRODUCTO_DEFAULT,
     plan: str = "BASICA",
@@ -122,6 +123,9 @@ def create_license_request(
     if not nombre or not email or not activation_id:
         return False, "Nombre, email e ID del equipo son obligatorios.", None
 
+    request_machine_details = dict(machine_details or {})
+    request_machine_details["marketing_opt_in"] = bool(marketing_opt_in)
+
     payload = {
         "producto": producto,
         "activation_id": activation_id,
@@ -130,10 +134,13 @@ def create_license_request(
         "whatsapp": whatsapp,
         "plan": plan,
         "estado": "pendiente",
-        "machine_details": machine_details or {},
+        "machine_details": request_machine_details,
     }
     headers = {**_headers(), "Prefer": "return=minimal"}
-    resp = requests.post(_requests_table_url(), headers=headers, json=payload, timeout=12)
+    try:
+        resp = requests.post(_requests_table_url(), headers=headers, json=payload, timeout=12)
+    except requests.RequestException:
+        return False, "No se pudo enviar la solicitud. Revisá la conexión o intentá nuevamente.", None
     if resp.status_code >= 300:
         return False, f"Error al registrar solicitud en Supabase ({resp.status_code}): {resp.text[:240]}", None
 

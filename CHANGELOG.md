@@ -7,6 +7,10 @@ Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 ---
 ## [Unreleased]
 
+### Agregado
+- Consentimiento opcional para recibir ofertas y novedades en la solicitud de
+  licencia, persistido localmente y enviado al backend de licencias.
+
 ## [1.14.0] - 2026-08-08
 
 ### Agregado

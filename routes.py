@@ -1956,10 +1956,15 @@ def register_routes(app):
             if action == 'request_license':
                 activation_id = request.form.get('activation_id', '').strip()
                 product_hwid = get_current_hwid() or get_hardware_id()
+                marketing_opt_in = request.form.get('marketing_opt_in', '') == '1'
+                _set_config_values({
+                    'license_marketing_opt_in': '1' if marketing_opt_in else '0',
+                }, db_path=db_path)
                 ok, msg, _data = create_license_request(
                     nombre=request.form.get('nombre', ''),
                     email=request.form.get('email', ''),
                     whatsapp=request.form.get('whatsapp', ''),
+                    marketing_opt_in=marketing_opt_in,
                     activation_id=activation_id or product_hwid,
                     producto=get_license_product(),
                     plan=request.form.get('plan', 'BASICA'),
@@ -2027,6 +2032,7 @@ def register_routes(app):
                                machine_details=machine_details,
                                producto=get_license_product(),
                                supabase_ok=is_configured(),
+                               marketing_opt_in=cfg.get('license_marketing_opt_in', '0') == '1',
                                license_key_local=cfg.get('license_key', ''),
                                license_plan=cfg.get('license_plan', ''),
                                tier=tier_actual,
