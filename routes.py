@@ -107,6 +107,14 @@ def recovery_error(question: str, answer: str) -> str:
     return ''
 
 
+def marketing_email_error(email: str, marketing_opt_in: bool) -> str:
+    if not marketing_opt_in:
+        return ''
+    if not re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', (email or '').strip()):
+        return 'Ingresá un email válido para recibir ofertas y novedades.'
+    return ''
+
+
 def login_required(f):
     """Decorador: redirige al login si no hay sesión activa."""
     @wraps(f)
@@ -970,11 +978,14 @@ def register_routes(app):
             marketing_opt_in = request.form.get('marketing_opt_in', '') == '1'
             pw_error  = password_confirmation_error(password, confirm)
             rec_error = recovery_error(rec_q, rec_a)
+            marketing_error = marketing_email_error(email, marketing_opt_in)
 
             if pw_error:
                 flash(pw_error, 'danger')
             elif rec_error:
                 flash(rec_error, 'danger')
+            elif marketing_error:
+                flash(marketing_error, 'danger')
             else:
                 db = get_db(get_db_path())
                 db.execute(
@@ -1984,6 +1995,10 @@ def register_routes(app):
                 else:
                     email = cfg.get('license_owner_email', '')
                 marketing_opt_in = request.form.get('marketing_opt_in', '') == '1'
+                marketing_error = marketing_email_error(email, marketing_opt_in)
+                if marketing_error:
+                    flash(marketing_error, 'danger')
+                    return redirect(url_for('activate'))
                 _set_config_values({
                     'license_owner_email': email,
                     'license_marketing_opt_in': '1' if marketing_opt_in else '0',

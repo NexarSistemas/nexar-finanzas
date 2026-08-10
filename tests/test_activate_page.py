@@ -185,6 +185,39 @@ class ActivatePageTests(unittest.TestCase):
         mock_sync.assert_called_once()
 
     @patch("routes.sync_marketing_preference", return_value=False)
+    def test_setup_rejects_marketing_consent_without_valid_email(self, mock_sync):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+            }
+        )
+
+        response = client.post(
+            "/setup",
+            data={
+                "username": "admin",
+                "password": "Abc1!d",
+                "confirm": "Abc1!d",
+                "recovery_question": "Mascota",
+                "recovery_answer": "Luna",
+                "email": "",
+                "marketing_opt_in": "1",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Ingresá un email válido", response.get_data(as_text=True))
+        conn = sqlite3.connect(client.application.config["DB_PATH"])
+        row = conn.execute(
+            "SELECT value FROM config WHERE key = 'license_marketing_opt_in'"
+        ).fetchone()
+        conn.close()
+        self.assertIsNone(row)
+        mock_sync.assert_not_called()
+
+    @patch("routes.sync_marketing_preference", return_value=False)
     def test_setup_allows_demo_to_continue_without_consent(self, _mock_sync):
         client = self._make_client(
             {
@@ -244,6 +277,43 @@ class ActivatePageTests(unittest.TestCase):
         values = dict(conn.execute("SELECT key, value FROM config").fetchall())
         conn.close()
         self.assertEqual(values["license_marketing_opt_in"], "1")
+        self.assertEqual(values["license_owner_email"], "demo@example.com")
+
+    @patch("routes.create_license_request")
+    @patch("routes.sync_marketing_preference", return_value=False)
+    def test_marketing_preference_rejects_opt_in_without_valid_email(
+        self,
+        mock_sync,
+        mock_create_request,
+    ):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+                "license_marketing_opt_in": "0",
+                "license_owner_email": "demo@example.com",
+            }
+        )
+
+        response = client.post(
+            "/activate",
+            data={
+                "action": "save_marketing_preference",
+                "marketing_email": "",
+                "marketing_opt_in": "1",
+            },
+            follow_redirects=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Ingresá un email válido", response.get_data(as_text=True))
+        mock_create_request.assert_not_called()
+        mock_sync.assert_not_called()
+        conn = sqlite3.connect(client.application.config["DB_PATH"])
+        values = dict(conn.execute("SELECT key, value FROM config").fetchall())
+        conn.close()
+        self.assertEqual(values["license_marketing_opt_in"], "0")
         self.assertEqual(values["license_owner_email"], "demo@example.com")
 
     @patch("routes.sync_marketing_preference", return_value=False)
