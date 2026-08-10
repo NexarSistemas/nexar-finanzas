@@ -8,8 +8,8 @@ Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Agregado
-- Consentimiento opcional para recibir ofertas y novedades en la solicitud de
-  licencia, persistido localmente y enviado al backend de licencias.
+- Preferencia independiente para recibir ofertas y novedades, disponible desde
+  la configuración inicial y Mi plan sin crear solicitudes de licencia.
 
 ## [1.14.0] - 2026-08-08
 

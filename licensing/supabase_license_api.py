@@ -100,12 +100,32 @@ def generate_activation_id(user_hint: str = "") -> tuple[str, dict[str, str]]:
     return activation_id, details
 
 
+def sync_marketing_preference(
+    *,
+    email: str,
+    marketing_opt_in: bool,
+    producto: str,
+    activation_id: str = "",
+) -> bool:
+    """Reserva la sincronizacion centralizada de preferencias comerciales.
+
+    TODO(confirmar): el backend debe exponer un endpoint autenticado e
+    idempotente que reciba ``email``, ``marketing_opt_in``, ``producto`` y
+    ``activation_id`` opcional, y desde alli gestione Resend. Finanzas no tiene
+    un endpoint o tabla observable para esta preferencia y no debe crear una
+    solicitud de licencia artificial para transportarla.
+
+    Hasta que ese contrato exista, la preferencia queda guardada localmente y
+    esta funcion no realiza trafico de red ni bloquea la aplicacion.
+    """
+    return False
+
+
 def create_license_request(
     *,
     nombre: str,
     email: str,
     whatsapp: str = "",
-    marketing_opt_in: bool = False,
     activation_id: str,
     producto: str = PRODUCTO_DEFAULT,
     plan: str = "BASICA",
@@ -123,9 +143,6 @@ def create_license_request(
     if not nombre or not email or not activation_id:
         return False, "Nombre, email e ID del equipo son obligatorios.", None
 
-    request_machine_details = dict(machine_details or {})
-    request_machine_details["marketing_opt_in"] = bool(marketing_opt_in)
-
     payload = {
         "producto": producto,
         "activation_id": activation_id,
@@ -134,13 +151,10 @@ def create_license_request(
         "whatsapp": whatsapp,
         "plan": plan,
         "estado": "pendiente",
-        "machine_details": request_machine_details,
+        "machine_details": machine_details or {},
     }
     headers = {**_headers(), "Prefer": "return=minimal"}
-    try:
-        resp = requests.post(_requests_table_url(), headers=headers, json=payload, timeout=12)
-    except requests.RequestException:
-        return False, "No se pudo enviar la solicitud. Revisá la conexión o intentá nuevamente.", None
+    resp = requests.post(_requests_table_url(), headers=headers, json=payload, timeout=12)
     if resp.status_code >= 300:
         return False, f"Error al registrar solicitud en Supabase ({resp.status_code}): {resp.text[:240]}", None
 

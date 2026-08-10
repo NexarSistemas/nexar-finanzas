@@ -40,7 +40,12 @@ from licensing.license_service import (
     validate_license_key,
     validate_saved_license,
 )
-from licensing.supabase_license_api import create_license_request, generate_activation_id, is_configured
+from licensing.supabase_license_api import (
+    create_license_request,
+    generate_activation_id,
+    is_configured,
+    sync_marketing_preference,
+)
 from update_checker import (
     LINUX_INSTALLER,
     WINDOWS_INSTALLER,
@@ -397,6 +402,7 @@ def _load_activate_checkout_config(db_path: str) -> dict[str, str]:
         "SELECT key, value FROM config WHERE key IN "
         "('license_activated_at','license_type','license_expires_at',"
         "'license_tier','license_key','license_plan','basica_activada',"
+        "'license_owner_email','license_marketing_opt_in',"
         "'pending_checkout_activation_id','pending_checkout_plan',"
         "'pending_checkout_request_type','pending_checkout_external_reference',"
         "'pending_checkout_started_at')"
@@ -960,6 +966,8 @@ def register_routes(app):
             confirm   = request.form.get('confirm', '')
             rec_q     = request.form.get('recovery_question', '').strip()
             rec_a     = request.form.get('recovery_answer', '')
+            email     = request.form.get('email', '').strip().lower()
+            marketing_opt_in = request.form.get('marketing_opt_in', '') == '1'
             pw_error  = password_confirmation_error(password, confirm)
             rec_error = recovery_error(rec_q, rec_a)
 
@@ -973,8 +981,24 @@ def register_routes(app):
                     "INSERT INTO user (id, username, password_hash, recovery_question, recovery_answer_hash) VALUES (1, ?, ?, ?, ?)",
                     (username, hash_password(password), rec_q, hash_recovery_answer(rec_a))
                 )
+                db.execute(
+                    "INSERT OR REPLACE INTO config (key, value) VALUES ('license_owner_email', ?)",
+                    (email,)
+                )
+                db.execute(
+                    "INSERT OR REPLACE INTO config (key, value) VALUES ('license_marketing_opt_in', ?)",
+                    ('1' if marketing_opt_in else '0',)
+                )
                 db.commit()
                 db.close()
+                try:
+                    sync_marketing_preference(
+                        email=email,
+                        marketing_opt_in=marketing_opt_in,
+                        producto=get_license_product(),
+                    )
+                except Exception:
+                    pass
                 flash(f'¡Bienvenido/a {username}! Iniciá sesión con tu nueva contraseña.', 'success')
                 return redirect(url_for('login'))
 
@@ -1953,18 +1977,34 @@ def register_routes(app):
         if request.method == 'POST':
             action = request.form.get('action', 'activate_license')
 
+            if action == 'save_marketing_preference':
+                cfg = _load_activate_checkout_config(db_path)
+                email = request.form.get('marketing_email', '').strip().lower()
+                email = email or cfg.get('license_owner_email', '')
+                marketing_opt_in = request.form.get('marketing_opt_in', '') == '1'
+                _set_config_values({
+                    'license_owner_email': email,
+                    'license_marketing_opt_in': '1' if marketing_opt_in else '0',
+                }, db_path=db_path)
+                try:
+                    sync_marketing_preference(
+                        email=email,
+                        marketing_opt_in=marketing_opt_in,
+                        producto=get_license_product(),
+                        activation_id=get_current_hwid() or get_hardware_id(),
+                    )
+                except Exception:
+                    pass
+                flash('Preferencia de comunicaciones guardada.', 'success')
+                return redirect(url_for('activate'))
+
             if action == 'request_license':
                 activation_id = request.form.get('activation_id', '').strip()
                 product_hwid = get_current_hwid() or get_hardware_id()
-                marketing_opt_in = request.form.get('marketing_opt_in', '') == '1'
-                _set_config_values({
-                    'license_marketing_opt_in': '1' if marketing_opt_in else '0',
-                }, db_path=db_path)
                 ok, msg, _data = create_license_request(
                     nombre=request.form.get('nombre', ''),
                     email=request.form.get('email', ''),
                     whatsapp=request.form.get('whatsapp', ''),
-                    marketing_opt_in=marketing_opt_in,
                     activation_id=activation_id or product_hwid,
                     producto=get_license_product(),
                     plan=request.form.get('plan', 'BASICA'),
@@ -2033,6 +2073,7 @@ def register_routes(app):
                                producto=get_license_product(),
                                supabase_ok=is_configured(),
                                marketing_opt_in=cfg.get('license_marketing_opt_in', '0') == '1',
+                               marketing_email=cfg.get('license_owner_email', ''),
                                license_key_local=cfg.get('license_key', ''),
                                license_plan=cfg.get('license_plan', ''),
                                tier=tier_actual,
