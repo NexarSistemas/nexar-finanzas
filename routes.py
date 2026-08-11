@@ -1069,7 +1069,10 @@ def register_routes(app):
                 flash(f'¡Bienvenido/a {username}! Iniciá sesión con tu nueva contraseña.', 'success')
                 if marketing_opt_in:
                     if marketing_synced:
-                        flash('Tu preferencia de novedades quedó sincronizada.', 'success')
+                        flash(
+                            'Te enviamos un correo para confirmar tu suscripción a novedades.',
+                            'success',
+                        )
                     else:
                         flash('Tu preferencia quedó guardada localmente, pero no pudo sincronizarse.', 'warning')
                 elif email and not marketing_synced:
@@ -2137,7 +2140,13 @@ def register_routes(app):
                 }, db_path=db_path)
                 marketing_synced = current_marketing_synced and not remaining_pending_cleanup_emails
                 if sync_attempted and marketing_synced:
-                    flash('Preferencia de comunicaciones guardada y sincronizada.', 'success')
+                    if marketing_opt_in:
+                        flash(
+                            'Preferencia guardada. Revisá tu email para confirmar la suscripción a novedades.',
+                            'success',
+                        )
+                    else:
+                        flash('Preferencia de comunicaciones guardada y sincronizada.', 'success')
                 else:
                     flash('Preferencia guardada localmente, pero no pudo sincronizarse.', 'warning')
                 return redirect(url_for('activate'))

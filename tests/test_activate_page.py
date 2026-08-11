@@ -1108,7 +1108,7 @@ class ActivatePageTests(unittest.TestCase):
         self.assertEqual(values["license_marketing_pending_cleanup_emails"], "[]")
         page = client.get("/activate")
         self.assertIn(
-            "Preferencia de comunicaciones guardada y sincronizada",
+            "Preferencia guardada. Revisá tu email para confirmar la suscripción a novedades.",
             page.get_data(as_text=True),
         )
         self.assertEqual(
@@ -1563,12 +1563,15 @@ class MarketingConsentSupabaseTests(unittest.TestCase):
     @patch.dict("os.environ", {"SUPABASE_URL": "https://example.supabase.co", "SUPABASE_ANON_KEY": "anon-key"}, clear=True)
     @patch("licensing.supabase_license_api.requests.post")
     def test_marketing_opt_in_calls_the_centralized_endpoint(self, post):
-        post.return_value = Mock(status_code=200, json=Mock(return_value={"ok": True}))
+        post.return_value = Mock(
+            status_code=200,
+            json=Mock(return_value={"ok": True, "pending_confirmation": True}),
+        )
 
         self.assertTrue(self._sync(True))
 
         post.assert_called_once_with(
-            "https://example.supabase.co/functions/v1/notify-admin",
+            "https://example.supabase.co/functions/v1/newsletter-preference",
             headers={
                 "apikey": "anon-key",
                 "Authorization": "Bearer anon-key",
@@ -1576,7 +1579,6 @@ class MarketingConsentSupabaseTests(unittest.TestCase):
                 "Prefer": "return=representation",
             },
             json={
-                "action": "newsletter_preference",
                 "email": "demo@example.com",
                 "marketing_opt_in": True,
                 "producto": "nexar-finanzas",
@@ -1592,6 +1594,13 @@ class MarketingConsentSupabaseTests(unittest.TestCase):
 
         self.assertTrue(self._sync(False))
         self.assertFalse(post.call_args.kwargs["json"]["marketing_opt_in"])
+
+    @patch.dict("os.environ", {"SUPABASE_URL": "https://example.supabase.co", "SUPABASE_ANON_KEY": "anon-key"}, clear=True)
+    @patch("licensing.supabase_license_api.requests.post")
+    def test_marketing_opt_in_requires_pending_confirmation(self, post):
+        post.return_value = Mock(status_code=200, json=Mock(return_value={"ok": True}))
+
+        self.assertFalse(self._sync(True))
 
     @patch.dict("os.environ", {"SUPABASE_URL": "https://example.supabase.co", "SUPABASE_ANON_KEY": "anon-key"}, clear=True)
     @patch("licensing.supabase_license_api.requests.post")

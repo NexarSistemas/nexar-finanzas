@@ -108,10 +108,11 @@ def sync_marketing_preference(
     producto: str,
     activation_id: str = "",
 ) -> bool:
-    """Sincroniza la preferencia con el contrato acotado de notify-admin.
+    """Sincroniza la preferencia con la Edge Function dedicada de novedades.
 
-    La Edge Function centralizada administra Resend; este cliente solo usa la
-    configuracion publica de Supabase ya necesaria para licencias.
+    Para opt-in, `True` significa que el backend aceptó la solicitud y quedó
+    pendiente la confirmación por email. Para opt-out, `True` significa que la
+    baja quedó aceptada por el backend.
     """
     email = (email or "").strip().lower()
     producto = (producto or "").strip().lower()
@@ -127,7 +128,6 @@ def sync_marketing_preference(
         return False
 
     payload: dict[str, Any] = {
-        "action": "newsletter_preference",
         "email": email,
         "marketing_opt_in": marketing_opt_in,
         "producto": producto,
@@ -140,7 +140,7 @@ def sync_marketing_preference(
     )
     try:
         response = requests.post(
-            f"{base}/functions/v1/notify-admin",
+            f"{base}/functions/v1/newsletter-preference",
             headers=_headers(),
             json=payload,
             timeout=8,
@@ -151,7 +151,13 @@ def sync_marketing_preference(
     except Exception:
         return False
 
-    return isinstance(result, dict) and result.get("ok") is True
+    if not isinstance(result, dict) or result.get("ok") is not True:
+        return False
+
+    if marketing_opt_in:
+        return result.get("pending_confirmation") is True
+
+    return True
 
 
 def create_license_request(
