@@ -1002,15 +1002,19 @@ def register_routes(app):
                 )
                 db.commit()
                 db.close()
-                try:
-                    sync_marketing_preference(
+                marketing_synced = False
+                if email:
+                    marketing_synced = sync_marketing_preference(
                         email=email,
                         marketing_opt_in=marketing_opt_in,
                         producto=get_license_product(),
                     )
-                except Exception:
-                    pass
                 flash(f'¡Bienvenido/a {username}! Iniciá sesión con tu nueva contraseña.', 'success')
+                if marketing_opt_in:
+                    if marketing_synced:
+                        flash('Tu preferencia de novedades quedó sincronizada.', 'success')
+                    else:
+                        flash('Tu preferencia quedó guardada localmente, pero no pudo sincronizarse.', 'warning')
                 return redirect(url_for('login'))
 
         return render_template('setup.html')
@@ -2003,16 +2007,18 @@ def register_routes(app):
                     'license_owner_email': email,
                     'license_marketing_opt_in': '1' if marketing_opt_in else '0',
                 }, db_path=db_path)
-                try:
-                    sync_marketing_preference(
+                marketing_synced = False
+                if email:
+                    marketing_synced = sync_marketing_preference(
                         email=email,
                         marketing_opt_in=marketing_opt_in,
                         producto=get_license_product(),
                         activation_id=get_current_hwid() or get_hardware_id(),
                     )
-                except Exception:
-                    pass
-                flash('Preferencia de comunicaciones guardada.', 'success')
+                if marketing_synced:
+                    flash('Preferencia de comunicaciones guardada y sincronizada.', 'success')
+                else:
+                    flash('Preferencia guardada localmente, pero no pudo sincronizarse.', 'warning')
                 return redirect(url_for('activate'))
 
             if action == 'request_license':

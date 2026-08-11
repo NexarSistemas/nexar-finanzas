@@ -4,6 +4,7 @@ import getpass
 import hashlib
 import os
 import platform
+import re
 from typing import Any
 
 import requests
@@ -107,18 +108,50 @@ def sync_marketing_preference(
     producto: str,
     activation_id: str = "",
 ) -> bool:
-    """Reserva la sincronizacion centralizada de preferencias comerciales.
+    """Sincroniza la preferencia con el contrato acotado de notify-admin.
 
-    TODO(confirmar): el backend debe exponer un endpoint autenticado e
-    idempotente que reciba ``email``, ``marketing_opt_in``, ``producto`` y
-    ``activation_id`` opcional, y desde alli gestione Resend. Finanzas no tiene
-    un endpoint o tabla observable para esta preferencia y no debe crear una
-    solicitud de licencia artificial para transportarla.
-
-    Hasta que ese contrato exista, la preferencia queda guardada localmente y
-    esta funcion no realiza trafico de red ni bloquea la aplicacion.
+    La Edge Function centralizada administra Resend; este cliente solo usa la
+    configuracion publica de Supabase ya necesaria para licencias.
     """
-    return False
+    email = (email or "").strip().lower()
+    producto = (producto or "").strip().lower()
+    activation_id = build_machine_id(activation_id)
+    if (
+        not isinstance(marketing_opt_in, bool)
+        or not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email)
+        or len(email) > 254
+        or not producto
+        or len(producto) > 40
+        or not is_configured()
+    ):
+        return False
+
+    payload: dict[str, Any] = {
+        "action": "newsletter_preference",
+        "email": email,
+        "marketing_opt_in": marketing_opt_in,
+        "producto": producto,
+    }
+    if activation_id:
+        payload["activation_id"] = activation_id
+
+    base = _clean_base_url(
+        os.getenv("NEXAR_LICENSES_VALIDATION_URL", "") or os.getenv("SUPABASE_URL", "")
+    )
+    try:
+        response = requests.post(
+            f"{base}/functions/v1/notify-admin",
+            headers=_headers(),
+            json=payload,
+            timeout=8,
+        )
+        if response.status_code >= 300:
+            return False
+        result = response.json()
+    except Exception:
+        return False
+
+    return isinstance(result, dict) and result.get("ok") is True
 
 
 def create_license_request(

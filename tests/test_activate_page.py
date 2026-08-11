@@ -2,7 +2,7 @@ import sqlite3
 import unittest
 from datetime import date, timedelta
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from flask import Flask
 
@@ -183,6 +183,11 @@ class ActivatePageTests(unittest.TestCase):
         self.assertEqual(values["license_marketing_opt_in"], "1")
         self.assertEqual(values["license_owner_email"], "nuevo@example.com")
         mock_sync.assert_called_once()
+        with client.session_transaction() as session_data:
+            self.assertIn(
+                ("warning", "Tu preferencia quedó guardada localmente, pero no pudo sincronizarse."),
+                session_data["_flashes"],
+            )
 
     @patch("routes.sync_marketing_preference", return_value=False)
     def test_setup_rejects_marketing_consent_without_valid_email(self, mock_sync):
@@ -278,6 +283,11 @@ class ActivatePageTests(unittest.TestCase):
         conn.close()
         self.assertEqual(values["license_marketing_opt_in"], "1")
         self.assertEqual(values["license_owner_email"], "demo@example.com")
+        activate_page = client.get("/activate")
+        self.assertIn(
+            "Preferencia guardada localmente, pero no pudo sincronizarse",
+            activate_page.get_data(as_text=True),
+        )
 
     @patch("routes.create_license_request")
     @patch("routes.sync_marketing_preference", return_value=False)
@@ -651,15 +661,63 @@ class ActivatePageTests(unittest.TestCase):
         self.assertNotIn("Plan Pro</span>", html)
 
 class MarketingConsentSupabaseTests(unittest.TestCase):
-    def test_independent_marketing_sync_is_non_blocking_without_contract(self):
-        self.assertFalse(
-            supabase_license_api.sync_marketing_preference(
-                email="demo@example.com",
-                marketing_opt_in=True,
-                producto="nexar-finanzas",
-                activation_id="HWID-DEMO-001",
-            )
+    def _sync(self, marketing_opt_in=True):
+        return supabase_license_api.sync_marketing_preference(
+            email="demo@example.com",
+            marketing_opt_in=marketing_opt_in,
+            producto="nexar-finanzas",
+            activation_id="HWID-DEMO-001",
         )
+
+    @patch.dict("os.environ", {"SUPABASE_URL": "https://example.supabase.co", "SUPABASE_ANON_KEY": "anon-key"}, clear=True)
+    @patch("licensing.supabase_license_api.requests.post")
+    def test_marketing_opt_in_calls_the_centralized_endpoint(self, post):
+        post.return_value = Mock(status_code=200, json=Mock(return_value={"ok": True}))
+
+        self.assertTrue(self._sync(True))
+
+        post.assert_called_once_with(
+            "https://example.supabase.co/functions/v1/notify-admin",
+            headers={
+                "apikey": "anon-key",
+                "Authorization": "Bearer anon-key",
+                "Content-Type": "application/json",
+                "Prefer": "return=representation",
+            },
+            json={
+                "action": "newsletter_preference",
+                "email": "demo@example.com",
+                "marketing_opt_in": True,
+                "producto": "nexar-finanzas",
+                "activation_id": "hwid-demo-001",
+            },
+            timeout=8,
+        )
+
+    @patch.dict("os.environ", {"SUPABASE_URL": "https://example.supabase.co", "SUPABASE_ANON_KEY": "anon-key"}, clear=True)
+    @patch("licensing.supabase_license_api.requests.post")
+    def test_marketing_opt_out_calls_the_centralized_endpoint(self, post):
+        post.return_value = Mock(status_code=200, json=Mock(return_value={"ok": True}))
+
+        self.assertTrue(self._sync(False))
+        self.assertFalse(post.call_args.kwargs["json"]["marketing_opt_in"])
+
+    @patch.dict("os.environ", {"SUPABASE_URL": "https://example.supabase.co", "SUPABASE_ANON_KEY": "anon-key"}, clear=True)
+    @patch("licensing.supabase_license_api.requests.post")
+    def test_marketing_sync_returns_false_for_http_error(self, post):
+        post.return_value = Mock(status_code=502)
+
+        self.assertFalse(self._sync())
+
+    @patch.dict("os.environ", {"SUPABASE_URL": "https://example.supabase.co", "SUPABASE_ANON_KEY": "anon-key"}, clear=True)
+    @patch("licensing.supabase_license_api.requests.post", side_effect=TimeoutError)
+    def test_marketing_sync_returns_false_for_timeout(self, _post):
+        self.assertFalse(self._sync())
+
+    @patch.dict("os.environ", {"SUPABASE_URL": "https://example.supabase.co", "SUPABASE_ANON_KEY": "anon-key"}, clear=True)
+    @patch("licensing.supabase_license_api.requests.post", side_effect=RuntimeError)
+    def test_marketing_sync_returns_false_for_exception(self, _post):
+        self.assertFalse(self._sync())
 
 
 if __name__ == "__main__":
