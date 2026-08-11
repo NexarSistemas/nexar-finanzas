@@ -2067,14 +2067,6 @@ def register_routes(app):
                     marketing_synced = marketing_synced and previous_cleanup_synced
                     if not previous_cleanup_synced:
                         remaining_pending_cleanup_emails.append(previous_email)
-                _set_config_values({
-                    'license_owner_email': email,
-                    'license_marketing_opt_in': '1' if marketing_opt_in else '0',
-                    'license_marketing_pending_cleanup_email': '',
-                    'license_marketing_pending_cleanup_emails': json.dumps(
-                        remaining_pending_cleanup_emails
-                    ),
-                }, db_path=db_path)
                 if email:
                     sync_attempted = True
                     current_marketing_synced = sync_marketing_preference(
@@ -2084,6 +2076,23 @@ def register_routes(app):
                         activation_id=activation_id,
                     )
                     marketing_synced = marketing_synced and current_marketing_synced
+                    if not marketing_opt_in:
+                        if current_marketing_synced:
+                            remaining_pending_cleanup_emails = [
+                                pending_email
+                                for pending_email in remaining_pending_cleanup_emails
+                                if pending_email != email
+                            ]
+                        elif email not in remaining_pending_cleanup_emails:
+                            remaining_pending_cleanup_emails.append(email)
+                _set_config_values({
+                    'license_owner_email': email,
+                    'license_marketing_opt_in': '1' if marketing_opt_in else '0',
+                    'license_marketing_pending_cleanup_email': '',
+                    'license_marketing_pending_cleanup_emails': json.dumps(
+                        remaining_pending_cleanup_emails
+                    ),
+                }, db_path=db_path)
                 marketing_synced = marketing_synced and not remaining_pending_cleanup_emails
                 if sync_attempted and marketing_synced:
                     flash('Preferencia de comunicaciones guardada y sincronizada.', 'success')
