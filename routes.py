@@ -1045,13 +1045,7 @@ def register_routes(app):
                         producto=get_license_product(),
                     )
                     if not marketing_opt_in:
-                        if marketing_synced:
-                            pending_cleanup_emails = [
-                                pending_email
-                                for pending_email in pending_cleanup_emails
-                                if pending_email != email
-                            ]
-                        elif email not in pending_cleanup_emails:
+                        if email not in pending_cleanup_emails:
                             pending_cleanup_emails.append(email)
                     elif marketing_synced:
                         pending_cleanup_emails = [
@@ -1077,6 +1071,11 @@ def register_routes(app):
                         flash('Tu preferencia quedó guardada localmente, pero no pudo sincronizarse.', 'warning')
                 elif email and not marketing_synced:
                     flash('Tu preferencia quedó guardada localmente, pero no pudo sincronizarse.', 'warning')
+                elif email:
+                    flash(
+                        'Te enviamos un correo para confirmar la baja de novedades.',
+                        'success',
+                    )
                 return redirect(url_for('login'))
 
         return render_template('setup.html')
@@ -2090,7 +2089,7 @@ def register_routes(app):
                         producto=get_license_product(),
                         activation_id=activation_id,
                     ):
-                        continue
+                        remaining_pending_cleanup_emails.append(pending_cleanup_email)
                     else:
                         remaining_pending_cleanup_emails.extend(pending_cleanup_emails[index:])
                         marketing_synced = False
@@ -2104,8 +2103,7 @@ def register_routes(app):
                         activation_id=activation_id,
                     )
                     marketing_synced = marketing_synced and previous_cleanup_synced
-                    if not previous_cleanup_synced:
-                        remaining_pending_cleanup_emails.append(previous_email)
+                    remaining_pending_cleanup_emails.append(previous_email)
                 if email:
                     sync_attempted = True
                     current_marketing_synced = sync_marketing_preference(
@@ -2116,13 +2114,7 @@ def register_routes(app):
                     )
                     marketing_synced = marketing_synced and current_marketing_synced
                     if not marketing_opt_in:
-                        if current_marketing_synced:
-                            remaining_pending_cleanup_emails = [
-                                pending_email
-                                for pending_email in remaining_pending_cleanup_emails
-                                if pending_email != email
-                            ]
-                        elif email not in remaining_pending_cleanup_emails:
+                        if email not in remaining_pending_cleanup_emails:
                             remaining_pending_cleanup_emails.append(email)
                     elif current_marketing_synced:
                         remaining_pending_cleanup_emails = [
@@ -2139,14 +2131,16 @@ def register_routes(app):
                     ),
                 }, db_path=db_path)
                 marketing_synced = current_marketing_synced and not remaining_pending_cleanup_emails
-                if sync_attempted and marketing_synced:
-                    if marketing_opt_in:
-                        flash(
-                            'Preferencia guardada. Revisá tu email para confirmar la suscripción a novedades.',
-                            'success',
-                        )
-                    else:
-                        flash('Preferencia de comunicaciones guardada y sincronizada.', 'success')
+                if sync_attempted and marketing_opt_in and marketing_synced:
+                    flash(
+                        'Preferencia guardada. Revisá tu email para confirmar la suscripción a novedades.',
+                        'success',
+                    )
+                elif sync_attempted and not marketing_opt_in and current_marketing_synced:
+                    flash(
+                        'Preferencia guardada. Revisá tu email para confirmar la baja de novedades.',
+                        'success',
+                    )
                 else:
                     flash('Preferencia guardada localmente, pero no pudo sincronizarse.', 'warning')
                 return redirect(url_for('activate'))

@@ -110,9 +110,9 @@ def sync_marketing_preference(
 ) -> bool:
     """Sincroniza la preferencia con la Edge Function dedicada de novedades.
 
-    Para opt-in, `True` significa que el backend aceptó la solicitud y quedó
-    pendiente la confirmación por email. Para opt-out, `True` significa que la
-    baja quedó aceptada por el backend.
+    `True` significa que el backend envió el email de confirmación. La
+    preferencia todavía no fue aplicada: tanto el alta como la baja requieren
+    confirmación desde ese email.
     """
     email = (email or "").strip().lower()
     producto = (producto or "").strip().lower()
@@ -154,10 +154,7 @@ def sync_marketing_preference(
     if not isinstance(result, dict) or result.get("ok") is not True:
         return False
 
-    if marketing_opt_in:
-        return result.get("pending_confirmation") is True
-
-    return True
+    return result.get("pending_confirmation") is True
 
 
 def create_license_request(

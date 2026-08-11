@@ -363,7 +363,7 @@ class ActivatePageTests(unittest.TestCase):
             )
 
     @patch("routes.sync_marketing_preference", return_value=True)
-    def test_setup_does_not_queue_successful_marketing_opt_out(self, _mock_sync):
+    def test_setup_keeps_pending_marketing_opt_out_for_cleanup(self, _mock_sync):
         client = self._make_client(
             {
                 "license_tier": "DEMO",
@@ -389,7 +389,7 @@ class ActivatePageTests(unittest.TestCase):
             "SELECT value FROM config WHERE key = 'license_marketing_pending_cleanup_emails'"
         ).fetchone()
         conn.close()
-        self.assertEqual(pending[0], "[]")
+        self.assertEqual(pending[0], '["optout@example.com"]')
 
     @patch("routes.sync_marketing_preference", return_value=False)
     def test_setup_preserves_existing_marketing_cleanup_queue(self, _mock_sync):
@@ -768,7 +768,9 @@ class ActivatePageTests(unittest.TestCase):
         values = dict(conn.execute("SELECT key, value FROM config").fetchall())
         conn.close()
         self.assertEqual(values["license_marketing_pending_cleanup_email"], "")
-        self.assertEqual(values["license_marketing_pending_cleanup_emails"], "[]")
+        self.assertEqual(
+            values["license_marketing_pending_cleanup_emails"], '["old@example.com"]'
+        )
 
     @patch("routes.sync_marketing_preference", side_effect=[False, True])
     def test_marketing_pending_cleanup_failure_is_retained(self, mock_sync):
@@ -859,7 +861,7 @@ class ActivatePageTests(unittest.TestCase):
         )
 
     @patch("routes.sync_marketing_preference", side_effect=[True, False, True])
-    def test_marketing_pending_cleanups_are_removed_individually(self, mock_sync):
+    def test_marketing_pending_cleanups_remain_until_confirmation(self, mock_sync):
         client = self._make_client(
             {
                 "license_tier": "DEMO",
@@ -887,7 +889,10 @@ class ActivatePageTests(unittest.TestCase):
         conn = sqlite3.connect(client.application.config["DB_PATH"])
         values = dict(conn.execute("SELECT key, value FROM config").fetchall())
         conn.close()
-        self.assertEqual(values["license_marketing_pending_cleanup_emails"], '["b@example.com"]')
+        self.assertEqual(
+            values["license_marketing_pending_cleanup_emails"],
+            '["a@example.com", "b@example.com"]',
+        )
         page = client.get("/activate")
         self.assertIn(
             "Preferencia guardada localmente, pero no pudo sincronizarse",
@@ -895,7 +900,7 @@ class ActivatePageTests(unittest.TestCase):
         )
 
     @patch("routes.sync_marketing_preference", side_effect=[True, True, True])
-    def test_marketing_all_pending_cleanups_can_complete(self, _mock_sync):
+    def test_marketing_pending_cleanups_remain_after_email_is_sent(self, _mock_sync):
         client = self._make_client(
             {
                 "license_tier": "DEMO",
@@ -921,7 +926,7 @@ class ActivatePageTests(unittest.TestCase):
             "SELECT value FROM config WHERE key = 'license_marketing_pending_cleanup_emails'"
         ).fetchone()
         conn.close()
-        self.assertEqual(pending[0], "[]")
+        self.assertEqual(pending[0], '["a@example.com", "b@example.com"]')
 
     @patch("routes.sync_marketing_preference", side_effect=[False, True])
     def test_marketing_pending_cleanup_normalizes_duplicates_and_legacy_value(self, mock_sync):
@@ -1032,7 +1037,7 @@ class ActivatePageTests(unittest.TestCase):
         )
 
     @patch("routes.sync_marketing_preference", return_value=True)
-    def test_marketing_current_opt_out_success_is_not_pending(self, _mock_sync):
+    def test_marketing_current_opt_out_pending_is_kept_for_cleanup(self, _mock_sync):
         client = self._make_client(
             {
                 "license_tier": "DEMO",
@@ -1053,7 +1058,12 @@ class ActivatePageTests(unittest.TestCase):
             "SELECT value FROM config WHERE key = 'license_marketing_pending_cleanup_emails'"
         ).fetchone()
         conn.close()
-        self.assertEqual(pending[0], "[]")
+        self.assertEqual(pending[0], '["same@example.com"]')
+        page = client.get("/activate")
+        self.assertIn(
+            "Preferencia guardada. Revisá tu email para confirmar la baja de novedades.",
+            page.get_data(as_text=True),
+        )
 
     @patch("routes.sync_marketing_preference", side_effect=[False, False])
     def test_marketing_current_opt_out_failure_does_not_duplicate_pending_email(self, _mock_sync):
@@ -1149,7 +1159,7 @@ class ActivatePageTests(unittest.TestCase):
             "SELECT value FROM config WHERE key = 'license_marketing_pending_cleanup_emails'"
         ).fetchone()
         conn.close()
-        self.assertEqual(pending[0], '["b@example.com", "c@example.com"]')
+        self.assertEqual(pending[0], '["a@example.com", "b@example.com", "c@example.com"]')
 
     @patch("routes.sync_marketing_preference", side_effect=[False, True])
     def test_marketing_current_preference_runs_after_first_pending_failure(self, mock_sync):
@@ -1239,7 +1249,7 @@ class ActivatePageTests(unittest.TestCase):
         self.assertEqual(pending[0], '["same@example.com"]')
 
     @patch("routes.sync_marketing_preference", return_value=True)
-    def test_marketing_successful_cleanup_is_not_repeated(self, mock_sync):
+    def test_marketing_pending_cleanup_is_retried_until_confirmation(self, mock_sync):
         client = self._make_client(
             {
                 "license_tier": "DEMO",
@@ -1268,9 +1278,11 @@ class ActivatePageTests(unittest.TestCase):
             },
         )
 
-        mock_sync.assert_called_once()
-        self.assertEqual(mock_sync.call_args.kwargs["email"], "new@example.com")
-        self.assertTrue(mock_sync.call_args.kwargs["marketing_opt_in"])
+        self.assertEqual(mock_sync.call_count, 2)
+        self.assertEqual(mock_sync.call_args_list[0].kwargs["email"], "old@example.com")
+        self.assertFalse(mock_sync.call_args_list[0].kwargs["marketing_opt_in"])
+        self.assertEqual(mock_sync.call_args_list[1].kwargs["email"], "new@example.com")
+        self.assertTrue(mock_sync.call_args_list[1].kwargs["marketing_opt_in"])
 
     def test_marketing_preference_is_loaded_from_existing_config(self):
         client = self._make_client(
@@ -1590,7 +1602,10 @@ class MarketingConsentSupabaseTests(unittest.TestCase):
     @patch.dict("os.environ", {"SUPABASE_URL": "https://example.supabase.co", "SUPABASE_ANON_KEY": "anon-key"}, clear=True)
     @patch("licensing.supabase_license_api.requests.post")
     def test_marketing_opt_out_calls_the_centralized_endpoint(self, post):
-        post.return_value = Mock(status_code=200, json=Mock(return_value={"ok": True}))
+        post.return_value = Mock(
+            status_code=200,
+            json=Mock(return_value={"ok": True, "pending_confirmation": True}),
+        )
 
         self.assertTrue(self._sync(False))
         self.assertFalse(post.call_args.kwargs["json"]["marketing_opt_in"])
@@ -1601,6 +1616,13 @@ class MarketingConsentSupabaseTests(unittest.TestCase):
         post.return_value = Mock(status_code=200, json=Mock(return_value={"ok": True}))
 
         self.assertFalse(self._sync(True))
+
+    @patch.dict("os.environ", {"SUPABASE_URL": "https://example.supabase.co", "SUPABASE_ANON_KEY": "anon-key"}, clear=True)
+    @patch("licensing.supabase_license_api.requests.post")
+    def test_marketing_opt_out_requires_pending_confirmation(self, post):
+        post.return_value = Mock(status_code=200, json=Mock(return_value={"ok": True}))
+
+        self.assertFalse(self._sync(False))
 
     @patch.dict("os.environ", {"SUPABASE_URL": "https://example.supabase.co", "SUPABASE_ANON_KEY": "anon-key"}, clear=True)
     @patch("licensing.supabase_license_api.requests.post")
