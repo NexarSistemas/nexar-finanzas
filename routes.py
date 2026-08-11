@@ -2076,6 +2076,11 @@ def register_routes(app):
                 if marketing_error:
                     flash(marketing_error, 'danger')
                     return redirect(url_for('activate'))
+                pending_cleanup_emails = [
+                    pending_email
+                    for pending_email in pending_cleanup_emails
+                    if pending_email != email
+                ]
                 activation_id = get_current_hwid() or get_hardware_id()
                 cleanup_required = (
                     bool(previous_email)
@@ -2149,7 +2154,11 @@ def register_routes(app):
                         'Preferencia guardada. Revisá tu email para confirmar la suscripción a novedades.',
                         'success',
                     )
-                elif sync_attempted and not marketing_opt_in and current_marketing_synced:
+                elif (
+                    sync_attempted
+                    and not marketing_opt_in
+                    and marketing_synced
+                ):
                     flash(
                         'Preferencia guardada. Revisá tu email para confirmar la baja de novedades.',
                         'success',
