@@ -1053,6 +1053,13 @@ def register_routes(app):
                             ]
                         elif email not in pending_cleanup_emails:
                             pending_cleanup_emails.append(email)
+                    elif marketing_synced:
+                        pending_cleanup_emails = [
+                            pending_email
+                            for pending_email in pending_cleanup_emails
+                            if pending_email != email
+                        ]
+                    if not marketing_opt_in or marketing_synced:
                         _set_config_values({
                             'license_marketing_pending_cleanup_email': '',
                             'license_marketing_pending_cleanup_emails': json.dumps(

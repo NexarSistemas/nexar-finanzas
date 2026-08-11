@@ -423,6 +423,101 @@ class ActivatePageTests(unittest.TestCase):
         conn.close()
         self.assertEqual(pending[0], '["old@example.com", "new@example.com"]')
 
+    @patch("routes.sync_marketing_preference", return_value=True)
+    def test_setup_successful_opt_in_cancels_its_pending_cleanup(self, _mock_sync):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+                "license_marketing_pending_cleanup_emails": '["same@example.com"]',
+            }
+        )
+
+        client.post(
+            "/setup",
+            data={
+                "username": "admin",
+                "password": "Abc1!d",
+                "confirm": "Abc1!d",
+                "recovery_question": "Mascota",
+                "recovery_answer": "Luna",
+                "email": "same@example.com",
+                "marketing_opt_in": "1",
+            },
+        )
+
+        conn = sqlite3.connect(client.application.config["DB_PATH"])
+        pending = conn.execute(
+            "SELECT value FROM config WHERE key = 'license_marketing_pending_cleanup_emails'"
+        ).fetchone()
+        conn.close()
+        self.assertEqual(pending[0], "[]")
+
+    @patch("routes.sync_marketing_preference", return_value=True)
+    def test_setup_successful_opt_in_preserves_other_pending_cleanups(self, _mock_sync):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+                "license_marketing_pending_cleanup_emails": (
+                    '["same@example.com", "other@example.com"]'
+                ),
+            }
+        )
+
+        client.post(
+            "/setup",
+            data={
+                "username": "admin",
+                "password": "Abc1!d",
+                "confirm": "Abc1!d",
+                "recovery_question": "Mascota",
+                "recovery_answer": "Luna",
+                "email": "same@example.com",
+                "marketing_opt_in": "1",
+            },
+        )
+
+        conn = sqlite3.connect(client.application.config["DB_PATH"])
+        pending = conn.execute(
+            "SELECT value FROM config WHERE key = 'license_marketing_pending_cleanup_emails'"
+        ).fetchone()
+        conn.close()
+        self.assertEqual(pending[0], '["other@example.com"]')
+
+    @patch("routes.sync_marketing_preference", return_value=False)
+    def test_setup_failed_opt_in_keeps_its_pending_cleanup(self, _mock_sync):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+                "license_marketing_pending_cleanup_emails": '["same@example.com"]',
+            }
+        )
+
+        client.post(
+            "/setup",
+            data={
+                "username": "admin",
+                "password": "Abc1!d",
+                "confirm": "Abc1!d",
+                "recovery_question": "Mascota",
+                "recovery_answer": "Luna",
+                "email": "same@example.com",
+                "marketing_opt_in": "1",
+            },
+        )
+
+        conn = sqlite3.connect(client.application.config["DB_PATH"])
+        pending = conn.execute(
+            "SELECT value FROM config WHERE key = 'license_marketing_pending_cleanup_emails'"
+        ).fetchone()
+        conn.close()
+        self.assertEqual(pending[0], '["same@example.com"]')
+
     @patch("routes.sync_marketing_preference", return_value=False)
     def test_marketing_preference_false_persists_after_get(self, _mock_sync):
         client = self._make_client(
