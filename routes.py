@@ -2043,6 +2043,7 @@ def register_routes(app):
                 )
                 marketing_synced = True
                 sync_attempted = False
+                current_marketing_synced = True
                 remaining_pending_cleanup_emails = []
                 for pending_cleanup_email in pending_cleanup_emails:
                     sync_attempted = True
@@ -2085,6 +2086,12 @@ def register_routes(app):
                             ]
                         elif email not in remaining_pending_cleanup_emails:
                             remaining_pending_cleanup_emails.append(email)
+                    elif current_marketing_synced:
+                        remaining_pending_cleanup_emails = [
+                            pending_email
+                            for pending_email in remaining_pending_cleanup_emails
+                            if pending_email != email
+                        ]
                 _set_config_values({
                     'license_owner_email': email,
                     'license_marketing_opt_in': '1' if marketing_opt_in else '0',
@@ -2093,7 +2100,7 @@ def register_routes(app):
                         remaining_pending_cleanup_emails
                     ),
                 }, db_path=db_path)
-                marketing_synced = marketing_synced and not remaining_pending_cleanup_emails
+                marketing_synced = current_marketing_synced and not remaining_pending_cleanup_emails
                 if sync_attempted and marketing_synced:
                     flash('Preferencia de comunicaciones guardada y sincronizada.', 'success')
                 else:
