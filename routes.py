@@ -1045,7 +1045,13 @@ def register_routes(app):
                         producto=get_license_product(),
                     )
                     if not marketing_opt_in:
-                        if email not in pending_cleanup_emails:
+                        if marketing_synced:
+                            pending_cleanup_emails = [
+                                pending_email
+                                for pending_email in pending_cleanup_emails
+                                if pending_email != email
+                            ]
+                        elif email not in pending_cleanup_emails:
                             pending_cleanup_emails.append(email)
                     elif marketing_synced:
                         pending_cleanup_emails = [
@@ -2089,7 +2095,7 @@ def register_routes(app):
                         producto=get_license_product(),
                         activation_id=activation_id,
                     ):
-                        remaining_pending_cleanup_emails.append(pending_cleanup_email)
+                        continue
                     else:
                         remaining_pending_cleanup_emails.extend(pending_cleanup_emails[index:])
                         marketing_synced = False
@@ -2103,7 +2109,8 @@ def register_routes(app):
                         activation_id=activation_id,
                     )
                     marketing_synced = marketing_synced and previous_cleanup_synced
-                    remaining_pending_cleanup_emails.append(previous_email)
+                    if not previous_cleanup_synced:
+                        remaining_pending_cleanup_emails.append(previous_email)
                 if email:
                     sync_attempted = True
                     current_marketing_synced = sync_marketing_preference(
@@ -2114,7 +2121,13 @@ def register_routes(app):
                     )
                     marketing_synced = marketing_synced and current_marketing_synced
                     if not marketing_opt_in:
-                        if email not in remaining_pending_cleanup_emails:
+                        if current_marketing_synced:
+                            remaining_pending_cleanup_emails = [
+                                pending_email
+                                for pending_email in remaining_pending_cleanup_emails
+                                if pending_email != email
+                            ]
+                        elif email not in remaining_pending_cleanup_emails:
                             remaining_pending_cleanup_emails.append(email)
                     elif current_marketing_synced:
                         remaining_pending_cleanup_emails = [
