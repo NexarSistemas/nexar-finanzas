@@ -229,6 +229,32 @@
 
       <div class="card shadow-sm mt-4">
         <div class="card-header bg-white">
+          <h5 class="mb-0"><i class="bi bi-envelope-heart me-2"></i>Comunicaciones de Nexar</h5>
+        </div>
+        <div class="card-body">
+          <form method="POST" class="row g-3">
+            <input type="hidden" name="action" value="save_marketing_preference">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" for="marketing-email">Email de contacto</label>
+              <input id="marketing-email" name="marketing_email" type="email" class="form-control" value="{{ marketing_email }}" autocomplete="email">
+            </div>
+            <div class="col-12">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="marketing_opt_in" id="marketing-opt-in" value="1" {% if marketing_opt_in %}checked{% endif %}>
+                <label class="form-check-label" for="marketing-opt-in">
+                  Quiero recibir ofertas y novedades.
+                </label>
+              </div>
+            </div>
+            <div class="col-12">
+              <button class="btn btn-outline-primary" type="submit">Guardar preferencia</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="card shadow-sm mt-4">
+        <div class="card-header bg-white">
           <h5 class="mb-0"><i class="bi bi-credit-card me-2"></i>Checkout directo</h5>
         </div>
         <div class="card-body">
@@ -305,7 +331,6 @@
                 <option value="BASICA" {% if current_tier == 'BASICA' %}selected{% endif %}>Plan Básica</option>
                 <option value="PRO" {% if license_summary.plan_activo == 'PRO' %}selected{% endif %}>Plan Pro</option>
                 <option value="FULL" {% if license_summary.plan_activo == 'FULL' %}selected{% endif %}>Plan Full</option>
-                <option value="DEMO" {% if current_tier == 'DEMO' %}selected{% endif %}>DEMO</option>
               </select>
             </div>
             <div class="col-12 d-flex flex-wrap gap-2">

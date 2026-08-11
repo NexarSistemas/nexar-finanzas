@@ -7,6 +7,10 @@ Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 ---
 ## [Unreleased]
 
+### Agregado
+- Preferencia independiente para recibir ofertas y novedades, disponible desde
+  la configuración inicial y Mi plan sin crear solicitudes de licencia.
+
 ## [1.14.0] - 2026-08-08
 
 ### Agregado

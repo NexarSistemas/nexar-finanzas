@@ -7,6 +7,7 @@ Maneja autenticación, transacciones, cuentas, presupuestos, inversiones y repor
 import os
 import sys
 import io
+import json
 import re
 import shutil
 import subprocess
@@ -40,7 +41,12 @@ from licensing.license_service import (
     validate_license_key,
     validate_saved_license,
 )
-from licensing.supabase_license_api import create_license_request, generate_activation_id, is_configured
+from licensing.supabase_license_api import (
+    create_license_request,
+    generate_activation_id,
+    is_configured,
+    sync_marketing_preference,
+)
 from update_checker import (
     LINUX_INSTALLER,
     WINDOWS_INSTALLER,
@@ -100,6 +106,37 @@ def recovery_error(question: str, answer: str) -> str:
     if len((answer or '').strip()) < 2:
         return 'La respuesta de seguridad debe tener al menos 2 caracteres.'
     return ''
+
+
+def marketing_email_error(email: str, marketing_opt_in: bool) -> str:
+    if not marketing_opt_in:
+        return ''
+    if not re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', (email or '').strip()):
+        return 'Ingresá un email válido para recibir ofertas y novedades.'
+    return ''
+
+
+def normalize_marketing_pending_cleanup_emails(*raw_values: str) -> list[str]:
+    emails: list[str] = []
+    for raw_value in raw_values:
+        if not raw_value:
+            continue
+        try:
+            values = json.loads(raw_value)
+        except (TypeError, ValueError):
+            values = [raw_value]
+        if not isinstance(values, list):
+            continue
+        for value in values:
+            email = str(value or '').strip().lower()
+            if (
+                email
+                and re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', email)
+                and len(email) <= 254
+                and email not in emails
+            ):
+                emails.append(email)
+    return emails
 
 
 def login_required(f):
@@ -397,6 +434,8 @@ def _load_activate_checkout_config(db_path: str) -> dict[str, str]:
         "SELECT key, value FROM config WHERE key IN "
         "('license_activated_at','license_type','license_expires_at',"
         "'license_tier','license_key','license_plan','basica_activada',"
+        "'license_owner_email','license_marketing_opt_in',"
+        "'license_marketing_pending_cleanup_email','license_marketing_pending_cleanup_emails',"
         "'pending_checkout_activation_id','pending_checkout_plan',"
         "'pending_checkout_request_type','pending_checkout_external_reference',"
         "'pending_checkout_started_at')"
@@ -960,22 +999,89 @@ def register_routes(app):
             confirm   = request.form.get('confirm', '')
             rec_q     = request.form.get('recovery_question', '').strip()
             rec_a     = request.form.get('recovery_answer', '')
+            email     = request.form.get('email', '').strip().lower()
+            marketing_opt_in = request.form.get('marketing_opt_in', '') == '1'
             pw_error  = password_confirmation_error(password, confirm)
             rec_error = recovery_error(rec_q, rec_a)
+            marketing_error = marketing_email_error(email, marketing_opt_in)
 
             if pw_error:
                 flash(pw_error, 'danger')
             elif rec_error:
                 flash(rec_error, 'danger')
+            elif marketing_error:
+                flash(marketing_error, 'danger')
             else:
                 db = get_db(get_db_path())
+                pending_rows = db.execute(
+                    "SELECT key, value FROM config WHERE key IN "
+                    "('license_marketing_pending_cleanup_email', "
+                    "'license_marketing_pending_cleanup_emails')"
+                ).fetchall()
+                pending_config = {row['key']: row['value'] for row in pending_rows}
+                pending_cleanup_emails = normalize_marketing_pending_cleanup_emails(
+                    pending_config.get('license_marketing_pending_cleanup_emails', ''),
+                    pending_config.get('license_marketing_pending_cleanup_email', ''),
+                )
                 db.execute(
                     "INSERT INTO user (id, username, password_hash, recovery_question, recovery_answer_hash) VALUES (1, ?, ?, ?, ?)",
                     (username, hash_password(password), rec_q, hash_recovery_answer(rec_a))
                 )
+                db.execute(
+                    "INSERT OR REPLACE INTO config (key, value) VALUES ('license_owner_email', ?)",
+                    (email,)
+                )
+                db.execute(
+                    "INSERT OR REPLACE INTO config (key, value) VALUES ('license_marketing_opt_in', ?)",
+                    ('1' if marketing_opt_in else '0',)
+                )
                 db.commit()
                 db.close()
+                marketing_synced = False
+                if email:
+                    marketing_synced = sync_marketing_preference(
+                        email=email,
+                        marketing_opt_in=marketing_opt_in,
+                        producto=get_license_product(),
+                    )
+                    if not marketing_opt_in:
+                        if marketing_synced:
+                            pending_cleanup_emails = [
+                                pending_email
+                                for pending_email in pending_cleanup_emails
+                                if pending_email != email
+                            ]
+                        elif email not in pending_cleanup_emails:
+                            pending_cleanup_emails.append(email)
+                    elif marketing_synced:
+                        pending_cleanup_emails = [
+                            pending_email
+                            for pending_email in pending_cleanup_emails
+                            if pending_email != email
+                        ]
+                    if not marketing_opt_in or marketing_synced:
+                        _set_config_values({
+                            'license_marketing_pending_cleanup_email': '',
+                            'license_marketing_pending_cleanup_emails': json.dumps(
+                                pending_cleanup_emails
+                            ),
+                        }, db_path=get_db_path())
                 flash(f'¡Bienvenido/a {username}! Iniciá sesión con tu nueva contraseña.', 'success')
+                if marketing_opt_in:
+                    if marketing_synced:
+                        flash(
+                            'Te enviamos un correo para confirmar tu suscripción a novedades.',
+                            'success',
+                        )
+                    else:
+                        flash('Tu preferencia quedó guardada localmente, pero no pudo sincronizarse.', 'warning')
+                elif email and not marketing_synced:
+                    flash('Tu preferencia quedó guardada localmente, pero no pudo sincronizarse.', 'warning')
+                elif email:
+                    flash(
+                        'Te enviamos un correo para confirmar la baja de novedades.',
+                        'success',
+                    )
                 return redirect(url_for('login'))
 
         return render_template('setup.html')
@@ -1953,6 +2059,114 @@ def register_routes(app):
         if request.method == 'POST':
             action = request.form.get('action', 'activate_license')
 
+            if action == 'save_marketing_preference':
+                cfg = _load_activate_checkout_config(db_path)
+                previous_email = cfg.get('license_owner_email', '').strip().lower()
+                previous_marketing_opt_in = cfg.get('license_marketing_opt_in', '0') == '1'
+                pending_cleanup_emails = normalize_marketing_pending_cleanup_emails(
+                    cfg.get('license_marketing_pending_cleanup_emails', ''),
+                    cfg.get('license_marketing_pending_cleanup_email', ''),
+                )
+                if 'marketing_email' in request.form:
+                    email = request.form.get('marketing_email', '').strip().lower()
+                else:
+                    email = cfg.get('license_owner_email', '')
+                marketing_opt_in = request.form.get('marketing_opt_in', '') == '1'
+                marketing_error = marketing_email_error(email, marketing_opt_in)
+                if marketing_error:
+                    flash(marketing_error, 'danger')
+                    return redirect(url_for('activate'))
+                pending_cleanup_emails = [
+                    pending_email
+                    for pending_email in pending_cleanup_emails
+                    if pending_email != email
+                ]
+                activation_id = get_current_hwid() or get_hardware_id()
+                cleanup_required = (
+                    bool(previous_email)
+                    and previous_marketing_opt_in
+                    and previous_email != email
+                    and previous_email not in pending_cleanup_emails
+                )
+                marketing_synced = True
+                sync_attempted = False
+                current_marketing_synced = True
+                remaining_pending_cleanup_emails = []
+                for index, pending_cleanup_email in enumerate(pending_cleanup_emails):
+                    sync_attempted = True
+                    if sync_marketing_preference(
+                        email=pending_cleanup_email,
+                        marketing_opt_in=False,
+                        producto=get_license_product(),
+                        activation_id=activation_id,
+                    ):
+                        continue
+                    else:
+                        remaining_pending_cleanup_emails.extend(pending_cleanup_emails[index:])
+                        marketing_synced = False
+                        break
+                if cleanup_required:
+                    sync_attempted = True
+                    previous_cleanup_synced = sync_marketing_preference(
+                        email=previous_email,
+                        marketing_opt_in=False,
+                        producto=get_license_product(),
+                        activation_id=activation_id,
+                    )
+                    marketing_synced = marketing_synced and previous_cleanup_synced
+                    if not previous_cleanup_synced:
+                        remaining_pending_cleanup_emails.append(previous_email)
+                if email:
+                    sync_attempted = True
+                    current_marketing_synced = sync_marketing_preference(
+                        email=email,
+                        marketing_opt_in=marketing_opt_in,
+                        producto=get_license_product(),
+                        activation_id=activation_id,
+                    )
+                    marketing_synced = marketing_synced and current_marketing_synced
+                    if not marketing_opt_in:
+                        if current_marketing_synced:
+                            remaining_pending_cleanup_emails = [
+                                pending_email
+                                for pending_email in remaining_pending_cleanup_emails
+                                if pending_email != email
+                            ]
+                        elif email not in remaining_pending_cleanup_emails:
+                            remaining_pending_cleanup_emails.append(email)
+                    elif current_marketing_synced:
+                        remaining_pending_cleanup_emails = [
+                            pending_email
+                            for pending_email in remaining_pending_cleanup_emails
+                            if pending_email != email
+                        ]
+                _set_config_values({
+                    'license_owner_email': email,
+                    'license_marketing_opt_in': '1' if marketing_opt_in else '0',
+                    'license_marketing_pending_cleanup_email': '',
+                    'license_marketing_pending_cleanup_emails': json.dumps(
+                        remaining_pending_cleanup_emails
+                    ),
+                }, db_path=db_path)
+                marketing_synced = current_marketing_synced and not remaining_pending_cleanup_emails
+                if sync_attempted and marketing_opt_in and marketing_synced:
+                    flash(
+                        'Preferencia guardada. Revisá tu email para confirmar la suscripción a novedades.',
+                        'success',
+                    )
+                elif (
+                    sync_attempted
+                    and not marketing_opt_in
+                    and marketing_synced
+                ):
+                    flash(
+                        'Preferencia guardada. Revisá tu email para confirmar la baja de novedades.',
+                        'success',
+                    )
+                else:
+                    flash('Preferencia guardada localmente, pero no pudo sincronizarse.', 'warning')
+                return redirect(url_for('activate'))
+
             if action == 'request_license':
                 activation_id = request.form.get('activation_id', '').strip()
                 product_hwid = get_current_hwid() or get_hardware_id()
@@ -2027,6 +2241,8 @@ def register_routes(app):
                                machine_details=machine_details,
                                producto=get_license_product(),
                                supabase_ok=is_configured(),
+                               marketing_opt_in=cfg.get('license_marketing_opt_in', '0') == '1',
+                               marketing_email=cfg.get('license_owner_email', ''),
                                license_key_local=cfg.get('license_key', ''),
                                license_plan=cfg.get('license_plan', ''),
                                tier=tier_actual,

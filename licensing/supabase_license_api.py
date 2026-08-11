@@ -4,6 +4,7 @@ import getpass
 import hashlib
 import os
 import platform
+import re
 from typing import Any
 
 import requests
@@ -98,6 +99,62 @@ def generate_activation_id(user_hint: str = "") -> tuple[str, dict[str, str]]:
         "disk_hint": disk_hint,
     }
     return activation_id, details
+
+
+def sync_marketing_preference(
+    *,
+    email: str,
+    marketing_opt_in: bool,
+    producto: str,
+    activation_id: str = "",
+) -> bool:
+    """Sincroniza la preferencia con la Edge Function dedicada de novedades.
+
+    `True` significa que el backend envió el email de confirmación. La
+    preferencia todavía no fue aplicada: tanto el alta como la baja requieren
+    confirmación desde ese email.
+    """
+    email = (email or "").strip().lower()
+    producto = (producto or "").strip().lower()
+    activation_id = build_machine_id(activation_id)
+    if (
+        not isinstance(marketing_opt_in, bool)
+        or not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email)
+        or len(email) > 254
+        or not producto
+        or len(producto) > 40
+        or not is_configured()
+    ):
+        return False
+
+    payload: dict[str, Any] = {
+        "email": email,
+        "marketing_opt_in": marketing_opt_in,
+        "producto": producto,
+    }
+    if activation_id:
+        payload["activation_id"] = activation_id
+
+    base = _clean_base_url(
+        os.getenv("NEXAR_LICENSES_VALIDATION_URL", "") or os.getenv("SUPABASE_URL", "")
+    )
+    try:
+        response = requests.post(
+            f"{base}/functions/v1/newsletter-preference",
+            headers=_headers(),
+            json=payload,
+            timeout=8,
+        )
+        if response.status_code >= 300:
+            return False
+        result = response.json()
+    except Exception:
+        return False
+
+    if not isinstance(result, dict) or result.get("ok") is not True:
+        return False
+
+    return result.get("pending_confirmation") is True
 
 
 def create_license_request(
