@@ -381,6 +381,137 @@ class ActivatePageTests(unittest.TestCase):
         response = client.get("/activate")
         self.assertNotIn('value="demo@example.com"', response.get_data(as_text=True))
 
+    @patch("routes.sync_marketing_preference", return_value=True)
+    def test_marketing_email_change_unsubscribes_previous_address_first(self, mock_sync):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+                "license_owner_email": "old@example.com",
+                "license_marketing_opt_in": "1",
+            }
+        )
+
+        response = client.post(
+            "/activate",
+            data={
+                "action": "save_marketing_preference",
+                "marketing_email": "new@example.com",
+                "marketing_opt_in": "1",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(mock_sync.call_count, 2)
+        self.assertEqual(mock_sync.call_args_list[0].kwargs["email"], "old@example.com")
+        self.assertFalse(mock_sync.call_args_list[0].kwargs["marketing_opt_in"])
+        self.assertEqual(mock_sync.call_args_list[1].kwargs["email"], "new@example.com")
+        self.assertTrue(mock_sync.call_args_list[1].kwargs["marketing_opt_in"])
+
+    @patch("routes.sync_marketing_preference", return_value=True)
+    def test_marketing_email_clear_unsubscribes_previous_address(self, mock_sync):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+                "license_owner_email": "old@example.com",
+                "license_marketing_opt_in": "1",
+            }
+        )
+
+        client.post(
+            "/activate",
+            data={"action": "save_marketing_preference", "marketing_email": ""},
+        )
+
+        mock_sync.assert_called_once()
+        self.assertEqual(mock_sync.call_args.kwargs["email"], "old@example.com")
+        self.assertFalse(mock_sync.call_args.kwargs["marketing_opt_in"])
+        conn = sqlite3.connect(client.application.config["DB_PATH"])
+        values = dict(conn.execute("SELECT key, value FROM config").fetchall())
+        conn.close()
+        self.assertEqual(values["license_owner_email"], "")
+
+    @patch("routes.sync_marketing_preference", return_value=True)
+    def test_marketing_same_email_does_not_unsubscribe_before_resync(self, mock_sync):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+                "license_owner_email": "same@example.com",
+                "license_marketing_opt_in": "1",
+            }
+        )
+
+        client.post(
+            "/activate",
+            data={
+                "action": "save_marketing_preference",
+                "marketing_email": "same@example.com",
+                "marketing_opt_in": "1",
+            },
+        )
+
+        mock_sync.assert_called_once()
+        self.assertTrue(mock_sync.call_args.kwargs["marketing_opt_in"])
+
+    @patch("routes.sync_marketing_preference", return_value=True)
+    def test_marketing_opt_out_change_unsubscribes_previous_address(self, mock_sync):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+                "license_owner_email": "old@example.com",
+                "license_marketing_opt_in": "1",
+            }
+        )
+
+        client.post(
+            "/activate",
+            data={"action": "save_marketing_preference", "marketing_email": "new@example.com"},
+        )
+
+        self.assertEqual(mock_sync.call_count, 2)
+        self.assertEqual(
+            [call.kwargs["marketing_opt_in"] for call in mock_sync.call_args_list],
+            [False, False],
+        )
+
+    @patch("routes.sync_marketing_preference", side_effect=[False, True])
+    def test_marketing_previous_email_cleanup_failure_is_not_reported_as_synced(self, mock_sync):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+                "license_owner_email": "old@example.com",
+                "license_marketing_opt_in": "1",
+            }
+        )
+
+        client.post(
+            "/activate",
+            data={
+                "action": "save_marketing_preference",
+                "marketing_email": "new@example.com",
+                "marketing_opt_in": "1",
+            },
+        )
+
+        page = client.get("/activate")
+        self.assertIn(
+            "Preferencia guardada localmente, pero no pudo sincronizarse",
+            page.get_data(as_text=True),
+        )
+        conn = sqlite3.connect(client.application.config["DB_PATH"])
+        values = dict(conn.execute("SELECT key, value FROM config").fetchall())
+        conn.close()
+        self.assertEqual(values["license_owner_email"], "new@example.com")
+
     def test_marketing_preference_is_loaded_from_existing_config(self):
         client = self._make_client(
             {

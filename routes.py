@@ -1994,6 +1994,8 @@ def register_routes(app):
 
             if action == 'save_marketing_preference':
                 cfg = _load_activate_checkout_config(db_path)
+                previous_email = cfg.get('license_owner_email', '').strip().lower()
+                previous_marketing_opt_in = cfg.get('license_marketing_opt_in', '0') == '1'
                 if 'marketing_email' in request.form:
                     email = request.form.get('marketing_email', '').strip().lower()
                 else:
@@ -2003,19 +2005,36 @@ def register_routes(app):
                 if marketing_error:
                     flash(marketing_error, 'danger')
                     return redirect(url_for('activate'))
+                activation_id = get_current_hwid() or get_hardware_id()
+                cleanup_required = (
+                    bool(previous_email)
+                    and previous_marketing_opt_in
+                    and previous_email != email
+                )
+                marketing_synced = True
+                sync_attempted = False
+                if cleanup_required:
+                    sync_attempted = True
+                    marketing_synced = sync_marketing_preference(
+                        email=previous_email,
+                        marketing_opt_in=False,
+                        producto=get_license_product(),
+                        activation_id=activation_id,
+                    )
                 _set_config_values({
                     'license_owner_email': email,
                     'license_marketing_opt_in': '1' if marketing_opt_in else '0',
                 }, db_path=db_path)
-                marketing_synced = False
                 if email:
-                    marketing_synced = sync_marketing_preference(
+                    sync_attempted = True
+                    current_marketing_synced = sync_marketing_preference(
                         email=email,
                         marketing_opt_in=marketing_opt_in,
                         producto=get_license_product(),
-                        activation_id=get_current_hwid() or get_hardware_id(),
+                        activation_id=activation_id,
                     )
-                if marketing_synced:
+                    marketing_synced = marketing_synced and current_marketing_synced
+                if sync_attempted and marketing_synced:
                     flash('Preferencia de comunicaciones guardada y sincronizada.', 'success')
                 else:
                     flash('Preferencia guardada localmente, pero no pudo sincronizarse.', 'warning')
