@@ -1013,6 +1013,16 @@ def register_routes(app):
                 flash(marketing_error, 'danger')
             else:
                 db = get_db(get_db_path())
+                pending_rows = db.execute(
+                    "SELECT key, value FROM config WHERE key IN "
+                    "('license_marketing_pending_cleanup_email', "
+                    "'license_marketing_pending_cleanup_emails')"
+                ).fetchall()
+                pending_config = {row['key']: row['value'] for row in pending_rows}
+                pending_cleanup_emails = normalize_marketing_pending_cleanup_emails(
+                    pending_config.get('license_marketing_pending_cleanup_emails', ''),
+                    pending_config.get('license_marketing_pending_cleanup_email', ''),
+                )
                 db.execute(
                     "INSERT INTO user (id, username, password_hash, recovery_question, recovery_answer_hash) VALUES (1, ?, ?, ?, ?)",
                     (username, hash_password(password), rec_q, hash_recovery_answer(rec_a))
@@ -1034,12 +1044,29 @@ def register_routes(app):
                         marketing_opt_in=marketing_opt_in,
                         producto=get_license_product(),
                     )
+                    if not marketing_opt_in:
+                        if marketing_synced:
+                            pending_cleanup_emails = [
+                                pending_email
+                                for pending_email in pending_cleanup_emails
+                                if pending_email != email
+                            ]
+                        elif email not in pending_cleanup_emails:
+                            pending_cleanup_emails.append(email)
+                        _set_config_values({
+                            'license_marketing_pending_cleanup_email': '',
+                            'license_marketing_pending_cleanup_emails': json.dumps(
+                                pending_cleanup_emails
+                            ),
+                        }, db_path=get_db_path())
                 flash(f'¡Bienvenido/a {username}! Iniciá sesión con tu nueva contraseña.', 'success')
                 if marketing_opt_in:
                     if marketing_synced:
                         flash('Tu preferencia de novedades quedó sincronizada.', 'success')
                     else:
                         flash('Tu preferencia quedó guardada localmente, pero no pudo sincronizarse.', 'warning')
+                elif email and not marketing_synced:
+                    flash('Tu preferencia quedó guardada localmente, pero no pudo sincronizarse.', 'warning')
                 return redirect(url_for('login'))
 
         return render_template('setup.html')
@@ -2045,7 +2072,7 @@ def register_routes(app):
                 sync_attempted = False
                 current_marketing_synced = True
                 remaining_pending_cleanup_emails = []
-                for pending_cleanup_email in pending_cleanup_emails:
+                for index, pending_cleanup_email in enumerate(pending_cleanup_emails):
                     sync_attempted = True
                     if sync_marketing_preference(
                         email=pending_cleanup_email,
@@ -2055,8 +2082,9 @@ def register_routes(app):
                     ):
                         continue
                     else:
-                        remaining_pending_cleanup_emails.append(pending_cleanup_email)
+                        remaining_pending_cleanup_emails.extend(pending_cleanup_emails[index:])
                         marketing_synced = False
+                        break
                 if cleanup_required:
                     sync_attempted = True
                     previous_cleanup_synced = sync_marketing_preference(

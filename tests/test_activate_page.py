@@ -327,6 +327,103 @@ class ActivatePageTests(unittest.TestCase):
         self.assertEqual(values["license_owner_email"], "demo@example.com")
 
     @patch("routes.sync_marketing_preference", return_value=False)
+    def test_setup_queues_failed_marketing_opt_out(self, _mock_sync):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+            }
+        )
+
+        response = client.post(
+            "/setup",
+            data={
+                "username": "admin",
+                "password": "Abc1!d",
+                "confirm": "Abc1!d",
+                "recovery_question": "Mascota",
+                "recovery_answer": "Luna",
+                "email": "optout@example.com",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        conn = sqlite3.connect(client.application.config["DB_PATH"])
+        values = dict(conn.execute("SELECT key, value FROM config").fetchall())
+        conn.close()
+        self.assertEqual(values["license_marketing_opt_in"], "0")
+        self.assertEqual(
+            values["license_marketing_pending_cleanup_emails"], '["optout@example.com"]'
+        )
+        with client.session_transaction() as session_data:
+            self.assertIn(
+                ("warning", "Tu preferencia quedó guardada localmente, pero no pudo sincronizarse."),
+                session_data["_flashes"],
+            )
+
+    @patch("routes.sync_marketing_preference", return_value=True)
+    def test_setup_does_not_queue_successful_marketing_opt_out(self, _mock_sync):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+            }
+        )
+
+        client.post(
+            "/setup",
+            data={
+                "username": "admin",
+                "password": "Abc1!d",
+                "confirm": "Abc1!d",
+                "recovery_question": "Mascota",
+                "recovery_answer": "Luna",
+                "email": "optout@example.com",
+            },
+        )
+
+        conn = sqlite3.connect(client.application.config["DB_PATH"])
+        pending = conn.execute(
+            "SELECT value FROM config WHERE key = 'license_marketing_pending_cleanup_emails'"
+        ).fetchone()
+        conn.close()
+        self.assertEqual(pending[0], "[]")
+
+    @patch("routes.sync_marketing_preference", return_value=False)
+    def test_setup_preserves_existing_marketing_cleanup_queue(self, _mock_sync):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+                "license_marketing_pending_cleanup_emails": (
+                    '["old@example.com", "new@example.com"]'
+                ),
+            }
+        )
+
+        client.post(
+            "/setup",
+            data={
+                "username": "admin",
+                "password": "Abc1!d",
+                "confirm": "Abc1!d",
+                "recovery_question": "Mascota",
+                "recovery_answer": "Luna",
+                "email": "new@example.com",
+            },
+        )
+
+        conn = sqlite3.connect(client.application.config["DB_PATH"])
+        pending = conn.execute(
+            "SELECT value FROM config WHERE key = 'license_marketing_pending_cleanup_emails'"
+        ).fetchone()
+        conn.close()
+        self.assertEqual(pending[0], '["old@example.com", "new@example.com"]')
+
+    @patch("routes.sync_marketing_preference", return_value=False)
     def test_marketing_preference_false_persists_after_get(self, _mock_sync):
         client = self._make_client(
             {
@@ -924,7 +1021,71 @@ class ActivatePageTests(unittest.TestCase):
             [False, True],
         )
 
-    @patch("routes.sync_marketing_preference", side_effect=[False, False, True])
+    @patch("routes.sync_marketing_preference", side_effect=[True, False, True])
+    def test_marketing_pending_cleanup_stops_after_first_failure(self, mock_sync):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+                "license_owner_email": "current@example.com",
+                "license_marketing_opt_in": "1",
+                "license_marketing_pending_cleanup_emails": (
+                    '["a@example.com", "b@example.com", "c@example.com"]'
+                ),
+            }
+        )
+
+        client.post(
+            "/activate",
+            data={
+                "action": "save_marketing_preference",
+                "marketing_email": "current@example.com",
+                "marketing_opt_in": "1",
+            },
+        )
+
+        self.assertEqual(
+            [call.kwargs["email"] for call in mock_sync.call_args_list],
+            ["a@example.com", "b@example.com", "current@example.com"],
+        )
+        conn = sqlite3.connect(client.application.config["DB_PATH"])
+        pending = conn.execute(
+            "SELECT value FROM config WHERE key = 'license_marketing_pending_cleanup_emails'"
+        ).fetchone()
+        conn.close()
+        self.assertEqual(pending[0], '["b@example.com", "c@example.com"]')
+
+    @patch("routes.sync_marketing_preference", side_effect=[False, True])
+    def test_marketing_current_preference_runs_after_first_pending_failure(self, mock_sync):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+                "license_owner_email": "current@example.com",
+                "license_marketing_opt_in": "1",
+                "license_marketing_pending_cleanup_emails": (
+                    '["a@example.com", "b@example.com", "c@example.com"]'
+                ),
+            }
+        )
+
+        client.post(
+            "/activate",
+            data={
+                "action": "save_marketing_preference",
+                "marketing_email": "current@example.com",
+                "marketing_opt_in": "1",
+            },
+        )
+
+        self.assertEqual(
+            [call.kwargs["email"] for call in mock_sync.call_args_list],
+            ["a@example.com", "current@example.com"],
+        )
+
+    @patch("routes.sync_marketing_preference", side_effect=[False, True])
     def test_marketing_opt_in_cancels_only_its_own_pending_opt_out(self, _mock_sync):
         client = self._make_client(
             {
