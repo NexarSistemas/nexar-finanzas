@@ -410,7 +410,7 @@ def _load_activate_checkout_config(db_path: str) -> dict[str, str]:
         "SELECT key, value FROM config WHERE key IN "
         "('license_activated_at','license_type','license_expires_at',"
         "'license_tier','license_key','license_plan','basica_activada',"
-        "'license_owner_email','license_marketing_opt_in',"
+        "'license_owner_email','license_marketing_opt_in','license_marketing_pending_cleanup_email',"
         "'pending_checkout_activation_id','pending_checkout_plan',"
         "'pending_checkout_request_type','pending_checkout_external_reference',"
         "'pending_checkout_started_at')"
@@ -1996,6 +1996,9 @@ def register_routes(app):
                 cfg = _load_activate_checkout_config(db_path)
                 previous_email = cfg.get('license_owner_email', '').strip().lower()
                 previous_marketing_opt_in = cfg.get('license_marketing_opt_in', '0') == '1'
+                pending_cleanup_email = cfg.get(
+                    'license_marketing_pending_cleanup_email', ''
+                ).strip().lower()
                 if 'marketing_email' in request.form:
                     email = request.form.get('marketing_email', '').strip().lower()
                 else:
@@ -2013,17 +2016,35 @@ def register_routes(app):
                 )
                 marketing_synced = True
                 sync_attempted = False
+                if pending_cleanup_email:
+                    sync_attempted = True
+                    if sync_marketing_preference(
+                        email=pending_cleanup_email,
+                        marketing_opt_in=False,
+                        producto=get_license_product(),
+                        activation_id=activation_id,
+                    ):
+                        pending_cleanup_email = ''
+                    else:
+                        marketing_synced = False
                 if cleanup_required:
                     sync_attempted = True
-                    marketing_synced = sync_marketing_preference(
+                    previous_cleanup_synced = sync_marketing_preference(
                         email=previous_email,
                         marketing_opt_in=False,
                         producto=get_license_product(),
                         activation_id=activation_id,
                     )
+                    marketing_synced = marketing_synced and previous_cleanup_synced
+                    if previous_cleanup_synced:
+                        if pending_cleanup_email == previous_email:
+                            pending_cleanup_email = ''
+                    elif not pending_cleanup_email:
+                        pending_cleanup_email = previous_email
                 _set_config_values({
                     'license_owner_email': email,
                     'license_marketing_opt_in': '1' if marketing_opt_in else '0',
+                    'license_marketing_pending_cleanup_email': pending_cleanup_email,
                 }, db_path=db_path)
                 if email:
                     sync_attempted = True

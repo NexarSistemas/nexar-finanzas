@@ -512,6 +512,155 @@ class ActivatePageTests(unittest.TestCase):
         conn.close()
         self.assertEqual(values["license_owner_email"], "new@example.com")
 
+    @patch("routes.sync_marketing_preference", side_effect=[False, True])
+    def test_marketing_cleanup_failure_keeps_previous_email_pending(self, mock_sync):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+                "license_owner_email": "old@example.com",
+                "license_marketing_opt_in": "1",
+            }
+        )
+
+        client.post(
+            "/activate",
+            data={
+                "action": "save_marketing_preference",
+                "marketing_email": "new@example.com",
+                "marketing_opt_in": "1",
+            },
+        )
+
+        conn = sqlite3.connect(client.application.config["DB_PATH"])
+        values = dict(conn.execute("SELECT key, value FROM config").fetchall())
+        conn.close()
+        self.assertEqual(values["license_owner_email"], "new@example.com")
+        self.assertEqual(values["license_marketing_pending_cleanup_email"], "old@example.com")
+        page = client.get("/activate")
+        self.assertIn(
+            "Preferencia guardada localmente, pero no pudo sincronizarse",
+            page.get_data(as_text=True),
+        )
+
+    @patch("routes.sync_marketing_preference", side_effect=[True, True])
+    def test_marketing_pending_cleanup_retries_before_current_preference(self, mock_sync):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+                "license_owner_email": "new@example.com",
+                "license_marketing_opt_in": "1",
+                "license_marketing_pending_cleanup_email": "old@example.com",
+            }
+        )
+
+        client.post(
+            "/activate",
+            data={
+                "action": "save_marketing_preference",
+                "marketing_email": "new@example.com",
+                "marketing_opt_in": "1",
+            },
+        )
+
+        self.assertEqual(mock_sync.call_count, 2)
+        self.assertEqual(mock_sync.call_args_list[0].kwargs["email"], "old@example.com")
+        self.assertFalse(mock_sync.call_args_list[0].kwargs["marketing_opt_in"])
+        self.assertEqual(mock_sync.call_args_list[1].kwargs["email"], "new@example.com")
+        conn = sqlite3.connect(client.application.config["DB_PATH"])
+        values = dict(conn.execute("SELECT key, value FROM config").fetchall())
+        conn.close()
+        self.assertEqual(values["license_marketing_pending_cleanup_email"], "")
+
+    @patch("routes.sync_marketing_preference", side_effect=[False, True])
+    def test_marketing_pending_cleanup_failure_is_retained(self, mock_sync):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+                "license_owner_email": "new@example.com",
+                "license_marketing_opt_in": "1",
+                "license_marketing_pending_cleanup_email": "old@example.com",
+            }
+        )
+
+        client.post(
+            "/activate",
+            data={
+                "action": "save_marketing_preference",
+                "marketing_email": "new@example.com",
+                "marketing_opt_in": "1",
+            },
+        )
+
+        conn = sqlite3.connect(client.application.config["DB_PATH"])
+        pending = conn.execute(
+            "SELECT value FROM config WHERE key = 'license_marketing_pending_cleanup_email'"
+        ).fetchone()
+        conn.close()
+        self.assertEqual(pending[0], "old@example.com")
+
+    @patch("routes.sync_marketing_preference", return_value=False)
+    def test_marketing_clear_keeps_failed_cleanup_pending(self, _mock_sync):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+                "license_owner_email": "old@example.com",
+                "license_marketing_opt_in": "1",
+            }
+        )
+
+        client.post(
+            "/activate",
+            data={"action": "save_marketing_preference", "marketing_email": ""},
+        )
+
+        conn = sqlite3.connect(client.application.config["DB_PATH"])
+        values = dict(conn.execute("SELECT key, value FROM config").fetchall())
+        conn.close()
+        self.assertEqual(values["license_owner_email"], "")
+        self.assertEqual(values["license_marketing_pending_cleanup_email"], "old@example.com")
+
+    @patch("routes.sync_marketing_preference", return_value=True)
+    def test_marketing_successful_cleanup_is_not_repeated(self, mock_sync):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+                "license_owner_email": "old@example.com",
+                "license_marketing_opt_in": "1",
+            }
+        )
+
+        client.post(
+            "/activate",
+            data={
+                "action": "save_marketing_preference",
+                "marketing_email": "new@example.com",
+                "marketing_opt_in": "1",
+            },
+        )
+        mock_sync.reset_mock()
+        client.post(
+            "/activate",
+            data={
+                "action": "save_marketing_preference",
+                "marketing_email": "new@example.com",
+                "marketing_opt_in": "1",
+            },
+        )
+
+        mock_sync.assert_called_once()
+        self.assertEqual(mock_sync.call_args.kwargs["email"], "new@example.com")
+        self.assertTrue(mock_sync.call_args.kwargs["marketing_opt_in"])
+
     def test_marketing_preference_is_loaded_from_existing_config(self):
         client = self._make_client(
             {
