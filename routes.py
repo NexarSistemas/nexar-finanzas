@@ -7,6 +7,7 @@ Maneja autenticación, transacciones, cuentas, presupuestos, inversiones y repor
 import os
 import sys
 import io
+import json
 import re
 import shutil
 import subprocess
@@ -113,6 +114,29 @@ def marketing_email_error(email: str, marketing_opt_in: bool) -> str:
     if not re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', (email or '').strip()):
         return 'Ingresá un email válido para recibir ofertas y novedades.'
     return ''
+
+
+def normalize_marketing_pending_cleanup_emails(*raw_values: str) -> list[str]:
+    emails: list[str] = []
+    for raw_value in raw_values:
+        if not raw_value:
+            continue
+        try:
+            values = json.loads(raw_value)
+        except (TypeError, ValueError):
+            values = [raw_value]
+        if not isinstance(values, list):
+            continue
+        for value in values:
+            email = str(value or '').strip().lower()
+            if (
+                email
+                and re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', email)
+                and len(email) <= 254
+                and email not in emails
+            ):
+                emails.append(email)
+    return emails
 
 
 def login_required(f):
@@ -410,7 +434,8 @@ def _load_activate_checkout_config(db_path: str) -> dict[str, str]:
         "SELECT key, value FROM config WHERE key IN "
         "('license_activated_at','license_type','license_expires_at',"
         "'license_tier','license_key','license_plan','basica_activada',"
-        "'license_owner_email','license_marketing_opt_in','license_marketing_pending_cleanup_email',"
+        "'license_owner_email','license_marketing_opt_in',"
+        "'license_marketing_pending_cleanup_email','license_marketing_pending_cleanup_emails',"
         "'pending_checkout_activation_id','pending_checkout_plan',"
         "'pending_checkout_request_type','pending_checkout_external_reference',"
         "'pending_checkout_started_at')"
@@ -1996,9 +2021,10 @@ def register_routes(app):
                 cfg = _load_activate_checkout_config(db_path)
                 previous_email = cfg.get('license_owner_email', '').strip().lower()
                 previous_marketing_opt_in = cfg.get('license_marketing_opt_in', '0') == '1'
-                pending_cleanup_email = cfg.get(
-                    'license_marketing_pending_cleanup_email', ''
-                ).strip().lower()
+                pending_cleanup_emails = normalize_marketing_pending_cleanup_emails(
+                    cfg.get('license_marketing_pending_cleanup_emails', ''),
+                    cfg.get('license_marketing_pending_cleanup_email', ''),
+                )
                 if 'marketing_email' in request.form:
                     email = request.form.get('marketing_email', '').strip().lower()
                 else:
@@ -2013,10 +2039,12 @@ def register_routes(app):
                     bool(previous_email)
                     and previous_marketing_opt_in
                     and previous_email != email
+                    and previous_email not in pending_cleanup_emails
                 )
                 marketing_synced = True
                 sync_attempted = False
-                if pending_cleanup_email:
+                remaining_pending_cleanup_emails = []
+                for pending_cleanup_email in pending_cleanup_emails:
                     sync_attempted = True
                     if sync_marketing_preference(
                         email=pending_cleanup_email,
@@ -2024,8 +2052,9 @@ def register_routes(app):
                         producto=get_license_product(),
                         activation_id=activation_id,
                     ):
-                        pending_cleanup_email = ''
+                        continue
                     else:
+                        remaining_pending_cleanup_emails.append(pending_cleanup_email)
                         marketing_synced = False
                 if cleanup_required:
                     sync_attempted = True
@@ -2036,15 +2065,15 @@ def register_routes(app):
                         activation_id=activation_id,
                     )
                     marketing_synced = marketing_synced and previous_cleanup_synced
-                    if previous_cleanup_synced:
-                        if pending_cleanup_email == previous_email:
-                            pending_cleanup_email = ''
-                    elif not pending_cleanup_email:
-                        pending_cleanup_email = previous_email
+                    if not previous_cleanup_synced:
+                        remaining_pending_cleanup_emails.append(previous_email)
                 _set_config_values({
                     'license_owner_email': email,
                     'license_marketing_opt_in': '1' if marketing_opt_in else '0',
-                    'license_marketing_pending_cleanup_email': pending_cleanup_email,
+                    'license_marketing_pending_cleanup_email': '',
+                    'license_marketing_pending_cleanup_emails': json.dumps(
+                        remaining_pending_cleanup_emails
+                    ),
                 }, db_path=db_path)
                 if email:
                     sync_attempted = True
@@ -2055,6 +2084,7 @@ def register_routes(app):
                         activation_id=activation_id,
                     )
                     marketing_synced = marketing_synced and current_marketing_synced
+                marketing_synced = marketing_synced and not remaining_pending_cleanup_emails
                 if sync_attempted and marketing_synced:
                     flash('Preferencia de comunicaciones guardada y sincronizada.', 'success')
                 else:

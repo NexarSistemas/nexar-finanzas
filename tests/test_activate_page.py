@@ -537,7 +537,9 @@ class ActivatePageTests(unittest.TestCase):
         values = dict(conn.execute("SELECT key, value FROM config").fetchall())
         conn.close()
         self.assertEqual(values["license_owner_email"], "new@example.com")
-        self.assertEqual(values["license_marketing_pending_cleanup_email"], "old@example.com")
+        self.assertEqual(
+            values["license_marketing_pending_cleanup_emails"], '["old@example.com"]'
+        )
         page = client.get("/activate")
         self.assertIn(
             "Preferencia guardada localmente, pero no pudo sincronizarse",
@@ -574,6 +576,7 @@ class ActivatePageTests(unittest.TestCase):
         values = dict(conn.execute("SELECT key, value FROM config").fetchall())
         conn.close()
         self.assertEqual(values["license_marketing_pending_cleanup_email"], "")
+        self.assertEqual(values["license_marketing_pending_cleanup_emails"], "[]")
 
     @patch("routes.sync_marketing_preference", side_effect=[False, True])
     def test_marketing_pending_cleanup_failure_is_retained(self, mock_sync):
@@ -599,10 +602,10 @@ class ActivatePageTests(unittest.TestCase):
 
         conn = sqlite3.connect(client.application.config["DB_PATH"])
         pending = conn.execute(
-            "SELECT value FROM config WHERE key = 'license_marketing_pending_cleanup_email'"
+            "SELECT value FROM config WHERE key = 'license_marketing_pending_cleanup_emails'"
         ).fetchone()
         conn.close()
-        self.assertEqual(pending[0], "old@example.com")
+        self.assertEqual(pending[0], '["old@example.com"]')
 
     @patch("routes.sync_marketing_preference", return_value=False)
     def test_marketing_clear_keeps_failed_cleanup_pending(self, _mock_sync):
@@ -625,7 +628,141 @@ class ActivatePageTests(unittest.TestCase):
         values = dict(conn.execute("SELECT key, value FROM config").fetchall())
         conn.close()
         self.assertEqual(values["license_owner_email"], "")
-        self.assertEqual(values["license_marketing_pending_cleanup_email"], "old@example.com")
+        self.assertEqual(
+            values["license_marketing_pending_cleanup_emails"], '["old@example.com"]'
+        )
+
+    @patch("routes.sync_marketing_preference", side_effect=[False, False, True])
+    def test_marketing_multiple_failed_cleanups_are_all_retained(self, mock_sync):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+                "license_owner_email": "b@example.com",
+                "license_marketing_opt_in": "1",
+                "license_marketing_pending_cleanup_emails": '["a@example.com"]',
+            }
+        )
+
+        client.post(
+            "/activate",
+            data={
+                "action": "save_marketing_preference",
+                "marketing_email": "c@example.com",
+                "marketing_opt_in": "1",
+            },
+        )
+
+        self.assertEqual(
+            [call.kwargs["email"] for call in mock_sync.call_args_list],
+            ["a@example.com", "b@example.com", "c@example.com"],
+        )
+        conn = sqlite3.connect(client.application.config["DB_PATH"])
+        values = dict(conn.execute("SELECT key, value FROM config").fetchall())
+        conn.close()
+        self.assertEqual(
+            values["license_marketing_pending_cleanup_emails"],
+            '["a@example.com", "b@example.com"]',
+        )
+
+    @patch("routes.sync_marketing_preference", side_effect=[True, False, True])
+    def test_marketing_pending_cleanups_are_removed_individually(self, mock_sync):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+                "license_owner_email": "c@example.com",
+                "license_marketing_opt_in": "1",
+                "license_marketing_pending_cleanup_emails": '["a@example.com", "b@example.com"]',
+            }
+        )
+
+        client.post(
+            "/activate",
+            data={
+                "action": "save_marketing_preference",
+                "marketing_email": "c@example.com",
+                "marketing_opt_in": "1",
+            },
+        )
+
+        self.assertEqual(
+            [call.kwargs["email"] for call in mock_sync.call_args_list],
+            ["a@example.com", "b@example.com", "c@example.com"],
+        )
+        conn = sqlite3.connect(client.application.config["DB_PATH"])
+        values = dict(conn.execute("SELECT key, value FROM config").fetchall())
+        conn.close()
+        self.assertEqual(values["license_marketing_pending_cleanup_emails"], '["b@example.com"]')
+        page = client.get("/activate")
+        self.assertIn(
+            "Preferencia guardada localmente, pero no pudo sincronizarse",
+            page.get_data(as_text=True),
+        )
+
+    @patch("routes.sync_marketing_preference", side_effect=[True, True, True])
+    def test_marketing_all_pending_cleanups_can_complete(self, _mock_sync):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+                "license_owner_email": "c@example.com",
+                "license_marketing_opt_in": "1",
+                "license_marketing_pending_cleanup_emails": '["a@example.com", "b@example.com"]',
+            }
+        )
+
+        client.post(
+            "/activate",
+            data={
+                "action": "save_marketing_preference",
+                "marketing_email": "c@example.com",
+                "marketing_opt_in": "1",
+            },
+        )
+
+        conn = sqlite3.connect(client.application.config["DB_PATH"])
+        pending = conn.execute(
+            "SELECT value FROM config WHERE key = 'license_marketing_pending_cleanup_emails'"
+        ).fetchone()
+        conn.close()
+        self.assertEqual(pending[0], "[]")
+
+    @patch("routes.sync_marketing_preference", side_effect=[False, True])
+    def test_marketing_pending_cleanup_normalizes_duplicates_and_legacy_value(self, mock_sync):
+        client = self._make_client(
+            {
+                "license_tier": "DEMO",
+                "license_plan": "DEMO",
+                "demo_install_date": str(date.today()),
+                "license_owner_email": "b@example.com",
+                "license_marketing_opt_in": "1",
+                "license_marketing_pending_cleanup_emails": '["A@example.com", "a@example.com"]',
+                "license_marketing_pending_cleanup_email": "a@example.com",
+            }
+        )
+
+        client.post(
+            "/activate",
+            data={
+                "action": "save_marketing_preference",
+                "marketing_email": "b@example.com",
+                "marketing_opt_in": "1",
+            },
+        )
+
+        self.assertEqual(
+            [call.kwargs["email"] for call in mock_sync.call_args_list],
+            ["a@example.com", "b@example.com"],
+        )
+        conn = sqlite3.connect(client.application.config["DB_PATH"])
+        values = dict(conn.execute("SELECT key, value FROM config").fetchall())
+        conn.close()
+        self.assertEqual(values["license_marketing_pending_cleanup_email"], "")
+        self.assertEqual(values["license_marketing_pending_cleanup_emails"], '["a@example.com"]')
 
     @patch("routes.sync_marketing_preference", return_value=True)
     def test_marketing_successful_cleanup_is_not_repeated(self, mock_sync):
