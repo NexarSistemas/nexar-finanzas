@@ -7,9 +7,20 @@ Se utiliza [Versionado Semántico](https://semver.org/lang/es/).
 ---
 ## [Unreleased]
 
+## [1.15.0] - 2026-08-12
+
 ### Agregado
 - Preferencia independiente para recibir ofertas y novedades, disponible desde
-  la configuración inicial y Mi plan sin crear solicitudes de licencia.
+  la activación/configuración inicial y Mi plan para usuarios existentes.
+- Sincronización de la preferencia con el backend compartido mediante
+  confirmación por email.
+
+### Corregido
+- El estado `DEMO` no genera solicitudes de licencia incorrectas al guardar la
+  preferencia de novedades.
+
+### Sin cambios funcionales
+- No cambian las licencias existentes ni los flujos comerciales vigentes.
 
 ## [1.14.0] - 2026-08-08
 
